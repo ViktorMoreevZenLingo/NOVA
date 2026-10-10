@@ -8,6 +8,7 @@ export async function runTool(
   name: string,
   args: Args,
   timezone = "Europe/Sofia",
+  signal?: AbortSignal,
 ) {
   validateArgs(name, args);
   const service = SERVICES[name];
@@ -19,7 +20,7 @@ export async function runTool(
   if (configuration.some((key) => !Deno.env.get(key))) {
     throw new HttpError(
       409,
-      `${service} is not configured on Alo. Ask the administrator to configure this integration, then continue.`,
+      `${service} is not configured on NOVA AI. Ask the administrator to configure this integration, then continue.`,
     );
   }
 
@@ -28,7 +29,7 @@ export async function runTool(
       .eq("service", SERVICES[name]).maybeSingle(),
   ).data;
   if (!connected) {
-    throw new HttpError(409, `Connect ${SERVICES[name]} in Alo to continue.`);
+    throw new HttpError(409, `Connect ${SERVICES[name]} in NOVA AI to continue.`);
   }
   if (name === "create_email_draft") {
     const token = await accessToken(userId, "gmail");
@@ -63,5 +64,5 @@ export async function runTool(
     if (!response.ok) throw new HttpError(502, "Could not save the draft.");
     return response.json();
   }
-  return execute(userId, name, args, timezone);
+  return execute(userId, name, args, timezone, signal);
 }

@@ -60,7 +60,7 @@ export function Dashboard({
     <div className={`dashboard ${view === "history" ? "history-shell" : ""}`}>
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <Brand label={lang === "bg" ? "ало" : "alo"} />
+          <Brand label="NOVA AI" />
         </div>
         <nav aria-label={l("Основна навигация", "Main navigation")}>
           {navItems.map((item) => (
@@ -111,7 +111,7 @@ export function Dashboard({
 
         <main className={`dashboard-content ${contentClass} enter`}>{children}</main>
 
-        <footer className="dashboard-footer">© 2026 {lang === "bg" ? "Ало" : "Alo"}</footer>
+        <footer className="dashboard-footer">© 2026 NOVA AI</footer>
       </div>
     </div>
   );

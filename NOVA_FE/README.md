@@ -1,4 +1,4 @@
-# Alo — Supabase branch
+# NOVA AI — Supabase branch
 
 The React frontend in `NOVA_FE` uses Supabase Auth, Postgres and Edge Functions.
 `NOVA_BE` is retained as a reference; this branch no longer calls Spring.
@@ -31,7 +31,7 @@ verified provider callbacks. History has no fabricated records: it reads the
 that table; Vapi webhooks are not part of this migration.
 
 Google services use separate incremental consent flows. Outlook uses Microsoft
-consent. Places uses Alo's server API key and does not require Google user OAuth.
+consent. Places uses NOVA AI's server API key and does not require Google user OAuth.
 The assistant supports Google email/calendar/contacts, read-only Outlook, and
 Places searches. Email sends/calendar creation require explicit approval tied
 to a server-stored action ID. Ambiguous external-write failures are not retried.

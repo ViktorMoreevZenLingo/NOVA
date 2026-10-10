@@ -1,6 +1,6 @@
 import { env } from "../_shared/http.ts";
 import { hasBearer } from "../_shared/delegation/crypto.ts";
-import { createManusClient } from "../_shared/delegation/manus.ts";
+import { createManusClient, lazyManusClient } from "../_shared/delegation/manus.ts";
 import { createStore } from "../_shared/delegation/store.ts";
 import { runTool } from "../_shared/delegation/providers.ts";
 import { processTask } from "../_shared/delegation/worker.ts";
@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       });
     }
     const store = createStore();
-    const manus = createManusClient(env("MANUS_API_KEY"));
+    const manus = lazyManusClient(() => createManusClient(env("MANUS_API_KEY")));
     if (body.action === "inspect_task" && typeof body.task_id === "string") {
       const inspected = await store.get(body.task_id);
       if (!inspected?.manus_task_id) {

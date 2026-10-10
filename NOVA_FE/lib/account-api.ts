@@ -10,7 +10,7 @@ export interface ChatSession {
   messages: { role: "user" | "alo"; text: string }[];
 }
 
-/** Archived Alo conversations for the History page, newest first. */
+/** Archived NOVA AI conversations for the History page, newest first. */
 export async function loadChatSessions(): Promise<ChatSession[]> {
   const sb = getSupabase();
   const { data, error } = await sb
@@ -22,20 +22,50 @@ export async function loadChatSessions(): Promise<ChatSession[]> {
   return (data || []) as ChatSession[];
 }
 
-// Phone is profile context only during the prototype. Never use it to find or
-// authorize another account. Supabase's anonymous session supplies the owner ID.
-export async function startAccount(phone: string) {
-  if (!/^[89]\d{8}$/.test(phone)) throw new Error("Enter a valid Bulgarian mobile number.");
-  const sb = getSupabase();
-  const { data: { session }, error: sessionError } = await sb.auth.getSession();
-  if (sessionError) throw sessionError;
-  if (session) return;
-  const { error } = await sb.auth.signInAnonymously({
-    options: { data: { contact_phone: `+359${phone}` } },
-  });
+type AccountSession = { session: { access_token: string; refresh_token: string }; phone: string; device_key: string };
+let restored: Promise<void> | undefined;
+const deviceKey = (phone: string) => `alo.device.${phone}`;
+async function acceptSession(result: AccountSession) {
+  const { error } = await getSupabase().auth.setSession(result.session);
   if (error) throw error;
+  localStorage.setItem(deviceKey(result.phone), result.device_key);
+}
+async function restoreAccount() {
+  const sb = getSupabase();
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const key = fragment.get("alo_access");
+  if (key) {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    await acceptSession(await invoke<AccountSession>("account-session", { action: "redeem", key }));
+    return;
+  }
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await acceptSession(await invoke<AccountSession>("account-session", { action: "resume" }));
+}
+// Restore only once per page load, not on every dashboard refresh.
+function ensureAccount() {
+  return restored ??= restoreAccount().catch(error => { restored = undefined; throw error; });
+}
+export async function startAccount(phone: string, mode: "login" | "signup" = "login") {
+  if (!/^[89]\d{8}$/.test(phone)) throw new Error("Въведи валиден български мобилен номер.");
+  const full = `+359${phone}`, sb = getSupabase();
+  const key = localStorage.getItem(deviceKey(full));
+  if (key) {
+    await acceptSession(await invoke<AccountSession>("account-session", { action: "redeem", key, phone: full }));
+    restored = Promise.resolve();
+    return;
+  }
+  if (mode !== "signup") throw new Error("Отвори личния си линк за вход на този браузър. Нов потребител? Избери Регистрация.");
+  const { error } = await sb.auth.signInAnonymously({ options: { data: { contact_phone: full } } });
+  if (error) throw new Error("Регистрацията не е завършена. Ако вече имаш акаунт с този номер, използвай личния си линк за вход.");
+  await acceptSession(await invoke<AccountSession>("account-session", { action: "resume" }));
+  restored = Promise.resolve();
+}
+export async function createAccessLink() {
+  return (await invoke<{url: string}>("account-session", {action: "link"})).url;
 }
 export async function loadAccount() {
+  await ensureAccount();
   const sb = getSupabase();
   const {
     data: { session },
@@ -89,10 +119,12 @@ export async function updateProfile(profile: Profile) {
   if (saveError) throw saveError;
 }
 export async function signOut() {
+  restored = Promise.resolve();
   const { error } = await getSupabase().auth.signOut();
   if (error) throw error;
 }
 export async function deleteAccount(phone: string) {
+  localStorage.removeItem(deviceKey(`+359${phone}`));
   await invoke("account-delete", { phone: `+359${phone}` });
   await getSupabase().auth.signOut({ scope: "local" });
 }

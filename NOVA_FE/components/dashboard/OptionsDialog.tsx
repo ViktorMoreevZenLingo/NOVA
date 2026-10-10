@@ -8,10 +8,11 @@ interface OptionsDialogProps {
   onClose: () => void;
   onEditProfile: () => void;
   onLogout: () => void;
+  onAccessLink: () => void;
   onDelete: () => void;
 }
 
-export function OptionsDialog({ onClose, onEditProfile, onLogout, onDelete }: OptionsDialogProps) {
+export function OptionsDialog({ onClose, onEditProfile, onLogout, onDelete, onAccessLink }: OptionsDialogProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   return (
@@ -21,6 +22,10 @@ export function OptionsDialog({ onClose, onEditProfile, onLogout, onDelete }: Op
           <Icon name="contacts" />
           {l("Редактирай профила", "Edit Profile")}
           <Icon name="chevron" />
+        </button>
+        <button onClick={onAccessLink}>
+          <Icon name="contacts" />
+          {l("Копирай личен линк за вход", "Copy personal sign-in link")}
         </button>
         <button onClick={onLogout}>
           <Icon name="out" />

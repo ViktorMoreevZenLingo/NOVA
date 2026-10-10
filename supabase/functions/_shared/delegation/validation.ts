@@ -5,6 +5,7 @@ export const SERVICES: Record<string, string> = {
   list_recent_emails: "gmail",
   search_emails: "gmail",
   get_email: "gmail",
+  get_latest_email: "gmail",
   send_email: "gmail",
   create_email_draft: "gmail",
   list_calendar_events: "calendar",
@@ -24,6 +25,7 @@ const keys: Record<string, string[]> = {
   list_recent_emails: ["hours", "max"],
   search_emails: ["query", "max"],
   get_email: ["id"],
+  get_latest_email: [],
   send_email: ["to", "cc", "subject", "body"],
   create_email_draft: ["to", "cc", "subject", "body"],
   list_calendar_events: ["from", "to", "days_ahead", "max"],
@@ -231,7 +233,14 @@ export function validateSubmission(input: unknown, now = Date.now()) {
     }
     prepared_action = { tool, args: validateArgs(tool, action.args) };
   }
+  let delegation;
+  if (d.delegation !== undefined) {
+    const supplied = object(d.delegation);
+    if (supplied.requested !== true) throw new HttpError(400, "Explicit delegation is required.");
+    delegation = { requested: true, request: text(supplied.request, 4000) };
+  }
   return {
+    ...(delegation ? { delegation } : {}),
     ...(prepared_action ? { prepared_action } : {}),
     ...(initial_read ? { initial_read } : {}),
     ...(required.length ? { required_tools: required } : {}),

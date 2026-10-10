@@ -161,12 +161,12 @@ export function History({ records, selected, onSelect, onTaskUpdated }: HistoryP
         id="history-results"
         tabIndex={0}
         role="region"
-        aria-label={isChatTab ? l("Разговори с Ало", "Alo chats") : l("Записи в историята", "History records")}
+        aria-label={isChatTab ? l("Разговори с NOVA AI", "NOVA AI chats") : l("Записи в историята", "History records")}
       >
         {isChatTab ? (
           visibleChats.length === 0 ? (
             <p className="history-empty">
-              {l("Все още няма разговори с Ало.", "No Alo chats yet.")}
+              {l("Все още няма разговори с NOVA AI.", "No NOVA AI chats yet.")}
             </p>
           ) : (
             visibleChats.map((entry) => {
@@ -174,7 +174,7 @@ export function History({ records, selected, onSelect, onTaskUpdated }: HistoryP
               const title = entry.title ||
                 (entry.id === "current"
                   ? l("Текущ разговор", "Current chat")
-                  : l("Разговор с Ало", "Chat with Alo"));
+                  : l("Разговор с NOVA AI", "Chat with NOVA AI"));
               return (
                 <div key={entry.id} className="history-chat-item">
                   <button
@@ -209,7 +209,7 @@ export function History({ records, selected, onSelect, onTaskUpdated }: HistoryP
                         >
                           <p className="chat-bubble">{m.text}</p>
                           <span className="chat-caption">
-                            {m.role === "user" ? l("Ти", "You") : l("Ало", "Alo")}
+                            {m.role === "user" ? l("Ти", "You") : "NOVA AI"}
                           </span>
                         </div>
                       ))}

@@ -9,11 +9,11 @@ const SPOKEN_STATUS: Record<AgentTask["status"], string> = {
   pending: "is being started",
   submitted: "is still in progress",
   submit_failed: "hasn't started yet; it will be retried automatically",
-  completed: "is complete; the result is in the Alo app's History",
-  needs_input: "is paused because the agent needs more information; details are in the Alo app's History",
+  completed: "is complete; the result is in the NOVA AI app's History",
+  needs_input: "is paused because the agent needs more information; details are in the NOVA AI app's History",
   failed: "could not be completed",
   awaiting_approval:
-    "is ready and waiting for the caller's approval; nothing has been sent yet. Offer to read it to them now and confirm (decide_action), or they can approve it in the Alo app",
+    "is ready and waiting for the caller's approval; nothing has been sent yet. Offer to read it to them now and confirm (decide_action), or they can approve it in the NOVA AI app",
   sending: "was approved and is being sent right now",
   rejected: "was rejected in the app; nothing was sent",
 };

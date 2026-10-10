@@ -304,7 +304,7 @@ export function ProfileForm({
 
       <div className="profile-field">
         <label htmlFor="profile-notes">
-          {l("Какво да знае Ало за теб", "What should Alo know about you")}
+          {l("Какво да знае NOVA AI за теб", "What should NOVA AI know about you")}
         </label>
         <textarea
           id="profile-notes"
@@ -343,8 +343,8 @@ export function ProfileForm({
         />
         <p>
           {l(
-            "2. Постави JSON отговора тук. Прегледай го и премахни всичко, което не искаш да споделяш с Ало.",
-            "2. Paste the JSON response here. Review it and remove anything you do not want to share with Alo.",
+            "2. Постави JSON отговора тук. Прегледай го и премахни всичко, което не искаш да споделяш с NOVA AI.",
+            "2. Paste the JSON response here. Review it and remove anything you do not want to share with NOVA AI.",
           )}
         </p>
         <label htmlFor="context-json">

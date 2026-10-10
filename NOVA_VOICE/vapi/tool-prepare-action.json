@@ -1,0 +1,95 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "prepare_action",
+    "description": "Prepare an exact email send or calendar event without Manus. Use for dictated or briefly composed emails/events, including after-call or scheduled actions. Nothing executes before exact read-back and approval through decide_action.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "string",
+          "enum": [
+            "send_email",
+            "create_calendar_event"
+          ]
+        },
+        "instruction": {
+          "type": "string",
+          "description": "The caller's request in one or two sentences (for reply_email: what the reply should say)."
+        },
+        "to": {
+          "type": "string",
+          "description": "send_email: exact recipient email address, reused from the requested message or unambiguous contact when available. Only ask to spell it if unknown or unclear."
+        },
+        "subject": {
+          "type": "string",
+          "description": "send_email: subject line."
+        },
+        "body": {
+          "type": "string",
+          "description": "send_email: the email text."
+        },
+        "title": {
+          "type": "string",
+          "description": "create_calendar_event: event title."
+        },
+        "start": {
+          "type": "string",
+          "description": "create_calendar_event: ISO start time with timezone offset, e.g. 2026-10-12T17:00:00+03:00."
+        },
+        "end": {
+          "type": "string",
+          "description": "create_calendar_event: ISO end time with timezone offset."
+        },
+        "attendees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "create_calendar_event: optional guest email addresses."
+        },
+        "start_mode": {
+          "type": "string",
+          "enum": [
+            "now",
+            "after_call",
+            "scheduled"
+          ],
+          "description": "now by default; after_call only when caller wants execution after hang-up; scheduled is one-off."
+        },
+        "run_at": {
+          "type": "string",
+          "description": "Required for scheduled. ISO timestamp with explicit UTC offset; ask to clarify ambiguous dates and DST times."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone, default Europe/Sofia."
+        },
+        "delivery_channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "email",
+              "callback",
+              "sms"
+            ]
+          },
+          "description": "Only channels explicitly requested. Email means the connected Gmail account itself. History is always included."
+        }
+      },
+      "required": [
+        "intent",
+        "instruction"
+      ]
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/voice-tools",
+    "timeoutSeconds": 30,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
+  }
+}

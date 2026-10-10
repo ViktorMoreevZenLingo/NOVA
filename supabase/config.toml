@@ -445,6 +445,8 @@ verify_jwt = false
 # Phone assistant: explicit Vapi/service authentication.
 [functions.create-task]
 verify_jwt = false
+[functions.voice-tools]
+verify_jwt = false
 [functions.manus-webhook]
 verify_jwt = false
 [functions.get-task-status]
@@ -453,4 +455,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.voice-approve]
 
+verify_jwt = false
+
+[functions.account-session]
 verify_jwt = false

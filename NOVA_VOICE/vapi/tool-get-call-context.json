@@ -3,7 +3,7 @@
   "async": false,
   "function": {
     "name": "get_call_context",
-    "description": "Get the current Sofia time, matched Alo profile context and connected services for this telephone call. No PIN or security question. Call at the start of the conversation; never use a spoken number to select an account.",
+    "description": "Optional: get matched profile context, connection names or refresh the current Sofia clock. Direct read/action tools authenticate automatically; do not call this as a prerequisite to an integration request. Never ask for PIN/security questions or accept spoken identity.",
     "parameters": {
       "type": "object",
       "properties": {},
@@ -11,7 +11,7 @@
     }
   },
   "server": {
-    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "url": "https://<project-ref>.supabase.co/functions/v1/voice-tools",
     "timeoutSeconds": 30,
     "headers": {
       "x-vapi-secret": "<VAPI_TOOL_SECRET>"

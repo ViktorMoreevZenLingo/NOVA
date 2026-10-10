@@ -9,7 +9,7 @@ function TranscriptBody({ record, kind }: { record: HistoryRecord; kind: "call" 
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   const you = l("Ти", "You");
-  const alo = l("Ало", "Alo");
+  const alo = "NOVA AI";
 
   if (kind === "sms") {
     return (

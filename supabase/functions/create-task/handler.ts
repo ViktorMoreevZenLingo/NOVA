@@ -86,14 +86,14 @@ export function createTaskHandler(deps: CreateTaskDeps, config: CreateTaskConfig
       return {
         toolCallId: call.id,
         result: `Drafting the reply (reference ${ref}). It takes a few minutes; nothing is sent before the caller approves it. ` +
-          'To approve, they call Alo again and say "approve my pending email" (or approve it in the Alo app). The caller can hang up now.',
+          'To approve, they call NOVA AI again and say "approve my pending email" (or approve it in the NOVA AI app). The caller can hang up now.',
       };
     }
     return {
       toolCallId: call.id,
       result: submitted
-        ? `Task accepted (reference ${ref}). The agent keeps working after the call; the result will appear in the Alo app's History and, if Gmail is connected, in the caller's inbox. The caller can hang up now.`
-        : `Task saved (reference ${ref}) but the agent couldn't start it yet. It will retry automatically; the result will appear in the Alo app.`,
+        ? `Task accepted (reference ${ref}). The agent keeps working after the call; the result will appear in the NOVA AI app's History and, if Gmail is connected, in the caller's inbox. The caller can hang up now.`
+        : `Task saved (reference ${ref}) but the agent couldn't start it yet. It will retry automatically; the result will appear in the NOVA AI app.`,
     };
   };
 
@@ -101,7 +101,7 @@ export function createTaskHandler(deps: CreateTaskDeps, config: CreateTaskConfig
   async function reviewInstructions(task: AgentTask, callId: string): Promise<string> {
     const ref = task.id.slice(0, 4).toUpperCase();
     if (!speakable(task)) {
-      return `Saved (reference ${ref}), nothing sent. It is too long to approve by phone: the caller can approve it in the Alo app.`;
+      return `Saved (reference ${ref}), nothing sent. It is too long to approve by phone: the caller can approve it in the NOVA AI app.`;
     }
     await deps.store.setReviewTask(callId, task.id);
     return `Nothing has been sent yet (reference ${ref}). Read this to the caller exactly, word for word: "${readBack(task)}" ` +

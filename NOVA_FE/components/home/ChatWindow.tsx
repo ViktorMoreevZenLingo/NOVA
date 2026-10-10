@@ -186,7 +186,7 @@ export function ChatWindow({
   return (
     <section
       className="chat-window"
-      aria-label={l("Разговор с Ало", "Chat with Alo")}
+      aria-label={l("Разговор с NOVA AI", "Chat with NOVA AI")}
     >
       {live ? (
         <LiveTalk
@@ -204,7 +204,7 @@ export function ChatWindow({
       ) : (
       <>
       <div className="chat-window-header">
-        <h2>{l("Говори с Ало", "Talk to Alo")}</h2>
+        <h2>{l("Говори с NOVA AI", "Talk to NOVA AI")}</h2>
         <div className="chat-header-actions">
           <button
             type="button"
@@ -219,7 +219,7 @@ export function ChatWindow({
             type="button"
             className={`chat-tts${voice.ttsEnabled ? " on" : ""}`}
             aria-pressed={voice.ttsEnabled}
-            title={voice.ttsEnabled ? l("Изключи гласа", "Turn voice off") : l("Ало да говори", "Let Alo speak")}
+            title={voice.ttsEnabled ? l("Изключи гласа", "Turn voice off") : l("NOVA AI да говори", "Let NOVA AI speak")}
             onClick={() => voice.setTtsEnabled(!voice.ttsEnabled)}
           >
             <Icon name={voice.ttsEnabled ? "volume" : "volumeOff"} />
@@ -237,8 +237,8 @@ export function ChatWindow({
           <div className="chat-empty">
             <p>
               {l(
-                "Попитай Ало нещо — например:",
-                "Ask Alo something — for example:",
+                "Попитай NOVA AI нещо — например:",
+                "Ask NOVA AI something — for example:",
               )}
             </p>
             <div className="chat-suggestions">
@@ -263,7 +263,7 @@ export function ChatWindow({
               >
                 <p className="chat-bubble">{renderMessage(m.text)}</p>
                 <span className="chat-caption">
-                  {m.role === "user" ? l("Ти", "You") : l("Ало", "Alo")}
+                  {m.role === "user" ? l("Ти", "You") : "NOVA AI"}
                   {m.role === "alo" && (
                     <button
                       type="button"
@@ -278,7 +278,7 @@ export function ChatWindow({
               </div>
             ))}
             {busy && (
-              <p className="chat-typing">{l("Ало пише…", "Alo is typing…")}</p>
+              <p className="chat-typing">{l("NOVA AI пише…", "NOVA AI is typing…")}</p>
             )}
           </>
         )}
@@ -334,7 +334,7 @@ export function ChatWindow({
                 ? l("Разпознавам…", "Transcribing…")
                 : l("Напиши съобщение…", "Type a message…")
           }
-          aria-label={l("Съобщение до Ало", "Message to Alo")}
+          aria-label={l("Съобщение до NOVA AI", "Message to NOVA AI")}
           onChange={(e) => setInput(e.target.value)}
           disabled={busy || voice.recording || voice.transcribing}
         />

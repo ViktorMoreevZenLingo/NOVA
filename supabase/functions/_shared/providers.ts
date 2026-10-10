@@ -31,11 +31,14 @@ export function base64url(bytes: Uint8Array) {
 export async function tokenRequest(
   service: string,
   values: Record<string, string>,
+  signal?: AbortSignal,
 ) {
   const p = provider(service);
   const response = await fetch(p.token, {
     method: "POST",
-    signal: AbortSignal.timeout(15000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(15000)])
+      : AbortSignal.timeout(15000),
     body: new URLSearchParams({
       client_id: p.client,
       client_secret: p.secret,
@@ -50,7 +53,11 @@ export async function tokenRequest(
   }
   return response.json();
 }
-export async function accessToken(userId: string, service: string) {
+export async function accessToken(
+  userId: string,
+  service: string,
+  signal?: AbortSignal,
+) {
   const db = admin();
   const connection = checked(
     await db.from("connections").select("service").eq("user_id", userId).eq(
@@ -73,7 +80,7 @@ export async function accessToken(userId: string, service: string) {
   const token = await tokenRequest(service, {
     grant_type: "refresh_token",
     refresh_token: row.refresh_token,
-  });
+  }, signal);
   // UPDATE, never upsert: a concurrent disconnect must not resurrect credentials.
   checked(
     await db.from("provider_tokens").update({

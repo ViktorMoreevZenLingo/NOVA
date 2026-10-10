@@ -27,6 +27,7 @@ Deno.test("Vapi setup: active GPT-Live prompts receive procedures without changi
   assertEquals(configured.reasoner.model, original.reasoner.model);
   assertEquals(configured.speaker.personalityPacks, ["bouncy"]);
   assertEquals(configured.toolIds, ["custom", "task"]);
+  assertEquals(configured.messages, undefined);
   assertEquals(
     configureAssistantModel(
       configured,

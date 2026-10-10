@@ -51,6 +51,18 @@ export async function database() {
       ),
     ),
   );
+  for (
+    const migration of [
+      "20261010114220_voice_delegation_bridge.sql",
+      "20261010163000_fast_voice_actions.sql",
+    ]
+  ) {
+    await db.exec(
+      await Deno.readTextFile(
+        new URL("../../migrations/" + migration, import.meta.url),
+      ),
+    );
+  }
   return db;
 }
 export function submission(overrides: Record<string, unknown> = {}) {
@@ -328,5 +340,217 @@ Deno.test("database: phone matching prefers confirmed account and rejects anonym
     );
   } finally {
     await db.close();
+  }
+});
+
+Deno.test("voice approval: atomic claim, duplicate requests, stale revisions, account isolation and schedules", async () => {
+  const db = await database();
+  try {
+    await db.exec(
+      `insert into public.call_sessions(vapi_call_id,user_id,verified_at) values('voice-a','${A}',now());`,
+    );
+    const prepare = async (extra: Record<string, unknown> = {}) => {
+      const t = await submit(
+        db,
+        A,
+        submission({
+          call_id: "voice-a",
+          prepared_action: {
+            tool: "send_email",
+            args: { to: "self@example.test", subject: "Test", body: "Test" },
+          },
+          ...extra,
+        }),
+      );
+      await db.query(
+        "update public.call_sessions set review_alo_task_id=$1,review_alo_revision=$2 where vapi_call_id='voice-a'",
+        [t.id, t.revision],
+      );
+      return t;
+    };
+    const decide = async (id: string, user = A, decision = "approve") =>
+      (await db.query<any>(
+        "select public.alo_voice_decide($1,'voice-a',$2,$3) as result",
+        [user, id, decision],
+      )).rows[0].result;
+    const first = await prepare();
+    await assertRejects(() => decide("foreign", B));
+    const approvals = await Promise.all([decide("same"), decide("same")]);
+    assertEquals(approvals.filter((a) => a.claimed).length, 1);
+    assertEquals(approvals[0].task.id, first.id);
+    assertEquals(approvals[0].task.status, "running");
+    assertEquals(approvals[1].replayed, true);
+    assertEquals(
+      (await db.query("select * from public.alo_task_claim()")).rows.length,
+      0,
+    );
+    await assertRejects(() => decide("new-approval"));
+    await assertRejects(() => decide("same", A, "reject"));
+    const changed = await prepare();
+    await db.query(
+      "update public.alo_tasks set instruction='Changed' where id=$1",
+      [changed.id],
+    );
+    await assertRejects(() => decide("stale"));
+    const cancelled = await prepare();
+    await db.query("select public.alo_task_command($1,$2,$3,'cancel','{}')", [
+      A,
+      cancelled.id,
+      cancelled.revision,
+    ]);
+    await assertRejects(() => decide("cancelled"));
+    await prepare({ start_mode: "scheduled", run_at: "2099-01-01T12:00:00Z" });
+    const scheduled = await decide("future");
+    assertEquals(scheduled.claimed, false);
+    assertEquals(scheduled.task.status, "scheduled");
+    await prepare({ start_mode: "after_call" });
+    const after = await decide("after");
+    assertEquals(after.claimed, false);
+    assertEquals(after.task.status, "waiting_call");
+    await db.query("select public.alo_call_ended($1,'voice-a')", [A]);
+    const claimResults = await Promise.all(
+      Array.from(
+        { length: 3 },
+        () => db.query<any>("select * from public.alo_task_claim()"),
+      ),
+    );
+    const released = claimResults.flatMap((r) => r.rows).find((t) =>
+      t.id === after.task.id
+    );
+    assert(released);
+    assertEquals(released.state.direct, true);
+    await prepare();
+    assertEquals(
+      (await decide("reject", A, "reject")).task.status,
+      "cancelled",
+    );
+    await db.exec("set role authenticated;");
+    await assertRejects(() => decide("forbidden"));
+    await assertRejects(() =>
+      db.query("select * from public.alo_voice_action_requests")
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+Deno.test("voice action handler: real SQL lease and receipt, concurrent approval, no Manus, no false completion", async () => {
+  const { createDirectVoice } = await import(
+    "../../functions/_shared/delegation/direct-voice.ts"
+  );
+  Deno.env.delete("MANUS_API_KEY");
+  const pg = await database();
+  try {
+    await pg.exec(
+      `insert into public.call_sessions(vapi_call_id,user_id,verified_at) values('inline-call','${A}',now()); insert into public.connections(user_id,service) values('${A}','gmail');`,
+    );
+    // Minimal PostgREST transport adapter: the actual production SQL and worker run unchanged.
+    const db = {
+      rpc: async (name: string, args: Record<string, unknown>) => {
+        try {
+          const keys = Object.keys(args);
+          const sql = `select public.${name}(${
+            keys.map((k, i) => `${k} => $${i + 1}`).join(",")
+          }) as result`;
+          const result = await pg.query<any>(
+            sql,
+            Object.values(args).map((v) =>
+              typeof v === "object" ? JSON.stringify(v) : v
+            ),
+          );
+          return { data: result.rows[0].result, error: null };
+        } catch (e) {
+          return { data: null, error: e };
+        }
+      },
+      from: (table: string) => {
+        let columns = "*";
+        const filters: [string, unknown][] = [];
+        const query = async (single = false) => {
+          const result = await pg.query<any>(
+            `select ${columns} from public.${table}${
+              filters.length
+                ? " where " +
+                  filters.map(([k], i) => `${k}=$${i + 1}`).join(" and ")
+                : ""
+            }`,
+            filters.map(([, v]) => v),
+          );
+          return {
+            data: single ? result.rows[0] ?? null : result.rows,
+            error: null,
+          };
+        };
+        const chain = {
+          select: (c: string) => {
+            columns = c;
+            return chain;
+          },
+          eq: (k: string, v: unknown) => {
+            filters.push([k, v]);
+            return chain;
+          },
+          single: () => query(true),
+          maybeSingle: () => query(true),
+          then: (resolve: (r: unknown) => void, reject: (e: unknown) => void) =>
+            query().then(resolve, reject),
+        };
+        return chain;
+      },
+    };
+    let writes = 0;
+    let malformed = false;
+    const voice = createDirectVoice(db as never, async () => {
+      writes++;
+      await new Promise((r) => setTimeout(r, 20));
+      return malformed ? {} : { id: "gmail-receipt" };
+    });
+    const prepare = async () => {
+      const t = await submit(
+        pg,
+        A,
+        submission({
+          call_id: "inline-call",
+          prepared_action: {
+            tool: "send_email",
+            args: { to: "self@example.test", subject: "Test", body: "Test" },
+          },
+        }),
+      );
+      await pg.query(
+        "update public.call_sessions set review_alo_task_id=$1,review_alo_revision=$2 where vapi_call_id='inline-call'",
+        [t.id, t.revision],
+      );
+      return t;
+    };
+    const t = await prepare();
+    const answers = await Promise.all([
+      voice.decide(A, "inline-call", "approve-1", "approve"),
+      voice.decide(A, "inline-call", "approve-1", "approve"),
+    ]);
+    assertEquals(writes, 1);
+    assert(answers.map((a) => JSON.parse(a)).some((a) => a.completed));
+    const replay = JSON.parse(
+      await voice.decide(A, "inline-call", "approve-1", "approve"),
+    );
+    assertEquals(replay.status, "completed");
+    assertEquals(writes, 1);
+    const steps = (await pg.query<any>(
+      "select status,output from public.alo_task_steps where task_id=$1",
+      [t.id],
+    )).rows;
+    assertEquals(steps[0].output.id, "gmail-receipt");
+    assertEquals(steps[0].status, "succeeded");
+    await prepare();
+    malformed = true;
+    const uncertain = JSON.parse(
+      await voice.decide(A, "inline-call", "approve-2", "approve"),
+    );
+    assertEquals(uncertain.completed, false);
+    assertEquals(uncertain.pending.kind, "uncertain");
+    await voice.decide(A, "inline-call", "approve-2", "approve");
+    assertEquals(writes, 2);
+  } finally {
+    await pg.close();
   }
 });

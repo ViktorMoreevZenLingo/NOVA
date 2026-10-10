@@ -14,6 +14,11 @@ Deno.test("provider adapters: bounded Gmail, Contacts, Calendar, Places and Outl
     })
   ) Deno.env.set(k, v);
   const requests: { url: string; body: any; auth: string | null }[] = [];
+  let expired = false;
+  let refreshFails = false;
+  let refreshes = 0;
+  let htmlOnly = false;
+  let emptyInbox = false;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const headers = new Headers(init?.headers);
@@ -23,9 +28,16 @@ Deno.test("provider adapters: bounded Gmail, Contacts, Calendar, Places and Outl
     if (url.includes("/rest/v1/provider_tokens")) {
       return Response.json({
         access_token: "private-token",
-        expires_at: "2099-01-01",
+        expires_at: expired ? "2020-01-01" : "2099-01-01",
+        refresh_token: "refresh-test",
         scope: "",
       });
+    }
+    if (url.includes("oauth2.googleapis.com/token")) {
+      refreshes++;
+      return refreshFails
+        ? Response.json({ error: "invalid_grant" }, { status: 400 })
+        : Response.json({ access_token: "private-token", expires_in: 3600 });
     }
     requests.push({
       url,
@@ -33,18 +45,55 @@ Deno.test("provider adapters: bounded Gmail, Contacts, Calendar, Places and Outl
       auth: headers.get("Authorization"),
     });
     if (url.includes("/messages?") && url.includes("gmail")) {
-      return Response.json({ messages: [{ id: "message" }] });
+      return Response.json({ messages: emptyInbox ? [] : [{ id: "message" }] });
     }
     return Response.json({
       id: "receipt",
       payload: {
         headers: [],
-        mimeType: "text/plain",
-        body: { data: btoa("Test content") },
+        mimeType: htmlOnly ? "text/html" : "text/plain",
+        body: {
+          data: btoa(
+            htmlOnly
+              ? "<p>Read &amp; summarize <b>this email</b>.</p><script>secret()</script><img src='https://tracker.test'>"
+              : "Test content",
+          ),
+        },
       },
     });
   }) as typeof fetch;
   try {
+    Deno.env.delete("MANUS_API_KEY");
+    const latest = await runTool("owner", "get_latest_email", {});
+    assertEquals(latest.body, "Test content");
+    const inbox = new URL(
+      requests.find((r) => r.url.includes("/messages?"))!.url,
+    );
+    assertEquals(inbox.searchParams.get("q"), "in:inbox");
+    assertEquals(inbox.searchParams.get("maxResults"), "1");
+    assert(!inbox.href.includes("newer_than"));
+    htmlOnly = true;
+    const html = await runTool("owner", "get_latest_email", {});
+    assertEquals(html.body, "Read & summarize this email.");
+    assert(!requests.some((r) => r.url.includes("tracker.test")));
+    htmlOnly = false;
+    emptyInbox = true;
+    assertEquals((await runTool("owner", "get_latest_email", {})).empty, true);
+    emptyInbox = false;
+    expired = true;
+    assertEquals(
+      (await runTool("owner", "get_latest_email", {})).body,
+      "Test content",
+    );
+    assertEquals(refreshes, 1);
+    refreshFails = true;
+    await assertRejects(
+      () => runTool("owner", "get_latest_email", {}),
+      Error,
+      "connect the service again",
+    );
+    expired = false;
+    refreshFails = false;
     await runTool("owner", "search_emails", { query: "subject:test", max: 1 });
     await runTool("owner", "get_email", { id: "message" });
     await runTool("owner", "send_email", {
@@ -103,6 +152,11 @@ Deno.test("provider adapters: bounded Gmail, Contacts, Calendar, Places and Outl
       })
     );
   } finally {
+    let expired = false;
+    let refreshFails = false;
+    let refreshes = 0;
+    let htmlOnly = false;
+    let emptyInbox = false;
     globalThis.fetch = original;
   }
 });
