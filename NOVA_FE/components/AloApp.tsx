@@ -66,8 +66,8 @@ export function AloApp() {
     document.documentElement.lang = lang;
     document.title =
       lang === "en"
-        ? "Alo — your personal assistant"
-        : "Ало — личният ти асистент";
+        ? "NOVA AI — your personal assistant"
+        : "NOVA AI — личният ти асистент";
   }, [lang]);
 
   const navigate = useCallback((next: View) => {
@@ -195,7 +195,7 @@ export function AloApp() {
   if (loadError)
     return (
       <main className="auth-content">
-        <h1>Alo</h1>
+        <h1>NOVA AI</h1>
         <p role="alert">{loadError}</p>
         <button className="primary" onClick={() => window.location.reload()}>
           {l("Опитай отново", "Retry")}
@@ -230,7 +230,7 @@ export function AloApp() {
         <div className="auth-layout">
           <main className="auth-main">
             <header className="auth-header">
-              <Brand label={lang === "bg" ? "ало" : "alo"} />
+              <Brand label="NOVA AI" />
             </header>
             <div className="auth-content profile-setup enter">
               <h1 tabIndex={-1}>{l("За теб", "Profile Context")}</h1>
@@ -265,7 +265,7 @@ export function AloApp() {
             </p>
           </aside>
           <footer className="auth-copyright">
-            © 2026 {lang === "bg" ? "Ало" : "Alo"}
+            © 2026 NOVA AI
           </footer>
           <LanguageSwitcher />
         </div>

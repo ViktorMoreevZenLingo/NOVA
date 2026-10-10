@@ -51,7 +51,7 @@ export async function decideTask(
   const action = prepareAction(kind, { ...task.params, ...edit });
   if (!action.ok) throw new ApprovalError("invalid", action.error);
   if (input.via === "call" && String(action.params.body ?? "").length > MAX_SPOKEN_BODY) {
-    throw new ApprovalError("invalid", "This one is too long to approve by phone. Approve it in the Alo app.");
+    throw new ApprovalError("invalid", "This one is too long to approve by phone. Approve it in the NOVA AI app.");
   }
 
   const claimed = await deps.store.transition(task.id, ["awaiting_approval"], {

@@ -62,7 +62,7 @@ export async function authenticateCaller(
 /** What the assistant should say/do for each auth failure. */
 export const AUTH_ERROR_MESSAGES: Record<Exclude<CallerAuth, { ok: true }>["reason"], string> = {
   unknown_caller:
-    "This calling number is not linked to one unambiguous Alo account. Ask the caller to check the number on their existing web profile. Do not ask for a PIN, security answer, or a different number to impersonate.",
+    "This calling number is not linked to one unambiguous NOVA AI account. Ask the caller to check the number on their existing web profile. Do not ask for a PIN, security answer, or a different number to impersonate.",
   pin_required: "Ask the caller for their 6-digit PIN, then call this tool again with the `pin` argument.",
   pin_incorrect: "The PIN was incorrect. Ask the caller to repeat their PIN.",
   locked: "Too many incorrect PIN attempts. Tell the caller you can't continue on this call.",

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class GoogleClients {
 
-    private static final String APP_NAME = "Alo";
+    private static final String APP_NAME = "NOVA AI";
 
     private final GoogleOAuth oauth;
 

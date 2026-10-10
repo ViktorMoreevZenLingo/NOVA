@@ -147,7 +147,7 @@ public class AgentService {
         String now = ZonedDateTime.now(zone).format(DateTimeFormatter.ofPattern("EEEE, yyyy-MM-dd HH:mm"));
         String about = user.getAbout() == null || user.getAbout().isBlank() ? "(none)" : user.getAbout();
         String prompt = """
-                You are Ало (Alo), a helpful voice assistant for %s.
+                You are NOVA AI, a helpful voice assistant for %s.
                 About the user: %s
                 Current date/time: %s (%s).
                 Connected services — Gmail: %s, Calendar: %s, Contacts: %s.

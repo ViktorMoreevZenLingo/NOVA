@@ -58,15 +58,15 @@ export interface Dictionary {
 }
 
 const bg: Dictionary = {
-  appName: "Ало",
+  appName: "NOVA AI",
   continue: "Продължи",
-  footer: "© 2026 Ало",
+  footer: "© 2026 NOVA AI",
   photoAlt: "Жена, която разговаря по телефона, седнала на стълби",
 
   tabLogin: "Вход",
   tabRegister: "Регистрация",
-  headingLogin: "Вход в Ало",
-  headingRegister: "Регистрация в Ало",
+  headingLogin: "Вход в NOVA AI",
+  headingRegister: "Регистрация в NOVA AI",
   phoneLabel: "Мобилен номер",
   phonePlaceholder: "888 123 456",
   nameLabel: "Име",
@@ -107,15 +107,15 @@ const bg: Dictionary = {
 };
 
 const en: Dictionary = {
-  appName: "Alo",
+  appName: "NOVA AI",
   continue: "Continue",
-  footer: "© 2026 Alo",
+  footer: "© 2026 NOVA AI",
   photoAlt: "A woman talking on the phone, seated on a staircase",
 
   tabLogin: "Login",
   tabRegister: "Register",
-  headingLogin: "Log in to Alo",
-  headingRegister: "Register with Alo",
+  headingLogin: "Log in to NOVA AI",
+  headingRegister: "Register with NOVA AI",
   phoneLabel: "Mobile number",
   phonePlaceholder: "888 123 456",
   nameLabel: "Name",

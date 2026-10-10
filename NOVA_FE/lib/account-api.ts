@@ -10,7 +10,7 @@ export interface ChatSession {
   messages: { role: "user" | "alo"; text: string }[];
 }
 
-/** Archived Alo conversations for the History page, newest first. */
+/** Archived NOVA AI conversations for the History page, newest first. */
 export async function loadChatSessions(): Promise<ChatSession[]> {
   const sb = getSupabase();
   const { data, error } = await sb

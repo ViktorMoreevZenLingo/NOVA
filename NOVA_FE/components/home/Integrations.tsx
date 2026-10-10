@@ -23,8 +23,8 @@ export function Integrations({ connected, profile, onEditProfile, onOpenService 
     <section aria-label={l("Интеграции", "Integrations")}>
       <p className="integrations-description">
         {l(
-          "Добави контекст за себе си, за да може Ало да се съобразява с предпочитанията ти. Свържи контактите, пощата и календара си, за да ти помага с хората, писмата и срещите ти по телефона.",
-          "Add context about yourself so Alo can take your preferences into account. Connect your contacts, email, and calendar to get help with the people, messages, and meetings in your day—all over the phone.",
+          "Добави контекст за себе си, за да може NOVA AI да се съобразява с предпочитанията ти. Свържи контактите, пощата и календара си, за да ти помага с хората, писмата и срещите ти по телефона.",
+          "Add context about yourself so NOVA AI can take your preferences into account. Connect your contacts, email, and calendar to get help with the people, messages, and meetings in your day—all over the phone.",
         )}
       </p>
       <div className="services-list">

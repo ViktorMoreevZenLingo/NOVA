@@ -8,7 +8,7 @@ const error = (status: number, message: string) =>
 export function zadarmaRequest(phone: string, otp: string, config: Config) {
   const path = "/v1/sms/send/";
   const body = new URLSearchParams({
-    message: `Your Alo login code is ${otp}. Do not share this code.`,
+    message: `Your NOVA AI login code is ${otp}. Do not share this code.`,
     number: phone.replace(/^\+/, ""),
   }).toString();
   const digest = createHash("md5").update(body).digest("hex");

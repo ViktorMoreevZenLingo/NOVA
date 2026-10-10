@@ -15,7 +15,7 @@
     <artifactId>alo-backend</artifactId>
     <version>0.0.1</version>
     <name>alo-backend</name>
-    <description>Backend for Ало (Alo), a voice assistant web app</description>
+    <description>Backend for NOVA AI, a voice assistant web app</description>
 
     <properties>
         <java.version>21</java.version>
