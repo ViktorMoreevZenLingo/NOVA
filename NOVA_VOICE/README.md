@@ -72,7 +72,7 @@ manager / leader / HR ─browser─▶ insights_* RPCs (aggregates, ≥5 people)
 | FE: typecheck, static build, all coach screens in a browser with seeded data | ✅ |
 | Live OpenAI classification / suggestion wording | ⚠️ not run live; keyword fallback and playbook verified |
 | Browser voice session (OpenAI Realtime) with coach/pulse tools | ⚠️ not run live (needs `OPENAI_API_KEY`) |
-| Outbound Vapi follow-up / pulse calls, deployed coach/pulse assistants | ❌ mocks only |
+| Outbound Vapi follow-up call (Zadarma number → a real Bulgarian mobile), NOVA Coach assistant + tools | ✅ **live** (10 Oct, local stack through a tunnel): the coach greeted the employee with the due step, coached and saved a new step via `coach_commit_step`. Found: the outcome of the old step and the share offer were skipped, so the prompt now requires both. Pulse call not yet tried live |
 | Manager email from the employee's Gmail | ❌ mocks only; in-app delivery works |
 | Deployed to the shared project | ❌ not yet (branch `feat/coach-plan`) |
 
