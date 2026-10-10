@@ -43,10 +43,11 @@ Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · conne
 | Deploy workflow → shared project `vlimtocbrxxnzobhkcoy` | ✅ migrations, secrets, Vault and all 7 functions deployed. Smoke check: `agent`/`integrations`/`account-delete`/`reconcile` → 401 (auth works), `manus-webhook` → 200 |
 | `create-task` / `get-task-status` (hosted) | ❌ return 500 until the `TEST_USER_PIN` secret is set (the functions need it at startup) |
 | Manus API key, `webhook.list`/`webhook.create` | ✅ real calls; webhook registered and **active** |
-| Manus `task.create` / `task.detail` / `listMessages` / signed webhooks | ⚠️ not yet exercised for real: needs `TEST_USER_PIN` + a signed-up Alo user |
-| Gmail summary from the caller's own inbox (`_shared/email/prompt.ts`) | ⚠️ written on top of Alo's Gmail tools; not yet run with a real Google connection |
-| Result email from own Gmail to self (`_shared/email/notify.ts`) | ⚠️ same as above |
-| Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
+| Manus `task.create` / signed webhooks | ✅ **live** (2026-10-10): email summary from a real Gmail → Manus → webhook → `completed` in ~30 s |
+| Gmail summary from the caller's own inbox (`_shared/email/prompt.ts`) | ✅ **live**, real Google connection |
+| Result email from own Gmail to self (`_shared/email/notify.ts`) | ✅ **live** |
+| High-risk flow over the live API: PIN → verification question → read-back → approve → Gmail send | ✅ **live**, task recorded with layers `caller_id,pin,verification,approval`, `approved_via=call` |
+| Vapi assistant + phone number | ⚠️ set up by the **Setup Vapi** workflow; needs the `VAPI_API_KEY` secret |
 | End-to-end phone call | ❌ not yet |
 | Security levels: risk policy, PIN/lockout, verification question (L3, bcrypt), read-back approval by voice or app (L4), reply drafts, double-send protection | ✅ 22 unit tests (`tests/security.test.ts`) + SQL checks; migration `20261010130000` applied to the shared project and merged to `main`; real Gmail sending not yet exercised |
 | In-app Approve/Reject + Standard/Secure switch | ⚠️ optional for the MVP (phone approval works without the app); **frontend work**, API in [docs/db-contract.md](docs/db-contract.md#for-the-frontend) |
@@ -185,6 +186,11 @@ MANUS_API_KEY=... MANUS_WEBHOOK_URL=https://vlimtocbrxxnzobhkcoy.supabase.co/fun
 ```
 
 ### 4. Vapi
+**Automatic (recommended):**
+1. Add the Vapi **private** API key as the GitHub secret `VAPI_API_KEY`.
+2. Run **Actions → Setup Vapi** (`gh workflow run setup-vapi.yml`). It creates or updates the three tools and the "Alo" assistant, using the right URL and `VAPI_TOOL_SECRET`, and attaches the assistant to your Vapi phone number. Set `VAPI_PHONE_NUMBER_ID` as a variable if you have several numbers. Re-running it is safe.
+
+**Manual alternative:**
 1. Create the three tools from `vapi/tool-create-task.json`, `vapi/tool-get-task-status.json` and `vapi/tool-decide-action.json`, replacing `<project-ref>` and `<VAPI_TOOL_SECRET>`. Tools authenticate with an `x-vapi-secret` header; a Vapi Bearer credential works too.
 2. Create the assistant from `vapi/assistant.json` and set its `toolIds`.
 3. Attach the assistant to the phone number.

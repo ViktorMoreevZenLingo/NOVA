@@ -1,0 +1,22 @@
+name: Setup Vapi
+
+# Manual: creates/updates the Vapi tools + "Alo" assistant from NOVA_VOICE/vapi/*.json
+# and attaches the assistant to the Vapi phone number. Secrets never leave GitHub.
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Create or update tools, assistant and phone number
+        env:
+          VAPI_API_KEY: ${{ secrets.VAPI_API_KEY }}
+          VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          VAPI_PHONE_NUMBER_ID: ${{ vars.VAPI_PHONE_NUMBER_ID }}
+        run: deno run --allow-env --allow-read --allow-net=api.vapi.ai NOVA_VOICE/scripts/setup-vapi.ts
