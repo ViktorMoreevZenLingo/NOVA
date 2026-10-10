@@ -101,15 +101,17 @@ The app now defaults to English. Groups below the floor show "Fewer than 5 peopl
 - `tests/integration/coach_flow.test.ts` against local Supabase (PostgREST + RLS + RPCs).
 - Local stack: migration applied, functions served, API exercised over HTTP, seed run, all four screens checked in a real browser.
 - `npm run typecheck` and `npm run build` (static export) pass.
+- **Real phone calls** (10 Oct, local stack exposed through a tunnel that allows only `coach-tools`): a coach follow-up call and a pulse check-in to a real Bulgarian mobile from the Zadarma number. The coach recalled the due step, coached and saved a new step; the pulse stored an anonymous row and marked the invite answered. Fixes from those calls: the coach now records the old step's outcome first and offers a share before closing; the keyword fallback handles mixed answers better.
+- **Demo material:** FE walkthrough recording (`demo/record-coach.mjs`) and a 2-minute pitch video built from the real calls (`demo/pitch/`).
 
 ## Still open / not verified live
-- **Real outbound Vapi calls** (follow-up and pulse) and the deployed coach/pulse assistants: code and mocks only. Fallback for the demo: "Talk in browser".
+- **Hosted deployment** of the coach functions and the Vapi assistants pointing at the shared project (verified so far only against the local stack through a tunnel).
 - **OpenAI classification and recommendation wording** live: verified with the keyword fallback and playbook only.
 - **Email to the manager** from Gmail: mocked; the in-app delivery works without it.
 - Deployment to the shared project happens when this branch is merged into `main` (CI applies the migration). The cron worker is enabled only by running `supabase/scripts/enable_coach_worker.sql`.
 
 ## Risks
-- **Outbound calls not verified live.** Fallback: browser session, or the employee calls in.
+- **Phone reliability on stage** (network, caller ID shown as a US number by the carrier). Fallback: the recorded pitch video, or the browser session.
 - **Trust and anonymity.** If the jury or employees sense surveillance, the idea fails. Hence the people-based floor, no verbatim quotes, no individual risk, the "Stays private" box and the honest wording.
 - **Small departments.** The floor hides them (Marketing in the seed shows this on purpose).
 - **Legal.** EU AI Act (no emotion recognition from voice at work; high-risk for employment decisions), GDPR profiling. Mitigated by principles 2–5.
