@@ -1,7 +1,7 @@
 // Idempotent Vapi setup for the NOVA Coach and NOVA Pulse assistants. Instructions and tool
 // schemas come from supabase/functions/_shared/coach/prompts.ts (single source of truth);
 // vapi/{coach,pulse}-assistant.json only hold model/voice/transcriber settings.
-// Required: VAPI_API_KEY, VAPI_TOOL_SECRET, SUPABASE_PROJECT_REF.
+// Required: VAPI_API_KEY, VAPI_TOOL_SECRET, and SUPABASE_PROJECT_REF or COACH_TOOLS_URL (e.g. a local tunnel for demos).
 // Prints the assistant ids to store as VAPI_COACH_ASSISTANT_ID / VAPI_PULSE_ASSISTANT_ID.
 // Optional VAPI_COACH_PHONE_NUMBER_ID: attach the coach to a dedicated inbound number.
 import {
@@ -22,9 +22,10 @@ const env = (name: string, required = true) => {
 };
 const apiKey = env("VAPI_API_KEY");
 const toolSecret = env("VAPI_TOOL_SECRET");
-const projectRef = env("SUPABASE_PROJECT_REF");
+const toolUrlOverride = env("COACH_TOOLS_URL", false);
+const projectRef = toolUrlOverride ? "" : env("SUPABASE_PROJECT_REF");
 const coachNumber = env("VAPI_COACH_PHONE_NUMBER_ID", false);
-const toolUrl = `https://${projectRef}.supabase.co/functions/v1/coach-tools`;
+const toolUrl = toolUrlOverride || `https://${projectRef}.supabase.co/functions/v1/coach-tools`;
 
 async function vapi(method: string, path: string, body?: unknown) {
   const res = await fetch(`${API}${path}`, {
