@@ -194,6 +194,12 @@ Deno.test("analysis: closed lists, language-adjusted engagement, keyword fallbac
   assert(r.attritionSignals.includes("considering_leaving"));
   assert(r.sentiment! < 0);
   assertEquals(keywordClassifier("I love my team, great support").strengths.includes("team"), true);
+  // A real pulse answer from the first live call: mixed, so not maximally negative, and workload is caught.
+  const mixed = keywordClassifier(
+    "I get the same kind of tasks every week, and I'm not learning much.\nToo many meetings. I had no time for focused work. The project rotation ideas help motivate me.",
+  );
+  assert(mixed.concerns.includes("workload") && mixed.concerns.includes("growth"));
+  assert(mixed.sentiment > -1 && mixed.sentiment < 0);
 });
 
 Deno.test("call window: local hours and weekdays in the employee's timezone", () => {

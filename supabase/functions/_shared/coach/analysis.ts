@@ -134,7 +134,7 @@ export function createOpenAIClassifier(apiKey: string, model = "gpt-4o-mini", fe
 
 // Offline fallback (and test oracle): coarse keyword matching in English and Bulgarian.
 const KEYWORDS: Record<Theme, RegExp> = {
-  workload: /overload|too much work|overtime|deadline|workload|претовар|много работа|извънредн/i,
+  workload: /overload|too much work|too many meetings|no time|focus(ed)? work|overtime|deadline|workload|претовар|много работа|много срещи|нямам време|извънредн/i,
   growth: /growth|grow|learn|career|same (kind of )?tasks|repetitive|promotion|develop|развив|еднотипн|кариер|уча/i,
   recognition: /recogni|appreciat|thank|valued|credit|оцен|призна|благодар/i,
   manager_support: /manager|boss|lead(er)? (doesn't|does not|never)|support from|мениджър|шеф|подкреп/i,
@@ -147,7 +147,7 @@ const KEYWORDS: Record<Theme, RegExp> = {
 };
 const NEGATIVE =
   /not|never|no |don't|doesn't|can't|bad|hard|difficult|frustrat|stress|tired|exhaust|unclear|same|overload|leave|quit|worse|не |няма|трудно|лошо|стрес|умор|напусн/gi;
-const POSITIVE = /good|great|love|enjoy|happy|support|appreciat|better|helpful|excited|добре|чудесно|харесва|доволен|радвам|подкреп/gi;
+const POSITIVE = /good|great|love|enjoy|happy|support|appreciat|better|help(s|ed|ful)?|motivat|excited|добре|чудесно|харесва|доволен|радвам|подкреп|мотивира|помага/gi;
 
 export function keywordClassifier(text: string): Classification {
   const negatives = text.match(NEGATIVE)?.length ?? 0;
