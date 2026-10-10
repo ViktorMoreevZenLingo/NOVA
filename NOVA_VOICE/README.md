@@ -37,16 +37,24 @@ Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · conne
 
 | Piece | Status |
 |---|---|
-| Shared schema: Alo tables + `agent_tasks`/`call_sessions`, `activity` mirror trigger, phone lookup, RLS, pg_cron job | ✅ all 5 migrations apply locally; verified by `NOVA_VOICE/tests/sql/rls.sql` and Alo's `supabase/tests/rls.sql` |
+| Shared schema: Alo tables + `agent_tasks`/`call_sessions`, `activity` mirror trigger, phone lookup, RLS, pg_cron job | ✅ all 5 migrations applied to the shared project (one history via `supabase db push`); verified locally by `NOVA_VOICE/tests/sql/rls.sql` and Alo's `supabase/tests/rls.sql` |
 | create-task / manus-webhook / reconcile / get-task-status logic | ✅ 40 unit tests with fakes (`deno task test`) |
 | Handlers ↔ real Postgres (phone-verified user, Alo profile context, activity mirror, notification lease) | ✅ integration test against local Supabase (`deno task test:integration`), Manus + Gmail faked |
-| Deploy workflow → shared project `vlimtocbrxxnzobhkcoy` | ✅ deploys; ⚠️ the switch to one shared history (`db push`) runs on the next push |
+| Deploy workflow → shared project `vlimtocbrxxnzobhkcoy` | ✅ migrations, secrets, Vault and all 7 functions deployed. Smoke check: `agent`/`integrations`/`account-delete`/`reconcile` → 401 (auth works), `manus-webhook` → 200 |
+| `create-task` / `get-task-status` (hosted) | ❌ return 500 until the `TEST_USER_PIN` secret is set (the functions need it at startup) |
 | Manus API key, `webhook.list`/`webhook.create` | ✅ real calls; webhook registered and **active** |
 | Manus `task.create` / `task.detail` / `listMessages` / signed webhooks | ⚠️ not yet exercised for real: needs `TEST_USER_PIN` + a signed-up Alo user |
 | Gmail summary from the caller's own inbox (`_shared/email/prompt.ts`) | ⚠️ written on top of Alo's Gmail tools; not yet run with a real Google connection |
 | Result email from own Gmail to self (`_shared/email/notify.ts`) | ⚠️ same as above |
 | Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
 | End-to-end phone call | ❌ not yet |
+
+### Next steps
+1. Add the `TEST_USER_PIN` GitHub secret, then re-run the deploy.
+2. Sign up in the Alo app with the demo phone number and connect Gmail under Integrations.
+3. Run the first real task: curl `create-task` with `tests/fixtures/vapi-create-task.json`, after putting the demo phone and PIN into the fixture. Check that the row goes `submitted → completed`, History updates, and the email arrives.
+4. Create the Vapi tools, assistant and phone number from `vapi/`, then make a real call.
+5. Open a PR `feat/vapi-manus` → `main`. After merging, deploy only through CI from `main`.
 
 ## Phone task lifecycle
 
