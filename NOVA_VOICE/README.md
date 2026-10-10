@@ -55,7 +55,7 @@ Legacy `agent_tasks`, webhook and reconcile remain available to finish/review wo
 - **One schema, one migration history** in `supabase/migrations`. The DB contract (who owns which table) is in [docs/db-contract.md](docs/db-contract.md).
 - **The phone assistant reuses NOVA AI's Gmail code** (`providers.ts`/`tools.ts`) instead of duplicating it.
 - Plan and history: [docs/implementation-plan.md](docs/implementation-plan.md).
-- Proposed next track (plan only, not implemented): [NOVA Coach MVP](docs/coach-mvp-plan.md), a phone coach for employees with consent-based sharing to their manager, plus anonymous voice engagement/pulse surveys, text sentiment and aggregated HR analytics (k≥5).
+- Proposed next track (plan only, not implemented): [NOVA Coach MVP](docs/coach-mvp-plan.md), a phone coach for employees with consent-based sharing to their manager, plus anonymous voice engagement/pulse surveys, text sentiment and aggregated insights for managers, leadership and HR (k≥5).
 
 ## Legacy status (before delegated runtime rollout)
 
