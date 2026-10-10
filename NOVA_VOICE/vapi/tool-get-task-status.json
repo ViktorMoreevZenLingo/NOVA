@@ -14,6 +14,10 @@
         "verification_answer": {
           "type": "string",
           "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Exact task UUID when known; otherwise latest task."
         }
       }
     }

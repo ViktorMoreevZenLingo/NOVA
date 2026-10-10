@@ -1,22 +1,38 @@
 # NOVA_VOICE — the Alo phone assistant
 
-You call a phone number, ask Alo for something like *"check my recent emails and tell me which ones are important"* or *"reply to Ivan's last email, tell him I'll be there at 5"*, and hang up. A cloud agent ([Manus](https://open.manus.ai/docs/v2)) **keeps working after the call ends**. When it finishes, the result shows up in the Alo app's **History**. If Gmail is connected, it also arrives as an email from your own Gmail to yourself.
+New Vapi requests now enter Alo's durable `alo_tasks` queue through the existing `create-task` and `get-task-status` URLs. Work starts now, after an authenticated end-of-call report, or once at a scheduled time. Manus runs the reasoning; Alo executes approved integration operations and stores results in History. Email is sent only when requested. Callback/SMS requests are durable handoffs for the delivery worker.
 
-The same Supabase project also runs the **Alo web app** (`NOVA_FE`). Users sign in with phone + SMS code, connect Google/Outlook, edit their profile and chat with the agent.
+The Alo browser prototype still uses Supabase anonymous accounts while SMS authentication is paused. Caller lookup, PIN and verification-question checks remain in the voice layer.
 
 ```
-Phone ─▶ Vapi ─tool call─▶ create-task ─▶ agent_tasks ──trigger──▶ activity (app History)
-                              │                │
-                              │ caller = verified auth.users.phone + spoken PIN
-                              ▼                ▼
-                   Gmail (user's own OAuth) ─▶ Manus task.create
-                                                   │
-History + own Gmail ◀─ notifyTask ◀─ manus-webhook ◀─ task_stopped (signed, RSA-SHA256)
-          reconcile (pg_cron, every 5 min): missed webhooks · submit retries · email retries
-
-Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · connections · activity
-                           ─▶ Edge Functions: integrations (OAuth) · agent (chat) · account-delete
+Vapi tools → caller checks → create-task adapter → alo_tasks → activity / History
+Vapi end-of-call-report ──────────────────────────┘
+minute scheduler → task-worker → Manus v2 ↔ validated Alo integration tools
+signed Manus webhook → wake worker; polling reconciles missed events
+completed task → separate email / callback / SMS delivery state
 ```
+
+Full contract, permissions, recovery rules and deployment steps: [ManusIntegration](../docs/ManusIntegration.md).
+
+## Delegated runtime verification — 10 October 2026
+
+| Check | Result |
+|---|---|
+| New migrations, three task functions, two Vapi adapters | Applied/deployed to shared Nova; migration dry run is clean |
+| Minute scheduler and separate Manus webhook | Enabled; webhook active |
+| Immediate, after-call and one-off scheduled research | Completed with real Manus results |
+| Duplicate submit / end-call | Same task ID; call release occurs once |
+| Connected Gmail email-to-self | One explicitly requested email sent successfully |
+| Existing Vapi assistant on Zadarma Bulgaria | Five task tools and end-of-call routing configured; voice/model settings preserved |
+| New task suite | 18 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
+| Legacy voice suite | 59 tests passed; type checks and lint passed |
+| Alo UI | Production build passed; task approval view checked on desktop/mobile with mocked data |
+| Actual telephone call with caller PIN/question | Not exercised during this rollout; verified-call fixture used for backend checks |
+| Calendar/Contacts live checks | Mocked only; no designated connected test account |
+| Places / Outlook live checks | Mocked only; provider credentials still missing |
+| Callback / SMS transmission | Handoff implemented; delivery transport remains the voice developer's responsibility |
+
+Legacy `agent_tasks`, webhook and reconcile remain available to finish/review work created before this rollout. The sections below document that legacy flow and its security policy; the delegated-runtime contract above takes precedence for new tasks.
 
 > Repo overview: [../README.md](../README.md). This folder holds the phone assistant's tests, scripts, Vapi configs and docs. Its Edge Functions live in the shared [`../supabase/functions`](../supabase/functions), because Supabase deploys from there.
 
@@ -33,7 +49,7 @@ Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · conne
 - **The phone assistant reuses Alo's Gmail code** (`providers.ts`/`tools.ts`) instead of duplicating it.
 - Plan and history: [docs/implementation-plan.md](docs/implementation-plan.md).
 
-## Status: mocked vs verified
+## Legacy status (before delegated runtime rollout)
 
 | Piece | Status |
 |---|---|
@@ -185,7 +201,7 @@ MANUS_API_KEY=... MANUS_WEBHOOK_URL=https://vlimtocbrxxnzobhkcoy.supabase.co/fun
 ```
 
 ### 4. Vapi
-1. Create the three tools from `vapi/tool-create-task.json`, `vapi/tool-get-task-status.json` and `vapi/tool-decide-action.json`, replacing `<project-ref>` and `<VAPI_TOOL_SECRET>`. Tools authenticate with an `x-vapi-secret` header; a Vapi Bearer credential works too.
+1. For the current delegated runtime, use all five tool files, including `tool-cancel-task.json` and `tool-respond-to-task.json`, and the assistant end-of-call server routing. For legacy-only setup, create the three tools from `vapi/tool-create-task.json`, `vapi/tool-get-task-status.json` and `vapi/tool-decide-action.json`, replacing `<project-ref>` and `<VAPI_TOOL_SECRET>`. Tools authenticate with an `x-vapi-secret` header; a Vapi Bearer credential works too.
 2. Create the assistant from `vapi/assistant.json` and set its `toolIds`.
 3. Attach the assistant to the phone number.
 
@@ -224,7 +240,7 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=
 
 **Secure mode:** in the app, set the voice security level to Secure. Every call then asks the verification question (once per call), even for research.
 
-## Known limitations / open decisions
+## Legacy limitations / open decisions
 - Manus webhook retry semantics aren't documented. Reconcile is the safety net.
 - If Manus asks a question (`needs_input`), the user sees it in History and by email, and continues in the Manus UI. There's no voice follow-up yet.
 - `create-task` waits for Manus `task.create` (15s client timeout) before answering. The Vapi tool timeout is set to 30s.

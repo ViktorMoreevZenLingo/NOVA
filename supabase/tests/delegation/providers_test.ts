@@ -7,6 +7,10 @@ Deno.test("provider adapters: bounded Gmail, Contacts, Calendar, Places and Outl
       SUPABASE_URL: "https://database.test",
       SUPABASE_SERVICE_ROLE_KEY: "service-test-key",
       GOOGLE_PLACES_API_KEY: "places-test-key",
+      GOOGLE_CLIENT_ID: "test",
+      GOOGLE_CLIENT_SECRET: "test",
+      MICROSOFT_CLIENT_ID: "test",
+      MICROSOFT_CLIENT_SECRET: "test",
     })
   ) Deno.env.set(k, v);
   const requests: { url: string; body: any; auth: string | null }[] = [];

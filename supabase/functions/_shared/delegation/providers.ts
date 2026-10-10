@@ -10,6 +10,19 @@ export async function runTool(
   timezone = "Europe/Sofia",
 ) {
   validateArgs(name, args);
+  const service = SERVICES[name];
+  const configuration = service === "places"
+    ? ["GOOGLE_PLACES_API_KEY"]
+    : service === "outlook"
+    ? ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET"]
+    : ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
+  if (configuration.some((key) => !Deno.env.get(key))) {
+    throw new HttpError(
+      409,
+      `${service} is not configured on Alo. Ask the administrator to configure this integration, then continue.`,
+    );
+  }
+
   const connected = checked(
     await admin().from("connections").select("service").eq("user_id", userId)
       .eq("service", SERVICES[name]).maybeSingle(),

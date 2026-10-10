@@ -1,0 +1,32 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "cancel_task",
+    "description": "Cancel a saved or running task. Actions already completed are not undone.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "pin": {
+          "type": "string"
+        },
+        "verification_answer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id"
+      ]
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "timeoutSeconds": 30,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
+  }
+}

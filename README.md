@@ -11,3 +11,5 @@ Alo is a personal AI assistant. You use it in the web app, or you call it on the
 | [`NOVA_BE/`](NOVA_BE) | Legacy Spring Boot backend (reference only) | [NOVA_BE/README.md](NOVA_BE/README.md) |
 
 **Deploy:** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) pushes the migrations, sets the secrets and deploys all Edge Functions to the shared Supabase project on every push to `main`. The secrets are listed in [NOVA_VOICE/README.md](NOVA_VOICE/README.md#2-deploy-github-actions).
+
+Delegated and scheduled cloud work: [ManusIntegration contract and deployment](docs/ManusIntegration.md).

@@ -2,7 +2,7 @@ name: Deploy Supabase
 
 on:
   push:
-    branches: [main, feat/vapi-manus]
+    branches: [main]
     paths: ["supabase/**", "NOVA_VOICE/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
@@ -27,6 +27,9 @@ jobs:
       - name: Unit tests (phone assistant)
         working-directory: NOVA_VOICE
         run: deno task test
+
+      - name: Unit tests (delegated tasks)
+        run: deno test --allow-read --allow-env --allow-sys --config supabase/functions/deno.json supabase/tests/delegation
 
       - uses: supabase/setup-cli@v1
         with:

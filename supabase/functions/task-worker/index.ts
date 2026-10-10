@@ -42,6 +42,20 @@ Deno.serve(async (req) => {
     }
     const store = createStore();
     const manus = createManusClient(env("MANUS_API_KEY"));
+    if (body.action === "inspect_task" && typeof body.task_id === "string") {
+      const inspected = await store.get(body.task_id);
+      if (!inspected?.manus_task_id) {
+        return Response.json({ error: "No Manus task" }, { status: 404 });
+      }
+      const events = await manus.events(inspected.manus_task_id);
+      return Response.json({
+        detail: await manus.getTask(inspected.manus_task_id),
+        events: events.filter((e) =>
+          ["structured_output_result", "error_message", "assistant_message"]
+            .includes(e.type)
+        ).slice(0, 5),
+      });
+    }
     const task = await store.claim();
     if (task) await processTask(task, { store, manus, runTool });
     await deliverOneEmail();
