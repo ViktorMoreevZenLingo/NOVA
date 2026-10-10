@@ -1,12 +1,14 @@
--- NOVA core schema: profiles, user_integrations, agent_tasks, call_sessions.
+-- NOVA core schema: assistant_profiles, user_integrations, agent_tasks, call_sessions.
 -- Track A owns this file. The Lovable portal (Track C) only reads these tables via RLS.
+-- Lovable owns its own tables (e.g. public.profiles); everything here is named so
+-- it never collides with them (nova_* functions, assistant_profiles).
 
 create extension if not exists pgcrypto;
 
 -- ---------------------------------------------------------------------------
 -- Shared helpers
 -- ---------------------------------------------------------------------------
-create or replace function public.set_updated_at()
+create or replace function public.nova_set_updated_at()
 returns trigger
 language plpgsql
 set search_path = ''
@@ -18,13 +20,13 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- profiles: one row per auth user, created automatically on sign-up.
+-- assistant_profiles: one row per auth user, created automatically on sign-up.
 -- notify_email defaults to the auth email (confirmed before the user can sign in
 -- when email confirmation is on) and is NOT user-editable, so results only go to
 -- the sign-up address. It is null for email-less sign-ups; such callers are refused.
 -- phone_e164 is set by an admin for now (no phone setup in the portal MVP).
 -- ---------------------------------------------------------------------------
-create table public.profiles (
+create table public.assistant_profiles (
   user_id      uuid primary key references auth.users (id) on delete cascade,
   display_name text,
   notify_email text,
@@ -33,41 +35,46 @@ create table public.profiles (
   updated_at   timestamptz not null default now()
 );
 
-create trigger profiles_set_updated_at
-  before update on public.profiles
-  for each row execute function public.set_updated_at();
+create trigger assistant_profiles_set_updated_at
+  before update on public.assistant_profiles
+  for each row execute function public.nova_set_updated_at();
 
-create or replace function public.handle_new_user()
+create or replace function public.nova_handle_new_user()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
 begin
-  insert into public.profiles (user_id, notify_email, display_name)
+  insert into public.assistant_profiles (user_id, notify_email, display_name)
   values (new.id, new.email, new.raw_user_meta_data ->> 'display_name')
   on conflict (user_id) do nothing;
   return new;
 end;
 $$;
 
-create trigger on_auth_user_created
+create trigger nova_on_auth_user_created
   after insert on auth.users
-  for each row execute function public.handle_new_user();
+  for each row execute function public.nova_handle_new_user();
 
-alter table public.profiles enable row level security;
+-- Users who signed up (e.g. via the portal) before this migration.
+insert into public.assistant_profiles (user_id, notify_email, display_name)
+select id, email, raw_user_meta_data ->> 'display_name' from auth.users
+on conflict (user_id) do nothing;
 
-create policy "profiles: read own" on public.profiles
+alter table public.assistant_profiles enable row level security;
+
+create policy "assistant_profiles: read own" on public.assistant_profiles
   for select to authenticated using ((select auth.uid()) = user_id);
 
-create policy "profiles: update own" on public.profiles
+create policy "assistant_profiles: update own" on public.assistant_profiles
   for update to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
 -- Users may only change their display name.
-revoke update on public.profiles from authenticated, anon;
-grant update (display_name) on public.profiles to authenticated;
+revoke update on public.assistant_profiles from authenticated, anon;
+grant update (display_name) on public.assistant_profiles to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- user_integrations: one row per (user, provider). Written by the backend only.
@@ -87,7 +94,7 @@ create table public.user_integrations (
 
 create trigger user_integrations_set_updated_at
   before update on public.user_integrations
-  for each row execute function public.set_updated_at();
+  for each row execute function public.nova_set_updated_at();
 
 alter table public.user_integrations enable row level security;
 
@@ -107,7 +114,7 @@ create table public.agent_tasks (
   vapi_tool_call_id text unique,          -- dedupes Vapi tool-call retries
   intent            text not null check (intent in ('summarize_emails', 'research')),
   prompt            text not null,        -- the user's instruction (not the full Manus prompt)
-  user_email        text not null,        -- snapshot of profiles.notify_email at creation
+  user_email        text not null,        -- snapshot of assistant_profiles.notify_email at creation
   status            text not null default 'pending'
                       check (status in ('pending', 'submitted', 'submit_failed', 'completed', 'needs_input', 'failed')),
   manus_task_id     text unique,
@@ -129,7 +136,7 @@ create index agent_tasks_status_updated_idx on public.agent_tasks (status, updat
 
 create trigger agent_tasks_set_updated_at
   before update on public.agent_tasks
-  for each row execute function public.set_updated_at();
+  for each row execute function public.nova_set_updated_at();
 
 alter table public.agent_tasks enable row level security;
 
@@ -268,4 +275,4 @@ revoke execute on function public.claim_reconcile_batch(timestamptz, int) from p
 revoke execute on function public.recent_pin_failures(uuid) from public, anon, authenticated;
 revoke execute on function public.mark_submit_failed(uuid, text) from public, anon, authenticated;
 revoke execute on function public.record_pin_failure(text, uuid) from public, anon, authenticated;
-revoke execute on function public.handle_new_user() from public, anon, authenticated;
+revoke execute on function public.nova_handle_new_user() from public, anon, authenticated;

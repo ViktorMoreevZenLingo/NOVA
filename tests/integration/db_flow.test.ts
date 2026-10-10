@@ -29,7 +29,7 @@ Deno.test({
 
     try {
       // Auth trigger created the profile; admin assigns the phone.
-      const { error: phoneErr } = await admin.from("profiles").update({ phone_e164: phone }).eq("user_id", userId);
+      const { error: phoneErr } = await admin.from("assistant_profiles").update({ phone_e164: phone }).eq("user_id", userId);
       if (phoneErr) throw phoneErr;
 
       const manus = new FakeManus();

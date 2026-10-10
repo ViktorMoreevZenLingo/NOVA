@@ -7,7 +7,7 @@ Phone ─▶ Vapi ─tool call─▶ create-task ─▶ agent_tasks ─▶ Manus
                                                            │
 Email ◀─ sendResultEmail ◀─ manus-webhook ◀─ task_stopped ─┘   (signed, RSA-SHA256)
          reconcile (pg_cron, every 5 min): missed webhooks · submit retries · email retries
-Portal (Lovable) ─▶ reads profiles / user_integrations / agent_tasks via RLS (+ Realtime)
+Portal (Lovable) ─▶ reads assistant_profiles / user_integrations / agent_tasks via RLS (+ Realtime)
 ```
 
 ## Team and ownership
@@ -86,13 +86,13 @@ pending ─▶ submitted ─▶ completed
 
 - **Vapi → create-task / get-task-status:** a Vapi *Bearer Token* credential, compared in constant time.
 - **Caller identity:**
-  - Caller ID only selects the profile (`profiles.phone_e164`). The caller must also say a **6-digit PIN** (`TEST_USER_PIN`, one shared PIN for the MVP).
+  - Caller ID only selects the profile (`assistant_profiles.phone_e164`). The caller must also say a **6-digit PIN** (`TEST_USER_PIN`, one shared PIN for the MVP).
   - Lockout: 3 wrong PINs lock the call, and 10 wrong PINs per profile per hour lock that profile across all calls.
   - Once the PIN is verified, it isn't asked again during that call.
   - Leave `DEMO_WEBCALL_PHONE` unset outside of testing: it lets anyone with your Vapi public key try PINs through web calls.
 - **Manus → manus-webhook:** RSA-SHA256 signature over `{timestamp}.{url}.{sha256(body)}`, rejected if older than 5 minutes. Unsigned requests (Manus' registration ping) get a 200 and are ignored.
 - **Recipients:**
-  - The recipient is always the caller's `profiles.notify_email`. That's the sign-up email, and users can't edit it.
+  - The recipient is always the caller's `assistant_profiles.notify_email`. That's the sign-up email, and users can't edit it.
   - Keep email confirmation enabled in Supabase Auth.
   - Profiles without an email are refused.
   - The LLM never chooses a recipient.
@@ -148,7 +148,7 @@ Optional **repository variables**:
 
 After the first deploy, register the demo user's phone in the Supabase SQL editor. The user must have signed up first, through the portal or the Auth dashboard:
 ```sql
-update public.profiles set phone_e164 = '+359...' where notify_email = 'demo@example.com';
+update public.assistant_profiles set phone_e164 = '+359...' where notify_email = 'demo@example.com';
 ```
 
 Deploying manually without GitHub works too:

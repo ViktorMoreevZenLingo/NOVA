@@ -10,8 +10,8 @@ values
   ('22222222-2222-4222-8222-222222222222', 'b@example.com', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
 
 do $$ begin
-  assert (select count(*) from public.profiles where notify_email in ('a@example.com', 'b@example.com')) = 2,
-    'profiles trigger did not create profiles';
+  assert (select count(*) from public.assistant_profiles where notify_email in ('a@example.com', 'b@example.com')) = 2,
+    'auth trigger did not create assistant_profiles';
 end $$;
 
 insert into public.agent_tasks (user_id, intent, prompt, user_email)
@@ -31,21 +31,21 @@ select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-1111111
 do $$ begin
   assert (select count(*) from public.agent_tasks) = 1, 'A must see exactly its own task';
   assert (select prompt from public.agent_tasks) = 'A task', 'A sees the wrong task';
-  assert (select count(*) from public.profiles) = 1, 'A must see only its own profile';
+  assert (select count(*) from public.assistant_profiles) = 1, 'A must see only its own profile';
   assert (select count(*) from public.user_integrations) = 1, 'A must see only its own integration';
   assert (select count(*) from public.call_sessions) = 0, 'call_sessions must be invisible';
 end $$;
 
 -- A may rename itself...
-update public.profiles set display_name = 'Alice';
+update public.assistant_profiles set display_name = 'Alice';
 do $$ begin
-  assert (select display_name from public.profiles) = 'Alice', 'display_name update failed';
+  assert (select display_name from public.assistant_profiles) = 'Alice', 'display_name update failed';
 end $$;
 
 -- ...but may not change notify_email, write tasks, or call service functions.
 do $$ begin
   begin
-    update public.profiles set notify_email = 'evil@example.com';
+    update public.assistant_profiles set notify_email = 'evil@example.com';
     raise exception 'notify_email update should be denied';
   exception when insufficient_privilege then null;
   end;
@@ -73,7 +73,7 @@ set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 do $$ begin
   assert (select count(*) from public.agent_tasks) = 0, 'anon must see no tasks';
-  assert (select count(*) from public.profiles) = 0, 'anon must see no profiles';
+  assert (select count(*) from public.assistant_profiles) = 0, 'anon must see no profiles';
   assert (select count(*) from public.user_integrations) = 0, 'anon must see no integrations';
 end $$;
 

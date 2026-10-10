@@ -6,7 +6,7 @@ The Lovable portal connects to the **same Supabase project** as the backend. In 
 
 ## Tables
 
-### `profiles` (one row per user, created automatically on sign-up)
+### `assistant_profiles` (one row per user, created automatically on sign-up; separate from Lovable's own `profiles`)
 | column | type | portal access |
 |---|---|---|
 | `user_id` | uuid, = `auth.users.id` | read |
@@ -46,10 +46,10 @@ Suggested status labels:
 
 ```ts
 // Profile
-const { data: profile } = await supabase.from("profiles").select("*").single();
+const { data: profile } = await supabase.from("assistant_profiles").select("*").single();
 
 // Rename
-await supabase.from("profiles").update({ display_name: "Alice" }).eq("user_id", user.id);
+await supabase.from("assistant_profiles").update({ display_name: "Alice" }).eq("user_id", user.id);
 
 // Integrations
 const { data: integrations } = await supabase.from("user_integrations").select("provider, status, metadata, updated_at");

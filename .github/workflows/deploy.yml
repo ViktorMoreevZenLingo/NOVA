@@ -34,6 +34,9 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
+      - name: Show existing tables (read-only, for syncing with the Lovable portal)
+        run: supabase inspect db table-stats --linked --password "$SUPABASE_DB_PASSWORD" || true
+
       - name: Apply migrations
         run: supabase db push --password "$SUPABASE_DB_PASSWORD"
 

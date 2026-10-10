@@ -78,11 +78,11 @@ export function createTaskStore(db: SupabaseClient = createServiceClient()): Tas
 
   return {
     async findProfileByPhone(phone) {
-      return must(await db.from("profiles").select("user_id, notify_email").eq("phone_e164", phone).maybeSingle(), "findProfileByPhone");
+      return must(await db.from("assistant_profiles").select("user_id, notify_email").eq("phone_e164", phone).maybeSingle(), "findProfileByPhone");
     },
 
     async getProfile(userId) {
-      return must(await db.from("profiles").select("user_id, notify_email").eq("user_id", userId).maybeSingle(), "getProfile");
+      return must(await db.from("assistant_profiles").select("user_id, notify_email").eq("user_id", userId).maybeSingle(), "getProfile");
     },
 
     async getCallSession(callId) {
