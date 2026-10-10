@@ -71,9 +71,17 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
               const node = ctx.createBufferSource();
               node.buffer = buffer;
               node.connect(ctx.destination);
-              node.onended = () => resolve();
+              let done = false;
+              const finish = () => {
+                if (done) return;
+                done = true;
+                resolve();
+              };
+              node.onended = finish;
               sourceRef.current = node;
               node.start();
+              // Safety net: always hand control back even if onended never fires.
+              setTimeout(finish, buffer.duration * 1000 + 800);
             } catch {
               resolve();
             }
