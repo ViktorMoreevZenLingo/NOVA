@@ -35,7 +35,6 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const lastActiveRef = useRef(0);
   const statusRef = useRef<Status>("connecting");
   const levelRef = useRef(0);
-  const aliveRef = useRef(true);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -74,11 +73,13 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   };
 
   useEffect(() => {
-    aliveRef.current = true;
+    // Per-run flag: a StrictMode re-run (dev) must not leave the first WebRTC
+    // session alive, which would double the audio.
+    let cancelled = false;
     (async () => {
       try {
         const { token, model } = await getRealtimeSession();
-        if (!aliveRef.current) return;
+        if (cancelled) return;
 
         const pc = new RTCPeerConnection();
         pcRef.current = pc;
@@ -108,7 +109,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         const mic = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
-        if (!aliveRef.current) {
+        if (cancelled) {
           mic.getTracks().forEach((t) => t.stop());
           return;
         }
@@ -132,11 +133,11 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         });
         if (!sdpRes.ok) throw new Error(l("Връзката се провали.", "Connection failed."));
         const answer = await sdpRes.text();
-        if (!aliveRef.current) return;
+        if (cancelled) return;
         await pc.setRemoteDescription({ type: "answer", sdp: answer });
 
         pc.onconnectionstatechange = () => {
-          if (!aliveRef.current) return;
+          if (cancelled) return;
           if (pc.connectionState === "connected") {
             setStatusOnce("listening");
             lastActiveRef.current = performance.now();
@@ -149,17 +150,19 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         lastActiveRef.current = performance.now();
         rafRef.current = requestAnimationFrame(monitor);
         idleRef.current = setInterval(() => {
-          if (performance.now() - lastActiveRef.current > INACTIVITY_MS) onCloseRef.current();
+          if (!cancelled && performance.now() - lastActiveRef.current > INACTIVITY_MS) {
+            onCloseRef.current();
+          }
         }, 5000);
       } catch (err) {
-        if (!aliveRef.current) return;
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : l("Нещо се обърка.", "Something went wrong."));
         setStatusOnce("error");
       }
     })();
 
     return () => {
-      aliveRef.current = false;
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       clearInterval(idleRef.current);
       micRef.current?.getTracks().forEach((t) => t.stop());
