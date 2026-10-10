@@ -3,18 +3,16 @@ import { blankProfile, type Profile } from "./profile-store";
 import type { HistoryRecord } from "./history-data";
 import type { ServiceId } from "./services";
 
-export async function requestOtp(phone: string, signup: boolean) {
-  const { error } = await getSupabase().auth.signInWithOtp({
-    phone: `+359${phone}`,
-    options: { shouldCreateUser: signup },
-  });
-  if (error) throw error;
-}
-export async function verifyOtp(phone: string, token: string) {
-  const { error } = await getSupabase().auth.verifyOtp({
-    phone: `+359${phone}`,
-    token,
-    type: "sms",
+// Phone is profile context only during the prototype. Never use it to find or
+// authorize another account. Supabase's anonymous session supplies the owner ID.
+export async function startAccount(phone: string) {
+  if (!/^[89]\d{8}$/.test(phone)) throw new Error("Enter a valid Bulgarian mobile number.");
+  const sb = getSupabase();
+  const { data: { session }, error: sessionError } = await sb.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (session) return;
+  const { error } = await sb.auth.signInAnonymously({
+    options: { data: { contact_phone: `+359${phone}` } },
   });
   if (error) throw error;
 }
@@ -31,7 +29,9 @@ export async function loadAccount() {
     error,
   } = await sb.auth.getUser();
   if (error) throw error;
-  if (!user?.phone) throw new Error("A verified phone number is required.");
+  if (!user) throw new Error("Please start again.");
+  const contactPhone = user.phone || user.user_metadata?.contact_phone;
+  if (typeof contactPhone !== "string") throw new Error("Your profile has no phone number.");
   const [p, c, h] = await Promise.all([
     sb
       .from("profiles")
@@ -49,7 +49,7 @@ export async function loadAccount() {
   ]);
   for (const result of [p, c, h]) if (result.error) throw result.error;
   return {
-    phone: user.phone.replace(/^\+?359/, ""),
+    phone: contactPhone.replace(/^\+?359/, ""),
     profile: (p.data || blankProfile()) as Profile,
     connected: new Set<ServiceId>(
       (c.data || []).map((r) => r.service as ServiceId),

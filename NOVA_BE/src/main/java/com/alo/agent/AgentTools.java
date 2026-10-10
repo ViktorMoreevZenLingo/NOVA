@@ -16,6 +16,7 @@ import com.google.api.services.people.v1.model.Name;
 import com.google.api.services.people.v1.model.Person;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -73,8 +74,13 @@ public class AgentTools {
                             prop("cc", "string", "Optional CC email address.")), "to", "subject", "body")));
         }
         if (connected.calendar()) {
-            tools.add(tool("list_calendar_events", "List upcoming calendar events.",
-                    obj(prop("days_ahead", "integer", "How many days ahead to look. Default 7."),
+            tools.add(tool("list_calendar_events",
+                    "List calendar events. For a specific day such as today or tomorrow, pass from and to "
+                            + "as that exact YYYY-MM-DD date (in the user's local time) — do NOT rely on days_ahead, "
+                            + "which always starts from now and would include today.",
+                    obj(prop("from", "string", "Start day, YYYY-MM-DD in the user's local time. Optional."),
+                            prop("to", "string", "End day (inclusive), YYYY-MM-DD in the user's local time. Optional; defaults to 'from'."),
+                            prop("days_ahead", "integer", "Used only when from/to are omitted: how many days ahead from now. Default 7."),
                             prop("max", "integer", "Max events. Default 15."))));
             tools.add(tool("create_calendar_event", "Create a calendar event. Requires confirmation.",
                     required(obj(prop("title", "string", "Event title."),
@@ -199,12 +205,29 @@ public class AgentTools {
     // --- Calendar ---
 
     private String listEvents(Long userId, JsonNode args) throws Exception {
-        int days = args.path("days_ahead").asInt(7);
         int max = args.path("max").asInt(15);
-        DateTime now = new DateTime(System.currentTimeMillis());
-        DateTime until = new DateTime(System.currentTimeMillis() + days * 86400000L);
+        String from = args.path("from").asText(null);
+
+        DateTime timeMin;
+        DateTime timeMax;
+        LocalDate fromDate = parseLocalDate(from);
+        if (fromDate != null) {
+            // Explicit day range, resolved to local-day boundaries in the user's
+            // timezone so "tomorrow" means tomorrow here, not UTC midnight.
+            LocalDate toDate = parseLocalDate(args.path("to").asText(null));
+            if (toDate == null || toDate.isBefore(fromDate)) {
+                toDate = fromDate;
+            }
+            timeMin = new DateTime(fromDate.atStartOfDay(zone).toInstant().toEpochMilli());
+            timeMax = new DateTime(toDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli());
+        } else {
+            int days = args.path("days_ahead").asInt(7);
+            timeMin = new DateTime(System.currentTimeMillis());
+            timeMax = new DateTime(System.currentTimeMillis() + days * 86400000L);
+        }
+
         var events = clients.calendar(userId).events().list("primary")
-                .setTimeMin(now).setTimeMax(until)
+                .setTimeMin(timeMin).setTimeMax(timeMax)
                 .setSingleEvents(true).setOrderBy("startTime").setMaxResults(max).execute();
         List<Map<String, Object>> out = new ArrayList<>();
         if (events.getItems() != null) {
@@ -241,6 +264,18 @@ public class AgentTools {
         }
         Event created = clients.calendar(userId).events().insert("primary", event).execute();
         return "Event created: " + created.getHtmlLink();
+    }
+
+    /** Parses a YYYY-MM-DD (or leading date of a datetime) to a LocalDate, or null. */
+    private static LocalDate parseLocalDate(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value.trim().substring(0, 10));
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private EventDateTime eventTime(String value) {

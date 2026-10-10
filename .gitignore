@@ -15,3 +15,7 @@ supabase/functions/.env.local
 # Tooling
 .omc/
 .DS_Store
+
+# Locally installed AI agent skills
+/.agents/skills/
+/skills-lock.json

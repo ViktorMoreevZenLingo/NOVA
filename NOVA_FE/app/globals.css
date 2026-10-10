@@ -801,6 +801,8 @@ dialog > p {
 }
 .dashboard-body {
   margin-left: var(--sidebar-width);
+  padding-top: 70px;
+  scroll-padding-top: 70px;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1734,8 +1736,11 @@ dialog .primary:not(.danger-button):active {
 }
 .tabs-ready .history-tab-highlight {
   transition:
-    transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    width 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.history-filters button:active {
+  transform: none;
 }
 .context-import {
   border-top: 1px solid #e5e5e7;
@@ -2161,8 +2166,10 @@ dialog .full {
 
 /* Shared app bar, aligned with the sidebar brand row. */
 .app-topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: var(--sidebar-width);
+  right: 0;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -2179,7 +2186,8 @@ dialog .full {
   font-weight: 550;
 }
 .app-topbar .language-switcher {
-  position: static;
+  position: relative;
+  inset: auto;
   flex-shrink: 0;
 }
 .history-shell .history-content {
@@ -2817,7 +2825,7 @@ html:has(.history-index), body:has(.history-index) {
 }
 .history-shell:has(.history-index) .dashboard-body {
   display: grid;
-  grid-template-rows: 70px minmax(0, 1fr) 64px;
+  grid-template-rows: minmax(0, 1fr) 64px;
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
@@ -2854,8 +2862,16 @@ html:has(.history-index), body:has(.history-index) {
 .language-trigger > .icon { width: 15px; height: 15px; }
 .language-trigger > span { flex: 1; font-size: 11px; }
 .language-switcher.is-open > .language-trigger > .icon { transform: none; }
-.language-menu[popover] { inset: auto; margin: 0; max-height: none; }
-.language-menu:not(:popover-open) { display: none; }
+.language-switcher .language-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
+  z-index: 20;
+}
 .language-trigger:active { transform: none; }
 
 .transcript-panel {
@@ -3050,4 +3066,64 @@ html:has(.history-index), body:has(.history-index) {
   .chat-log .transcript-turn {
     max-width: 88%;
   }
+}
+
+/* Clickable links + preserved line breaks in chat messages. */
+.chat-log .chat-bubble {
+  white-space: pre-wrap;
+}
+.chat-bubble a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.chat-bubble a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Top-layer filter panel stays visible outside the list's clipped layout. */
+.history-sort-panel { box-sizing: border-box; }
+
+.app-loading { position: fixed; inset: 0; display: grid; place-items: center; }
+.app-loading-spinner {
+  width: 28px; height: 28px; border: 2px solid #dedee3;
+  border-top-color: #34343b; border-radius: 50%;
+  animation: app-loading-spin 800ms linear infinite;
+}
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-loading-spinner { animation-duration: 1800ms; }
+}
+
+/* Reference filter motion: fields collapse, the range shifts up, and the calendar unfolds. */
+.history-choice-menu { box-sizing: border-box; }
+.history-choice-menu:not(:popover-open) { display: none; }
+.history-filter-content .filter-upper-collapse,
+.history-filter-content .filter-calendar-collapse {
+  display: grid;
+  transition: grid-template-rows 360ms cubic-bezier(.22,.75,.2,1), opacity 200ms ease;
+}
+.filter-upper-collapse { grid-template-rows: 1fr; opacity: 1; }
+.range-focused .filter-upper-collapse { grid-template-rows: 0fr; opacity: 0; }
+.filter-upper-collapse > .range-upper-fields { min-height: 0; }
+.filter-calendar-collapse { grid-template-rows: 0fr; }
+.range-focused .filter-calendar-collapse { grid-template-rows: 1fr; }
+.filter-calendar-clip { overflow: hidden; min-height: 0; }
+.filter-range-calendar {
+  margin: 8px 0 0; padding: 14px 0 0; border: 0;
+  border-top: 1px solid #eeeef0; border-radius: 0; box-shadow: none;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 130ms ease, transform 200ms ease;
+}
+.range-focused .filter-range-calendar { opacity: 1; transform: translateY(0); transition-delay: 200ms; }
+.history-filter-content .calendar-days button { height: clamp(22px, calc((100dvh - 330px) / 6), 32px); }
+.history-filter-content .range-instruction { min-height: 30px; }
+.history-sort-panel { scrollbar-width: none; }
+.history-sort-panel::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .history-filter-content .filter-upper-collapse,
+  .history-filter-content .filter-calendar-collapse,
+  .filter-range-calendar { transition: none; }
 }

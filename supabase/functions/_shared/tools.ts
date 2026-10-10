@@ -6,6 +6,48 @@ const str = (a: Args, key: string) =>
   typeof a[key] === "string" ? a[key] as string : "";
 const num = (a: Args, key: string, fallback: number, max: number) =>
   Math.max(1, Math.min(max, Number(a[key]) || fallback));
+const TIMEZONE = Deno.env.get("APP_TIMEZONE") || "Europe/Sofia";
+// Offset (minutes) of a timezone at a given instant.
+const tzOffsetMinutes = (date: Date, timeZone: string) => {
+  const parts: Record<string, string> = {};
+  for (
+    const p of new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).formatToParts(date)
+  ) parts[p.type] = p.value;
+  const asUTC = Date.UTC(
+    +parts.year,
+    +parts.month - 1,
+    +parts.day,
+    +parts.hour,
+    +parts.minute,
+    +parts.second,
+  );
+  return (asUTC - date.getTime()) / 60000;
+};
+// UTC instant of local midnight for a YYYY-MM-DD date in the given timezone.
+const zonedDayStart = (dateStr: string, timeZone: string) => {
+  const guess = new Date(`${dateStr}T00:00:00Z`);
+  const off1 = tzOffsetMinutes(guess, timeZone);
+  let utc = new Date(guess.getTime() - off1 * 60000);
+  const off2 = tzOffsetMinutes(utc, timeZone);
+  if (off2 !== off1) utc = new Date(guess.getTime() - off2 * 60000);
+  return utc;
+};
+const localDate = (value: string) => {
+  const m = /^\d{4}-\d{2}-\d{2}/.exec(value.trim());
+  return m ? m[0] : null;
+};
+const addDays = (dateStr: string, days: number) =>
+  new Date(Date.parse(`${dateStr}T00:00:00Z`) + days * 86400000)
+    .toISOString().slice(0, 10);
 const fields = (keys: string[]) =>
   Object.fromEntries(keys.map((key) => [key, { type: "string" }]));
 const definition = (
@@ -57,10 +99,16 @@ export function definitions(connected: Set<string>) {
       fields(["to", "subject", "body", "cc"]),
       ["to", "subject", "body"],
     ),
-    definition("list_calendar_events", "List upcoming events.", {
-      days_ahead: { type: "integer" },
-      max: { type: "integer" },
-    }),
+    definition(
+      "list_calendar_events",
+      "List calendar events. For a specific day (today, tomorrow, a weekday or a date) pass from and to as that exact YYYY-MM-DD date in the user's local timezone; do not rely on days_ahead, which starts from now and would include today.",
+      {
+        from: { type: "string" },
+        to: { type: "string" },
+        days_ahead: { type: "integer" },
+        max: { type: "integer" },
+      },
+    ),
     definition(
       "create_calendar_event",
       "Draft a calendar event for explicit user approval. Start and end must include a timezone offset.",
@@ -221,10 +269,24 @@ export async function execute(userId: string, name: string, a: Args) {
     });
   }
   if (name === "list_calendar_events") {
+    const from = localDate(str(a, "from"));
+    let timeMin: string;
+    let timeMax: string;
+    if (from) {
+      let to = localDate(str(a, "to")) || from;
+      if (to < from) to = from;
+      // Resolve to local-day boundaries so "tomorrow" means tomorrow here,
+      // not UTC midnight.
+      timeMin = zonedDayStart(from, TIMEZONE).toISOString();
+      timeMax = zonedDayStart(addDays(to, 1), TIMEZONE).toISOString();
+    } else {
+      timeMin = new Date().toISOString();
+      timeMax = new Date(Date.now() + num(a, "days_ahead", 7, 365) * 86400000)
+        .toISOString();
+    }
     return request(`${calendar}?${new URLSearchParams({
-      timeMin: new Date().toISOString(),
-      timeMax: new Date(Date.now() + num(a, "days_ahead", 7, 365) * 86400000)
-        .toISOString(),
+      timeMin,
+      timeMax,
       singleEvents: "true",
       orderBy: "startTime",
       maxResults: String(num(a, "max", 15, 50)),

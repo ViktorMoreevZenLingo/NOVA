@@ -13,9 +13,12 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
     const { user, token } = await authenticate(req);
     const { phone } = await req.json();
+    // Contact number is an unverified confirmation prompt, never an owner lookup.
+    const contactPhone = user.phone || user.user_metadata?.contact_phone;
     if (
       typeof phone !== "string" ||
-      phone.replace(/^\+/, "") !== user.phone?.replace(/^\+/, "")
+      typeof contactPhone !== "string" ||
+      phone.replace(/^\+/, "") !== contactPhone.replace(/^\+/, "")
     ) throw new HttpError(400, "Phone number does not match.");
     const db = admin();
     // Revoke refresh sessions before deleting; stale JWTs cannot see any rows

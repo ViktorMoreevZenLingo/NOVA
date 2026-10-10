@@ -157,6 +157,10 @@ public class AgentService {
                 When sending an email or creating an event, call the tool with complete,
                 correct details; the system will pause and ask the user to confirm before
                 it actually happens, so make sure everything is right.
+                For calendar questions about a specific day (today, tomorrow, a weekday, or a
+                date), work out that calendar date from the current date/time above and call
+                list_calendar_events with from and to set to that exact YYYY-MM-DD date, so you
+                return only that day's events and label them with the correct day.
                 To email someone by name, look them up with search_contacts first.
                 Reply in the same language the user writes in (Bulgarian or English).
                 Be concise and friendly — your replies may be read aloud.

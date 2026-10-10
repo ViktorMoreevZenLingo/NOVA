@@ -18,10 +18,10 @@ import { Toast } from "@/components/ui/Toast";
 import { blankProfile, type Profile } from "@/lib/profile-store";
 import type { ServiceId } from "@/lib/services";
 import type { HistoryRecord } from "@/lib/history-data";
+import { MOCK_HISTORY } from "@/lib/history-mock-data";
 import {
   loadAccount,
-  requestOtp,
-  verifyOtp,
+  startAccount,
   updateProfile,
   signOut,
   deleteAccount,
@@ -101,9 +101,7 @@ export function AloApp() {
     setRecords(account.records);
     setView((current) =>
       ["login", "otp"].includes(current)
-        ? account.profile.name
-          ? "dashboard"
-          : "profile-setup"
+        ? "dashboard"
         : current,
     );
   }, [clearAccount]);
@@ -130,11 +128,9 @@ export function AloApp() {
           if (service && account.connected.has(service))
             setToast("Service connected.");
           setView(
-            account.profile.name
-              ? service || params.has("connection_error")
-                ? "integrations"
-                : "dashboard"
-              : "profile-setup",
+            service || params.has("connection_error")
+              ? "integrations"
+              : "dashboard",
           );
         }
         const { data } = sb.auth.onAuthStateChange((event) => {
@@ -191,8 +187,8 @@ export function AloApp() {
 
   if (loading)
     return (
-      <main className="auth-content" role="status">
-        {l("Зареждане…", "Loading…")}
+      <main className="app-loading" role="status" aria-label={l("Зареждане…", "Loading…")}>
+        <span className="app-loading-spinner" aria-hidden="true" />
       </main>
     );
   if (loadError)
@@ -211,19 +207,15 @@ export function AloApp() {
     return (
       <>
         <Auth
-          view={view}
           mode={mode}
           setMode={setMode}
           phone={phone}
           setPhone={setPhone}
           onPhoneSubmit={async (number) => {
-            await requestOtp(number, mode === "signup");
-            navigate("otp");
-          }}
-          onBack={() => navigate("login")}
-          onVerified={async (token) => {
-            await verifyOtp(phone, token);
+            const destination = mode === "signup" ? "profile-setup" : "dashboard";
+            await startAccount(number);
             await refreshAccount();
+            navigate(destination);
           }}
         />
         <Toast message={toast} />
@@ -283,9 +275,10 @@ export function AloApp() {
 
   // ---- Dashboard shell ---------------------------------------------------
   const firstName = profile.name.trim().split(/\s+/)[0] || "";
+  const historyRecords = [...records, ...MOCK_HISTORY.filter((mock) => !records.some((record) => record.id === mock.id))];
   const breadcrumbTitle =
     view === "history" && selected
-      ? records.find((r) => r.id === selected)?.title[lang]
+      ? historyRecords.find((r) => r.id === selected)?.title[lang]
       : null;
 
   return (
@@ -315,7 +308,7 @@ export function AloApp() {
         )}
         {view === "history" && (
           <History
-            records={records}
+            records={historyRecords}
             selected={selected}
             onSelect={(id) => setSelected(id)}
           />

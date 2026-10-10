@@ -77,7 +77,7 @@ public class GoogleController {
         try {
             Long userId = Sessions.requireUserId(session);
             google.handleCallback(userId, service, code);
-            return redirect(publicUrl + "/home?connected=" + service);
+            return redirect(publicUrl + "/?connected=" + service);
         } catch (Exception e) {
             log.error("OAuth: callback handling failed", e);
             return redirect(homeError(e.getMessage()));
@@ -93,7 +93,7 @@ public class GoogleController {
 
     private String homeError(String message) {
         String msg = message == null ? "unknown" : message;
-        return publicUrl + "/home?error=" + URLEncoder.encode(msg, StandardCharsets.UTF_8);
+        return publicUrl + "/?error=" + URLEncoder.encode(msg, StandardCharsets.UTF_8);
     }
 
     private static ResponseEntity<Void> redirect(String url) {

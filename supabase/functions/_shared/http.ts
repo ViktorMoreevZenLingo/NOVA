@@ -24,8 +24,8 @@ export async function authenticate(req: Request) {
   const token = req.headers.get("Authorization")?.replace(/^Bearer /i, "");
   if (!token) throw new HttpError(401, "Please sign in again.");
   const { data: { user }, error } = await admin().auth.getUser(token);
-  if (error || !user?.phone || !user.phone_confirmed_at) {
-    throw new HttpError(401, "Please verify your phone number.");
+  if (error || !user || (!user.is_anonymous && !user.phone_confirmed_at)) {
+    throw new HttpError(401, "Please start a new session.");
   }
   return { user, token };
 }
