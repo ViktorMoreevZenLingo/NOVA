@@ -43,7 +43,11 @@ Deno.test({
         return { ...r, taskId: `${prefix}-${r.taskId}` };
       };
 
-      const deps: TaskDeps = {
+      const deps: TaskDeps & { vapiApi: null; executeAction: () => Promise<unknown> } = {
+        vapiApi: null,
+        executeAction: () => Promise.reject(new Error("not used")),
+        buildCalendarPrompt: (i) => Promise.resolve({ content: i, connectors: [] }),
+        buildReplyPrompt: () => Promise.reject(new Error("not used")),
         store: createTaskStore(admin),
         manus,
         buildGmailPrompt: (i) => Promise.resolve({ content: i, connectors: ["gmail"] }),
@@ -75,7 +79,8 @@ Deno.test({
       assertEquals(rows!.length, 1);
       const task = rows![0];
       assertEquals(task.status, "submitted");
-      assertMatch(manus.created[0].content, /Likes bullet points/);
+      // Profile notes are never sent next to untrusted email data.
+      assert(!/Likes bullet points/.test(manus.created[0].content));
 
       // Mirrored into the Alo app's History.
       const { data: act1 } = await admin.from("activity").select().eq("id", task.id).single();

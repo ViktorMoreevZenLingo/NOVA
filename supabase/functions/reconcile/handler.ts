@@ -3,11 +3,13 @@
 import { hasBearer } from "../_shared/crypto.ts";
 import type { AgentTask } from "../_shared/db.ts";
 import { errorText, log } from "../_shared/log.ts";
+import { requestApprovalCall } from "../_shared/approval-call.ts";
 import { applyManusStop, failTask, MAX_SUBMIT_ATTEMPTS, notifyTask, submitTask, type TaskDeps } from "../_shared/tasks.ts";
 
 export type ReconcileConfig = { cronSecret: string; staleAfterMs?: number };
 
 const DEFAULT_STALE_AFTER_MS = 3 * 60_000;
+const APPROVAL_TTL_MS = 24 * 60 * 60_000;
 
 async function reconcileTask(deps: TaskDeps, task: AgentTask): Promise<string> {
   switch (task.status) {
@@ -42,6 +44,30 @@ async function reconcileTask(deps: TaskDeps, task: AgentTask): Promise<string> {
       }
       return "running";
     }
+
+    case "awaiting_approval":
+      if (Date.parse(task.created_at) < Date.now() - APPROVAL_TTL_MS) {
+        await deps.store.transition(task.id, ["awaiting_approval"], {
+          status: "rejected",
+          error_message: "Expired: not approved within 24 hours. Nothing was sent.",
+          completed_at: new Date().toISOString(),
+          notified_at: new Date().toISOString(),
+        });
+        return "approval_expired";
+      }
+      // Confirmation call not answered / not placed yet: retry (max 3, 15 min apart).
+      return (await requestApprovalCall(deps, task)) ? "approval_call" : "awaiting_approval";
+
+    case "sending":
+      // The approved send crashed mid-way (it times out in seconds). Never resend
+      // automatically: the provider may have accepted it.
+      await deps.store.transition(task.id, ["sending"], {
+        status: "failed",
+        error_message: "Could not confirm the result. Check Gmail/Calendar before trying again.",
+        completed_at: new Date().toISOString(),
+        notified_at: new Date().toISOString(),
+      });
+      return "send_unconfirmed";
 
     default:
       return (await notifyTask(deps, task.id)) ? "notified" : "notify_skipped";

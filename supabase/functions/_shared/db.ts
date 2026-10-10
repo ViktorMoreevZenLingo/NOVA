@@ -3,8 +3,19 @@
 // events are harmless no-ops.
 import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import type { TaskIntent } from "./contracts.ts";
+import type { Layer, RiskLevel, SecurityLevel } from "./policy.ts";
 
-export type TaskStatus = "pending" | "submitted" | "submit_failed" | "completed" | "needs_input" | "failed";
+export type TaskStatus =
+  | "pending"
+  | "submitted"
+  | "submit_failed"
+  | "completed"
+  | "needs_input"
+  | "failed"
+  | "awaiting_approval"
+  /** Approved; the provider call is in flight. Never re-entered automatically. */
+  | "sending"
+  | "rejected";
 
 export type AgentTask = {
   id: string;
@@ -13,6 +24,14 @@ export type AgentTask = {
   vapi_tool_call_id: string | null;
   intent: TaskIntent;
   prompt: string;
+  /** email_query, or the action (to/subject/body, title/start/end/…) awaiting approval. */
+  params: Record<string, unknown>;
+  risk_level: RiskLevel | null;
+  layers: Layer[];
+  approved_at: string | null;
+  approved_via: "call" | "app" | null;
+  approval_call_at: string | null;
+  approval_call_attempts: number;
   status: TaskStatus;
   manus_task_id: string | null;
   manus_task_url: string | null;
@@ -31,9 +50,25 @@ export type AgentTask = {
 /** Caller identity (auth user) plus Alo profile data, if the user filled it in. */
 export type Profile = { user_id: string; name: string | null; notes: string | null };
 
-export type CallSession = { vapi_call_id: string; user_id: string | null; pin_failures: number; verified_at: string | null };
+export type CallSession = {
+  vapi_call_id: string;
+  user_id: string | null;
+  pin_failures: number;
+  verified_at: string | null;
+  /** True for calls Alo itself placed to the registered number (layer L3). */
+  via_callback: boolean;
+  /** On an inbound call: the callback that was started for it. */
+  callback_call_id: string | null;
+  purpose: "inbound" | "secure_callback" | "approval";
+  /** On a confirmation call: the task being approved. */
+  approval_task_id: string | null;
+};
 
-export type NewTask = Pick<AgentTask, "user_id" | "vapi_call_id" | "vapi_tool_call_id" | "intent" | "prompt">;
+export type VoiceSettings = { securityLevel: SecurityLevel; approveByCall: boolean };
+
+export type NewTask =
+  & Pick<AgentTask, "user_id" | "vapi_call_id" | "vapi_tool_call_id" | "intent" | "prompt">
+  & Partial<Pick<AgentTask, "params" | "risk_level" | "layers" | "status" | "result">>;
 
 export type TaskStore = {
   /** Matches a confirmed auth.users.phone (Alo signs users in by SMS OTP). */
@@ -44,6 +79,27 @@ export type TaskStore = {
   recordPinFailure(callId: string, userId: string): Promise<number>;
   /** PIN failures for this user across all calls in the last hour. */
   recentPinFailures(userId: string): Promise<number>;
+  /** The user's floor and approval channel from the Alo app (default standard, by call). */
+  getVoiceSettings(userId: string): Promise<VoiceSettings>;
+  /** Confirmed registered phone in E.164, for callbacks. */
+  userPhone(userId: string): Promise<string | null>;
+  /** Reserves the one callback allowed per inbound call; false if already started. */
+  claimCallback(inboundCallId: string): Promise<boolean>;
+  setCallback(inboundCallId: string, outboundCallId: string | null): Promise<void>;
+  /**
+   * Session for a call Alo placed to the registered number (L3). A secure callback is
+   * verified up front (PIN was given on the inbound call); a confirmation call is not:
+   * the PIN must be said on it. Upsert: the user may answer before this runs.
+   */
+  createCallbackSession(
+    outboundCallId: string,
+    userId: string,
+    opts: { purpose: "secure_callback" | "approval"; approvalTaskId?: string },
+  ): Promise<void>;
+  /** Takes the right to place a confirmation call for this task (≤3, spaced). */
+  claimApprovalCall(taskId: string, minGapMinutes?: number): Promise<AgentTask | null>;
+  latestAwaitingApproval(userId: string): Promise<AgentTask | null>;
+  awaitingApprovalForCall(callId: string): Promise<AgentTask[]>;
 
   /** Inserts a task; if this Vapi tool call was already handled, returns the existing row. */
   insertTask(task: NewTask): Promise<{ task: AgentTask; created: boolean }>;
@@ -105,6 +161,68 @@ export function createTaskStore(db: SupabaseClient = createServiceClient()): Tas
 
     async recordPinFailure(callId, userId) {
       return must(await db.rpc("record_pin_failure", { p_call_id: callId, p_user_id: userId }), "recordPinFailure") as number;
+    },
+
+    async getVoiceSettings(userId) {
+      const row = must(
+        await db.from("voice_settings").select("security_level, approve_by_call").eq("user_id", userId).maybeSingle(),
+        "getVoiceSettings",
+      ) as { security_level: SecurityLevel; approve_by_call: boolean } | null;
+      return { securityLevel: row?.security_level ?? "standard", approveByCall: row?.approve_by_call ?? true };
+    },
+
+    async userPhone(userId) {
+      return must(await db.rpc("nova_user_phone", { p_user_id: userId }), "userPhone") as string | null;
+    },
+
+    async claimCallback(inboundCallId) {
+      const rows = must(
+        await db.from("call_sessions").update({ callback_call_id: "starting" }).eq("vapi_call_id", inboundCallId)
+          .is("callback_call_id", null).select("vapi_call_id"),
+        "claimCallback",
+      ) as unknown[];
+      return rows.length === 1;
+    },
+
+    async setCallback(inboundCallId, outboundCallId) {
+      must(await db.from("call_sessions").update({ callback_call_id: outboundCallId }).eq("vapi_call_id", inboundCallId), "setCallback");
+    },
+
+    async createCallbackSession(outboundCallId, userId, opts) {
+      must(
+        await db.from("call_sessions").upsert({
+          vapi_call_id: outboundCallId,
+          user_id: userId,
+          via_callback: true,
+          purpose: opts.purpose,
+          approval_task_id: opts.approvalTaskId ?? null,
+          ...(opts.purpose === "secure_callback" ? { verified_at: new Date().toISOString() } : {}),
+        }),
+        "createCallbackSession",
+      );
+    },
+
+    async claimApprovalCall(taskId, minGapMinutes = 15) {
+      const rows = must(
+        await db.rpc("nova_claim_approval_call", { p_task_id: taskId, p_min_gap: `${minGapMinutes} minutes` }),
+        "claimApprovalCall",
+      ) as AgentTask[];
+      return rows[0] ?? null;
+    },
+
+    async latestAwaitingApproval(userId) {
+      return must(
+        await tasks().select().eq("user_id", userId).eq("status", "awaiting_approval").order("created_at", { ascending: false })
+          .limit(1).maybeSingle(),
+        "latestAwaitingApproval",
+      ) as AgentTask | null;
+    },
+
+    async awaitingApprovalForCall(callId) {
+      return must(
+        await tasks().select().eq("vapi_call_id", callId).eq("status", "awaiting_approval"),
+        "awaitingApprovalForCall",
+      ) as AgentTask[];
     },
 
     async recentPinFailures(userId) {

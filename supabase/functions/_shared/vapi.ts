@@ -9,6 +9,8 @@ export type VapiToolCall = { id: string; name: string; args: Record<string, unkn
 export type VapiToolRequest = {
   callId: string;
   callType: string | null;
+  /** Metadata we attached when placing an outbound call (private API key only). */
+  callMetadata: Record<string, unknown>;
   customerNumber: string | null;
   toolCalls: VapiToolCall[];
 };
@@ -41,7 +43,14 @@ export function parseToolRequest(body: any): VapiToolRequest | null {
     // deno-lint-ignore no-explicit-any
     .map((tc: any) => ({ id: tc.id, name: tc.function.name, args: parseArgs(tc.function.arguments) }));
 
-  return { callId, callType: message.call?.type ?? null, customerNumber, toolCalls };
+  const metadata = message.call?.metadata;
+  return {
+    callId,
+    callType: message.call?.type ?? null,
+    customerNumber,
+    toolCalls,
+    callMetadata: metadata && typeof metadata === "object" ? metadata : {},
+  };
 }
 
 /** Vapi requires HTTP 200 even for failures; errors go in the per-call `error` field. */

@@ -72,12 +72,67 @@ do $$ begin
   assert (select status from public.agent_tasks) = 'pending', 'A must not be able to update tasks';
 end $$;
 
+-- Security setting: A manages only its own row, and only security_level.
+reset role;
+insert into public.voice_settings (user_id, security_level) values ('22222222-2222-4222-8222-222222222222', 'secure');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-111111111111","role":"authenticated"}', true);
+insert into public.voice_settings (user_id, security_level) values ('11111111-1111-4111-8111-111111111111', 'secure');
+update public.voice_settings set security_level = 'standard';
+do $$ begin
+  assert (select count(*) from public.voice_settings) = 1, 'A sees only its own setting';
+  assert (select security_level from public.voice_settings) = 'standard', 'A can change its level';
+  begin
+    insert into public.voice_settings (user_id) values ('22222222-2222-4222-8222-222222222222');
+    raise exception 'inserting a setting for another user should be denied';
+  exception when insufficient_privilege or unique_violation then null;
+  end;
+  begin
+    perform public.nova_user_phone('22222222-2222-4222-8222-222222222222');
+    raise exception 'nova_user_phone should be denied';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  assert (select security_level from public.voice_settings where user_id = '22222222-2222-4222-8222-222222222222') = 'secure',
+    'B''s setting untouched';
+  assert public.nova_user_phone('11111111-1111-4111-8111-111111111111') = '+359888000001', 'E.164 phone for callbacks';
+  assert public.nova_user_phone('33333333-3333-4333-8333-333333333333') is null, 'no callback to unconfirmed phone';
+end $$;
+
+-- Approval tasks are mirrored as "needs input" with the draft in the History detail.
+insert into public.agent_tasks (user_id, intent, prompt, status, result, risk_level)
+values ('11111111-1111-4111-8111-111111111111', 'reply_email', 'Reply to Ivan', 'awaiting_approval', 'To: ivan@example.com', 'high');
+do $$ begin
+  assert (select a.status = 'needs_input' and a.detail ->> 'en' like 'Waiting for your approval%'
+            from public.activity a join public.agent_tasks t using (id) where t.prompt = 'Reply to Ivan'), 'approval mirrored';
+end $$;
+
+-- Confirmation calls: at most 3, spaced; only while awaiting approval.
+do $$
+declare t uuid := (select id from public.agent_tasks where prompt = 'Reply to Ivan');
+begin
+  assert (select count(*) from public.nova_claim_approval_call(t)) = 1, 'first confirmation call';
+  assert (select count(*) from public.nova_claim_approval_call(t)) = 0, 'spaced 15 minutes';
+  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 1, 'caller-requested sooner';
+  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 1, 'third attempt';
+  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 0, 'max 3 attempts';
+  update public.agent_tasks set status = 'sending' where id = t;
+  assert (select a.status = 'in_progress' from public.activity a where a.id = t), 'sending shows as in progress';
+end $$;
+
 -- Anonymous users see nothing.
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 do $$ begin
   assert (select count(*) from public.agent_tasks) = 0, 'anon must see no tasks';
+  begin
+    perform count(*) from public.voice_settings;
+    raise exception 'anon must not read voice_settings';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 -- Service-role helpers behave as designed.

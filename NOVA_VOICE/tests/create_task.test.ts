@@ -35,8 +35,8 @@ Deno.test("create-task: happy path creates and submits a Manus task", async () =
   assertEquals(task.user_id, USER_ID);
   assertEquals(manus.created[0].connectors, []);
   assertMatch(manus.created[0].content, new RegExp(`^GMAIL\\(${USER_ID}\\): Summarize important emails`));
-  // Alo profile goes along as context.
-  assertMatch(manus.created[0].content, /About the user[\s\S]*Name: Demo[\s\S]*Prefers short answers/);
+  // Profile notes are NOT sent next to untrusted email data (exfiltration risk).
+  assert(!/About the user/.test(manus.created[0].content));
 });
 
 Deno.test("create-task: research intent uses no connectors and guardrails", async () => {
@@ -45,6 +45,8 @@ Deno.test("create-task: research intent uses no connectors and guardrails", asyn
   assertEquals(manus.created[0].connectors, []);
   assertMatch(manus.created[0].content, /Do not send emails/);
   assertMatch(manus.created[0].content, /Find hackathon tips/);
+  // Research carries the Alo profile as context.
+  assertMatch(manus.created[0].content, /About the user[\s\S]*Name: Demo[\s\S]*Prefers short answers/);
 });
 
 Deno.test("create-task: arguments as JSON string are accepted", async () => {

@@ -55,6 +55,7 @@ export function manusWebhookHandler(deps: TaskDeps, config: ManusWebhookConfig) 
         message: detail.message,
         taskUrl: detail.task_url,
         taskTitle: detail.task_title,
+        structuredOutput: detail.structured_output,
       });
     } catch (err) {
       // 500 lets Manus retry (if it does); the reconcile sweep is the backstop either way.

@@ -12,7 +12,7 @@ import { hasGmail } from "./gmail.ts";
 const MAX_EMAIL_CHARS = 6_000;
 const MAX_SNIPPET_CHARS = 160;
 
-type EmailItem = { snippet?: string; headers?: { name: string; value: string }[] };
+export type EmailItem = { snippet?: string; headers?: { name: string; value: string }[] };
 
 function compact(emails: EmailItem[]) {
   return emails.map((e) => {
@@ -26,11 +26,22 @@ function compact(emails: EmailItem[]) {
   });
 }
 
-export const buildGmailPrompt: BuildGmailPrompt = async (instruction, userId) => {
+/** Gmail search syntax chosen by the caller ("from:ivan newer_than:7d"); one line, bounded. */
+export function emailQuery(params: Record<string, unknown> | undefined): string | null {
+  const q = typeof params?.email_query === "string" ? params.email_query.replace(/[\r\n]+/g, " ").trim() : "";
+  return q ? q.slice(0, 200) : null;
+}
+
+export const buildGmailPrompt: BuildGmailPrompt = async (instruction, userId, params) => {
   if (!(await hasGmail(userId))) {
     throw new NonRetryableTaskError("Gmail is not connected. Connect it in the Alo app under Integrations, then call again.");
   }
-  const emails = await execute(userId, "list_recent_emails", { hours: 72, max: 25 }) as EmailItem[];
+  // Only what the caller asked for (Gmail search on their own inbox), else the last 72h.
+  const query = emailQuery(params);
+  const emails =
+    (query
+      ? await execute(userId, "search_emails", { query, max: 25 })
+      : await execute(userId, "list_recent_emails", { hours: 72, max: 25 })) as EmailItem[];
   return {
     content: [
       "You are summarizing the user's recent email. The emails are included below as JSON data.",
@@ -40,7 +51,9 @@ export const buildGmailPrompt: BuildGmailPrompt = async (instruction, userId) =>
       "",
       `User request: ${instruction}`,
       "",
-      "Recent emails (last 72h; from, subject, date, short snippet):",
+      query
+        ? `Emails matching the user's search "${query}" (from, subject, date, short snippet):`
+        : "Recent emails (last 72h; from, subject, date, short snippet):",
       JSON.stringify(compact(emails)).slice(0, MAX_EMAIL_CHARS),
       "",
       "Reply with a concise plain-text summary: the important messages with sender, subject",

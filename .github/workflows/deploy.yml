@@ -49,6 +49,10 @@ jobs:
           VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
           TEST_USER_PIN: ${{ secrets.TEST_USER_PIN }}
           DEMO_WEBCALL_PHONE: ${{ vars.DEMO_WEBCALL_PHONE }}
+          # Secure-mode callbacks (layer L3); without them Secure requests are refused
+          VAPI_API_KEY: ${{ secrets.VAPI_API_KEY }}
+          VAPI_ASSISTANT_ID: ${{ vars.VAPI_ASSISTANT_ID }}
+          VAPI_PHONE_NUMBER_ID: ${{ vars.VAPI_PHONE_NUMBER_ID }}
           # Alo app (empty values are skipped, so secrets set by hand are kept)
           APP_URL: ${{ vars.APP_URL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -71,7 +75,7 @@ jobs:
           {
             echo "MANUS_WEBHOOK_URL=${project_url}/functions/v1/manus-webhook"
             echo "CRON_SECRET=${cron_secret}"
-            for name in MANUS_API_KEY VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE \
+            for name in MANUS_API_KEY VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE VAPI_API_KEY VAPI_ASSISTANT_ID VAPI_PHONE_NUMBER_ID \
                         APP_URL OPENAI_API_KEY OPENAI_MODEL APP_TIMEZONE GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
                         MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET GOOGLE_PLACES_API_KEY; do
               value="${!name:-}"
@@ -104,7 +108,7 @@ jobs:
         run: |
           # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
           base="https://${PROJECT_REF}.supabase.co/functions/v1"
-          for fn in create-task get-task-status reconcile manus-webhook agent integrations account-delete; do
+          for fn in create-task get-task-status reconcile manus-webhook voice-approve vapi-events agent integrations account-delete; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
             echo "$fn -> $code"
           done

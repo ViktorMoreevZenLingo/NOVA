@@ -1,0 +1,20 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "decide_action",
+    "description": "Approve or cancel an action waiting for the caller's approval. On a confirmation call (Alo already read the action aloud) pass decision + the PIN. On any other call, calling it without a decision makes Alo call the caller back to read the pending action.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "decision": { "type": "string", "enum": ["approve", "reject"], "description": "approve = send/create it; reject = cancel it." },
+        "pin": { "type": "string", "description": "The caller's 6-digit PIN, digits only. Required to approve." }
+      }
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "credentialId": "<vapi-bearer-credential-id>",
+    "timeoutSeconds": 30
+  }
+}

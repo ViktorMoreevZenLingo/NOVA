@@ -1,18 +1,20 @@
-// Per-user Gmail access through the Alo app's Google OAuth connection
+// Per-user Google access through the Alo app's Google OAuth connection
 // (public.connections + provider_tokens, see ../providers.ts and ../tools.ts).
 import { admin } from "../http.ts";
 import { accessToken } from "../providers.ts";
 
-export async function hasGmail(userId: string): Promise<boolean> {
+export async function hasConnection(userId: string, service: "gmail" | "calendar"): Promise<boolean> {
   const { data, error } = await admin()
     .from("connections")
     .select("service")
     .eq("user_id", userId)
-    .eq("service", "gmail")
+    .eq("service", service)
     .maybeSingle();
   if (error) throw new Error(`DB connections lookup failed: ${error.message}`);
   return data !== null;
 }
+
+export const hasGmail = (userId: string) => hasConnection(userId, "gmail");
 
 /** The address of the user's own connected Gmail account. */
 export async function ownGmailAddress(userId: string): Promise<string> {

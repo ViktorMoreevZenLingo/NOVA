@@ -18,7 +18,11 @@ export type CallerConfig = {
 };
 
 export type CallerAuth =
-  | { ok: true; profile: Profile }
+  /**
+   * viaCallback: a call Alo placed to the registered number (layer L3).
+   * pinNow: the PIN was said on this call (L2), not just on an earlier inbound call.
+   */
+  | { ok: true; profile: Profile; viaCallback: boolean; pinNow: boolean }
   | { ok: false; reason: "unknown_caller" | "pin_required" | "pin_incorrect" | "locked" };
 
 export async function authenticateCaller(
@@ -31,10 +35,11 @@ export async function authenticateCaller(
   if (session && session.pin_failures >= MAX_PIN_FAILURES) return { ok: false, reason: "locked" };
   if (session?.verified_at && session.user_id) {
     const profile = await store.getProfile(session.user_id);
-    if (profile) return { ok: true, profile };
+    if (profile) return { ok: true, profile, viaCallback: session.via_callback, pinNow: session.purpose !== "secure_callback" };
   }
 
-  const phone = req.customerNumber ?? (req.callType === "webCall" ? config.webCallPhone : undefined);
+  // A web call's "customer number" is client-supplied, never caller ID: ignore it.
+  const phone = req.callType === "webCall" ? config.webCallPhone : req.customerNumber;
   const profile = phone ? await store.findProfileByPhone(phone) : null;
   if (!profile) return { ok: false, reason: "unknown_caller" };
   if ((await store.recentPinFailures(profile.user_id)) >= MAX_HOURLY_PIN_FAILURES) return { ok: false, reason: "locked" };
@@ -46,7 +51,7 @@ export async function authenticateCaller(
   }
 
   await store.markCallVerified(req.callId, profile.user_id);
-  return { ok: true, profile };
+  return { ok: true, profile, viaCallback: session?.via_callback ?? false, pinNow: true };
 }
 
 /** What the assistant should say/do for each auth failure. */

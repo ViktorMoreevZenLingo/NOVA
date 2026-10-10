@@ -3,25 +3,74 @@
   "async": false,
   "function": {
     "name": "create_task",
-    "description": "Delegate a task to the cloud agent. The agent keeps working after the call ends; the result appears in the Alo app's History and, if Gmail is connected, in the caller's own inbox.",
+    "description": "Delegate a task to the cloud agent. Reads (research, email summaries, calendar) run after the call; anything that sends or changes data (reply_email, send_email, create_calendar_event) is only prepared and waits for the caller's approval in the Alo app. The result appears in the app's History.",
     "parameters": {
       "type": "object",
       "properties": {
         "intent": {
           "type": "string",
-          "enum": ["summarize_emails", "research"],
-          "description": "summarize_emails: anything about the caller's own Gmail inbox (must be connected in the Alo app). research: web research or any other general task."
+          "enum": [
+            "research",
+            "summarize_emails",
+            "calendar",
+            "reply_email",
+            "send_email",
+            "create_calendar_event"
+          ],
+          "description": "research: web/general questions. summarize_emails: read the caller's own Gmail. calendar: questions about their schedule. reply_email: AI drafts a reply to one of their emails (sent only after approval). send_email: an email the caller dictates. create_calendar_event: a new event. Gmail/Calendar must be connected in the Alo app."
         },
         "instruction": {
           "type": "string",
-          "description": "The caller's request, restated clearly in one or two sentences."
+          "description": "The caller's request in one or two sentences (for reply_email: what the reply should say)."
+        },
+        "email_query": {
+          "type": "string",
+          "description": "summarize_emails / reply_email: Gmail search for the emails the caller means, e.g. 'from:ivan newer_than:7d' or 'subject:invoice'."
+        },
+        "days_ahead": {
+          "type": "number",
+          "description": "calendar: how many days ahead to look (default 14)."
+        },
+        "to": {
+          "type": "string",
+          "description": "send_email: one recipient email address (have the caller spell it)."
+        },
+        "subject": {
+          "type": "string",
+          "description": "send_email: subject line."
+        },
+        "body": {
+          "type": "string",
+          "description": "send_email: the email text."
+        },
+        "title": {
+          "type": "string",
+          "description": "create_calendar_event: event title."
+        },
+        "start": {
+          "type": "string",
+          "description": "create_calendar_event: ISO start time with timezone offset, e.g. 2026-10-12T17:00:00+03:00."
+        },
+        "end": {
+          "type": "string",
+          "description": "create_calendar_event: ISO end time with timezone offset."
+        },
+        "attendees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "create_calendar_event: optional guest email addresses."
         },
         "pin": {
           "type": "string",
           "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
         }
       },
-      "required": ["intent", "instruction"]
+      "required": [
+        "intent",
+        "instruction"
+      ]
     }
   },
   "server": {
@@ -30,6 +79,9 @@
     "timeoutSeconds": 30
   },
   "messages": [
-    { "type": "request-start", "content": "One moment while I hand that over to the agent." }
+    {
+      "type": "request-start",
+      "content": "One moment while I hand that over to the agent."
+    }
   ]
 }

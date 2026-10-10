@@ -18,10 +18,16 @@ export type ManusTask = {
 };
 
 export type ManusClient = {
-  createTask(input: ManusTaskInput, title: string): Promise<{ taskId: string; taskUrl: string | null }>;
+  createTask(
+    input: ManusTaskInput,
+    title: string,
+    structuredOutputSchema?: Record<string, unknown>,
+  ): Promise<{ taskId: string; taskUrl: string | null }>;
   getTask(taskId: string): Promise<ManusTask>;
   /** Text of the newest assistant message (the final answer once the task stopped). */
   latestAssistantMessage(taskId: string): Promise<string | null>;
+  /** Structured output (when created with a schema), for when the webhook was missed. */
+  latestStructuredOutput(taskId: string): Promise<Record<string, unknown> | null>;
   /** Newest error_message event, if the task errored. */
   latestError(taskId: string): Promise<string | null>;
   /** Cached for 1h; `refresh` forces a refetch (key rotation). */
@@ -36,6 +42,7 @@ export class ManusApiError extends Error {
 
 type TaskEvent = {
   type: string;
+  structured_output_result?: { success?: boolean; value?: Record<string, unknown> };
   assistant_message?: { content?: string };
   error_message?: { content?: string };
 };
@@ -73,13 +80,14 @@ export function createManusClient(apiKey: string, baseUrl = DEFAULT_BASE_URL): M
   let cachedKey: { pem: string; fetchedAt: number } | null = null;
 
   return {
-    async createTask(input, title) {
+    async createTask(input, title, structuredOutputSchema) {
       const res = await request<{ task_id: string; task_url?: string }>("POST", "task.create", {
         body: {
           message: { content: input.content, connectors: input.connectors },
           title,
           interactive_mode: false,
           agent_profile: "standard",
+          ...(structuredOutputSchema ? { structured_output_schema: structuredOutputSchema } : {}),
         },
       });
       return { taskId: res.task_id, taskUrl: res.task_url ?? null };
@@ -92,6 +100,11 @@ export function createManusClient(apiKey: string, baseUrl = DEFAULT_BASE_URL): M
 
     async latestAssistantMessage(taskId) {
       return (await latestEvent(taskId, "assistant_message"))?.assistant_message?.content ?? null;
+    },
+
+    async latestStructuredOutput(taskId) {
+      const result = (await latestEvent(taskId, "structured_output_result"))?.structured_output_result;
+      return result?.success === false ? null : result?.value ?? null;
     },
 
     async latestError(taskId) {
@@ -157,5 +170,7 @@ export type ManusWebhookEvent = {
     task_url?: string;
     message?: string;
     stop_reason?: "finish" | "ask";
+    /** Present when the task was created with structured_output_schema. */
+    structured_output?: { success?: boolean; value?: Record<string, unknown>; error?: string | null };
   };
 };

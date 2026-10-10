@@ -173,3 +173,34 @@ The plan above predates the team's Alo app. What changed after merging Nick's Su
 - **Gmail:** the caller's own inbox is read through Alo's `_shared/tools.ts` and passed to Manus as data. The Manus Gmail connector is no longer used, because it can only see one account. Without Gmail connected, the task fails right away.
 - `user_integrations` was dropped in favour of Alo's `connections`.
 - **Migrations:** one shared history again (`supabase db push`); the separate `apply-migrations.sh` workaround was removed.
+
+## Update 2026-10-10 — security levels and the reply-approval MVP
+
+- **Layers:**
+  - L1: caller ID = SMS-verified phone
+  - L2: PIN on every call
+  - L3: callback to the registered number
+  - L4: approval in the Alo app
+- **Risk assessment** (`_shared/policy.ts`):
+  - low: research
+  - medium: emails, calendar, status
+  - high: reply / send / create event
+  - High always requires L4. The user's `voice_settings.security_level = 'secure'` adds L3 to every call.
+- **MVP flow** `reply_email`:
+  - Manus reads the email the caller described (Gmail search in their own inbox) and returns a structured draft.
+  - The task becomes `awaiting_approval`; the user approves/edits/rejects it in the app (`voice-approve`); it's then sent from their Gmail.
+  - The recipient and subject are fixed from the original email's headers.
+- **Not yet done:**
+  - the frontend Approve/Reject UI and the Standard/Secure switch (Nick/Viktor)
+  - approval expiry
+  - Gmail threading
+- **Later the same day: approval by phone (no internet needed).**
+  - L4 can also be given on a confirmation call: Alo dials the registered number, reads the action, and the owner says the PIN + approve/cancel (`decide_action` tool).
+  - The call is triggered by the Vapi end-of-call report (`vapi-events`) or a finished reply draft. Reconcile retries it (≤3).
+  - Shared rules in `_shared/approval.ts`. A new `sending` status prevents double sends.
+- **Security review fixes:**
+  - replies go to `From` only;
+  - no profile notes next to email/calendar data;
+  - only the structured draft is ever sent;
+  - a web call's customer number is ignored;
+  - callback sessions are upserted.
