@@ -3067,3 +3067,23 @@ html:has(.history-index), body:has(.history-index) {
     max-width: 88%;
   }
 }
+
+/* Top-layer filter panel stays visible outside the list's clipped layout. */
+.history-sort-panel { box-sizing: border-box; }
+.history-sort-panel .history-refinements { gap: 12px; }
+.history-sort-panel .history-select select {
+  width: 100%; max-width: none; min-height: 36px;
+  padding: 0 10px; border: 1px solid #dedee3; border-radius: 7px;
+  background: #fafafb; color: #34343b; font: inherit; font-size: 12px;
+}
+
+.app-loading { position: fixed; inset: 0; display: grid; place-items: center; }
+.app-loading-spinner {
+  width: 28px; height: 28px; border: 2px solid #dedee3;
+  border-top-color: #34343b; border-radius: 50%;
+  animation: app-loading-spin 800ms linear infinite;
+}
+@keyframes app-loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-loading-spinner { animation-duration: 1800ms; }
+}
