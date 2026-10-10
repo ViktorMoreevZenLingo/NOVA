@@ -3367,21 +3367,21 @@ html:has(.history-index), body:has(.history-index) {
 }
 
 .live-talk {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
+  position: relative;
+  min-height: 460px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 40px 24px calc(40px + env(safe-area-inset-bottom));
+  gap: 20px;
+  padding: 32px 24px 100px;
   background: #0b0b0f;
   color: #f4f4f5;
+  border-radius: 16px;
   animation: enter 0.2s ease-out;
 }
 .live-orb {
-  width: min(58vw, 240px);
+  width: min(55%, 180px);
   aspect-ratio: 1;
   border-radius: 50%;
   background:
@@ -3441,15 +3441,15 @@ html:has(.history-index), body:has(.history-index) {
 }
 .live-controls {
   position: absolute;
-  bottom: calc(40px + env(safe-area-inset-bottom));
+  bottom: 24px;
   display: flex;
-  gap: 22px;
+  gap: 18px;
 }
 .live-btn {
   display: grid;
   place-items: center;
-  width: 60px;
-  height: 60px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   border: 0;
   background: #26262e;

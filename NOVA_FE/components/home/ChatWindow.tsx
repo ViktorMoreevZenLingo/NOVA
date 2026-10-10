@@ -188,6 +188,21 @@ export function ChatWindow({
       className="chat-window"
       aria-label={l("Разговор с Ало", "Chat with Alo")}
     >
+      {live ? (
+        <LiveTalk
+          onClose={() => {
+            setLive(false);
+            // Live mode added turns to the shared conversation — resync the chat.
+            loadChat()
+              .then((d) => {
+                setMessages(d.messages);
+                setPending(d.pending);
+              })
+              .catch(() => {});
+          }}
+        />
+      ) : (
+      <>
       <div className="chat-window-header">
         <h2>{l("Говори с Ало", "Talk to Alo")}</h2>
         <div className="chat-header-actions">
@@ -344,20 +359,7 @@ export function ChatWindow({
           <Icon name="arrow" />
         </button>
       </form>
-
-      {live && (
-        <LiveTalk
-          onClose={() => {
-            setLive(false);
-            // Live mode added turns to the shared conversation — resync the chat.
-            loadChat()
-              .then((d) => {
-                setMessages(d.messages);
-                setPending(d.pending);
-              })
-              .catch(() => {});
-          }}
-        />
+      </>
       )}
     </section>
   );

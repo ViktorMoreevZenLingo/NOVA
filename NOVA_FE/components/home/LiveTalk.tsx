@@ -32,8 +32,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const rafRef = useRef<number>(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const spokeRef = useRef(false);
   const silenceRef = useRef<number | null>(null);
   const startRef = useRef(0);
@@ -41,30 +40,43 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const aliveRef = useRef(true);
 
   const stopPlayback = useCallback(() => {
-    audioRef.current?.pause();
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current);
-      urlRef.current = null;
+    try {
+      sourceRef.current?.stop();
+    } catch {
+      /* already stopped */
     }
+    sourceRef.current = null;
   }, []);
 
+  // Play TTS through the AudioContext so it isn't subject to <audio> autoplay
+  // blocking (the context is resumed on a user gesture when live mode opens).
   const speak = useCallback(
     (text: string) =>
       new Promise<void>((resolve) => {
         const plain = stripMarkdown(text);
-        if (!plain) return resolve();
+        const ctx = ctxRef.current;
+        if (!plain || !ctx) return resolve();
         synthesizeSpeech(plain.slice(0, 4000), lang)
-          .then((blob) => {
+          .then(async (blob) => {
             if (!aliveRef.current) return resolve();
-            if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-            const url = URL.createObjectURL(blob);
-            urlRef.current = url;
-            const audio = audioRef.current ?? new Audio();
-            audioRef.current = audio;
-            audio.src = url;
-            audio.onended = () => resolve();
-            audio.onerror = () => resolve();
-            audio.play().catch(() => resolve());
+            try {
+              const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
+              if (!aliveRef.current) return resolve();
+              try {
+                sourceRef.current?.stop();
+              } catch {
+                /* ignore */
+              }
+              if (ctx.state === "suspended") await ctx.resume().catch(() => {});
+              const node = ctx.createBufferSource();
+              node.buffer = buffer;
+              node.connect(ctx.destination);
+              node.onended = () => resolve();
+              sourceRef.current = node;
+              node.start();
+            } catch {
+              resolve();
+            }
           })
           .catch(() => resolve());
       }),
@@ -210,6 +222,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ctx = new Ctx();
         ctxRef.current = ctx;
+        await ctx.resume().catch(() => {});
         const source = ctx.createMediaStreamSource(stream);
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 1024;
