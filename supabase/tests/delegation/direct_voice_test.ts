@@ -150,3 +150,39 @@ Deno.test("email date readback: Sofia midnight rollover is resolved by backend",
   assertEquals(result.date_local, "2026-10-10");
   assertEquals(result.time_local, "00:06");
 });
+
+Deno.test("calendar notes reach voice context, including HTML lecturers and bounded Outlook notes", () => {
+  const result = compactRead("list_calendar_events", {
+    items: [{
+      id: "lecture",
+      summary: "Институционален мениджмънт",
+      description:
+        "<p>Лектор: <b>проф. Иванова</b></p><p>Тема: местна власт</p><img src='https://example.test/tracker'><script>hidden()</script>",
+      organizer: { displayName: "Университет", email: "office@example.test" },
+      attendees: [{ displayName: "Студент", email: "student@example.test" }],
+      privateToken: "never expose",
+    }],
+  });
+  const event = (result.data as any[])[0];
+  assert(event.description.includes("Лектор: проф. Иванова"));
+  assert(event.description.includes("Тема: местна власт"));
+  assertEquals(event.description_truncated, false);
+  assertEquals(result.truncated, false);
+  assertEquals(event.organizer.name, "Университет");
+  assertEquals(event.attendees[0].name, "Студент");
+  assert(!JSON.stringify(result).includes("hidden()"));
+  assert(!JSON.stringify(result).includes("tracker"));
+  assert(!JSON.stringify(result).includes("never expose"));
+  const outlook = compactRead("read_outlook_calendar", {
+    value: [{
+      id: "outlook-event",
+      subject: "Lecture",
+      body: { content: "<p>Lecturer: Maria</p>" + "x".repeat(5000) },
+    }],
+  });
+  const other = (outlook.data as any[])[0];
+  assert(other.description.startsWith("Lecturer: Maria"));
+  assertEquals(other.description.length, 4000);
+  assertEquals(other.description_truncated, true);
+  assertEquals(outlook.truncated, true);
+});

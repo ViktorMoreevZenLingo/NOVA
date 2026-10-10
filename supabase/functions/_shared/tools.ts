@@ -109,7 +109,7 @@ export function definitions(connected: Set<string>) {
     ),
     definition(
       "list_calendar_events",
-      "List calendar events. For a specific day (today, tomorrow, a weekday or a date) pass from and to as that exact YYYY-MM-DD date in the user's local timezone; do not rely on days_ahead, which starts from now and would include today.",
+      "List calendar events including descriptions/notes, organizers and attendees. Use the description to answer follow-up questions about lecturers, agendas or details; attendee names do not prove who the lecturer is. For a specific day (today, tomorrow, a weekday or a date) pass from and to as that exact YYYY-MM-DD date in the user's local timezone; do not rely on days_ahead, which starts from now and would include today.",
       {
         from: { type: "string" },
         to: { type: "string" },
@@ -183,18 +183,23 @@ function textPart(part: any): string {
   const plain = find(part, "text/plain");
   if (plain) return plain;
   const html = find(part, "text/html");
-  return html
-    ? convert(html, {
-      wordwrap: false,
-      selectors: [
-        { selector: "a", options: { ignoreHref: true } },
-        { selector: "img", format: "skip" },
-        { selector: "script", format: "skip" },
-        { selector: "style", format: "skip" },
-      ],
-    })
-    : "";
+  return providerText(html);
 }
+
+/** Convert provider rich text without fetching links, images or attachments. */
+export function providerText(value: unknown): string {
+  if (typeof value !== "string" || !value) return "";
+  return convert(value, {
+    wordwrap: false,
+    selectors: [
+      { selector: "a", options: { ignoreHref: true } },
+      { selector: "img", format: "skip" },
+      { selector: "script", format: "skip" },
+      { selector: "style", format: "skip" },
+    ],
+  });
+}
+
 export async function execute(
   userId: string,
   name: string,
@@ -396,7 +401,7 @@ export async function execute(
         startDateTime: new Date().toISOString(),
         endDateTime: new Date(Date.now() + 7 * 86400000).toISOString(),
         "$top": "25",
-        "$select": "subject,start,end,location",
+        "$select": "id,subject,start,end,location,body,organizer,attendees",
       })}`,
     );
   }
