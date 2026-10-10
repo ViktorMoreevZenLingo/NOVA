@@ -1,0 +1,12 @@
+{
+  "event_id": "task_stopped_REPLACE_TASK_ID",
+  "event_type": "task_stopped",
+  "task_detail": {
+    "task_id": "REPLACE_TASK_ID",
+    "task_title": "[NOVA] Research",
+    "task_url": "https://manus.im/app/REPLACE_TASK_ID",
+    "message": "Here are three tips...",
+    "attachments": [],
+    "stop_reason": "finish"
+  }
+}
