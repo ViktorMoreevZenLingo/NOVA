@@ -3127,3 +3127,14 @@ html:has(.history-index), body:has(.history-index) {
   .history-filter-content .filter-calendar-collapse,
   .filter-range-calendar { transition: none; }
 }
+
+.history-status.waiting { color: #77715d; background: #f2efe6; }
+.history-status.stopped { color: #8a4c4c; background: #f8eded; }
+.task-controls { display: grid; gap: 14px; margin: 24px 0; max-width: 560px; font-size: 13px; }
+.task-controls p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.task-response, .task-response form { display: grid; gap: 12px; }
+.task-response dl { margin: 0; padding: 16px; border: 1px solid #e5e5e7; border-radius: 12px; }
+.task-response dl > div + div { margin-top: 12px; }
+.task-response dt { color: #777781; font-size: 11px; }
+.task-response dd { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-response textarea { width: 100%; min-height: 90px; border: 1px solid #dedee3; border-radius: 9px; padding: 12px; font: inherit; resize: vertical; }

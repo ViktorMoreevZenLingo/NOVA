@@ -431,3 +431,12 @@ verify_jwt = false
 [functions.send-sms]
 # Supabase Auth signs this hook using Standard Webhooks, not a user JWT.
 verify_jwt = false
+
+[functions.tasks]
+# Browser getUser or backend service secret + verified call session.
+verify_jwt = false
+[functions.task-worker]
+verify_jwt = false
+[functions.task-webhook]
+# Manus RSA signature; unsigned activation probes have no side effects.
+verify_jwt = false
