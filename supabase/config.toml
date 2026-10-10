@@ -456,3 +456,6 @@ verify_jwt = false
 [functions.voice-approve]
 
 verify_jwt = false
+
+[functions.account-session]
+verify_jwt = false

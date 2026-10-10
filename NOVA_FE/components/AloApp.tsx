@@ -21,6 +21,7 @@ import type { HistoryRecord } from "@/lib/history-data";
 import { MOCK_HISTORY } from "@/lib/history-mock-data";
 import {
   loadAccount,
+  createAccessLink,
   startAccount,
   updateProfile,
   signOut,
@@ -213,7 +214,7 @@ export function AloApp() {
           setPhone={setPhone}
           onPhoneSubmit={async (number) => {
             const destination = mode === "signup" ? "profile-setup" : "dashboard";
-            await startAccount(number);
+            await startAccount(number, mode);
             await refreshAccount();
             navigate(destination);
           }}
@@ -328,6 +329,13 @@ export function AloApp() {
         <OptionsDialog
           onClose={() => setModal(null)}
           onEditProfile={() => setModal("edit")}
+          onAccessLink={async () => {
+            try {
+              const url = await createAccessLink();
+              await navigator.clipboard.writeText(url);
+              setToast(l("Линкът е копиран. Валиден е 15 минути и се използва веднъж. Пази го само за себе си.", "Link copied. Valid for 15 minutes and one use. Keep it private."));
+            } catch (err) { setToast(err instanceof Error ? err.message : "Could not create link."); }
+          }}
           onLogout={logout}
           onDelete={() => setModal("delete")}
         />
