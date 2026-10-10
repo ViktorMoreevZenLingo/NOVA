@@ -1,5 +1,4 @@
-// Local profile persistence, ported from the prototype's profile.js +
-// profile-limits.js. Stored per phone number in localStorage; no server.
+// Profile types and context import helpers. Persistence is in account-api.ts.
 
 import type { Lang } from "./i18n";
 
@@ -15,69 +14,18 @@ export const blankProfile = (): Profile => ({ name: "", notes: "", photo: "" });
 
 // Fold legacy city/occupation fields into notes without losing information.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function profileContext(
-  value: any,
-  lang: Lang = "en",
-): string {
+export function profileContext(value: any, lang: Lang = "en"): string {
   const notes = typeof value?.notes === "string" ? value.notes : "";
   const extra: string[] = [];
   for (const [key, label] of [
     ["city", lang === "bg" ? "Град" : "City"],
     ["occupation", lang === "bg" ? "Занимание" : "Occupation"],
   ] as const) {
-    const field = typeof value?.[key] === "string" ? (value[key] as string).trim() : "";
+    const field =
+      typeof value?.[key] === "string" ? (value[key] as string).trim() : "";
     if (field && !notes.includes(field)) extra.push(`${label}: ${field}`);
   }
   return [notes, extra.join("\n")].filter(Boolean).join("\n\n");
-}
-
-function clean(value: any, lang: Lang): Profile {
-  const result = blankProfile();
-  result.name =
-    typeof value?.name === "string" ? value.name.slice(0, PROFILE_LIMITS.name) : "";
-  result.notes = profileContext(value, lang);
-  if (
-    typeof value?.photo === "string" &&
-    value.photo.length < 2800000 &&
-    /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value.photo)
-  )
-    result.photo = value.photo;
-  return result;
-}
-
-const cache = new Map<string, Profile>();
-
-export function loadProfile(phone: string, lang: Lang = "en"): Profile {
-  if (cache.has(phone)) return { ...cache.get(phone)! };
-  try {
-    return clean(
-      JSON.parse(localStorage.getItem(`alo:profile:${phone}`) || "null"),
-      lang,
-    );
-  } catch {
-    return blankProfile();
-  }
-}
-
-export function saveProfile(phone: string, value: Profile, lang: Lang = "en"): boolean {
-  const profile = clean(value, lang);
-  cache.set(phone, profile);
-  try {
-    localStorage.setItem(`alo:profile:${phone}`, JSON.stringify(profile));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deleteProfile(phone: string): boolean {
-  try {
-    localStorage.removeItem(`alo:profile:${phone}`);
-    cache.delete(phone);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 export function initials(name: string, lang: Lang): string {

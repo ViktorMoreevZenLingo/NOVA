@@ -1,17 +1,13 @@
+import { fileURLToPath } from "node:url";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // All backend logic lives in a separate Spring Boot service on :8080.
-  // Relative /api/* calls from the browser are proxied there in development.
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://localhost:8080/api/:path*",
-      },
-    ];
+  outputFileTracingRoot: fileURLToPath(new URL(".", import.meta.url)),
+  webpack(config) {
+    // Next 15's bundled webpack fails in matchModuleReference when concatenating
+    // the current Supabase ESM client. Keep tree shaking, skip concatenation.
+    config.optimization.concatenateModules = false;
+    return config;
   },
-  // Allow the dev server to be reached through ngrok tunnels.
-  // Add your concrete ngrok host here if the wildcard is not matched.
   allowedDevOrigins: [
     "*.ngrok-free.app",
     "*.ngrok.io",
@@ -19,5 +15,4 @@ const nextConfig = {
     "*.ngrok-free.dev",
   ],
 };
-
 export default nextConfig;

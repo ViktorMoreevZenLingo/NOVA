@@ -1,0 +1,119 @@
+# Alo Supabase backend
+
+Target: `vlimtocbrxxnzobhkcoy` (Nova Team Project).
+
+## Database
+
+The initial SQL is in `migrations/20261010094249_alo_accounts_and_activity.sql`.
+Both migrations have been applied to Nova and recorded in migration history.
+For another fresh project, use `supabase db push` after linking it.
+
+- `profiles`: owner read/create/update, 80-character name, 100,000-character context.
+- `activity`: owner read only. Trusted server workers write call/task/SMS history.
+- `connections`: owner read only. Only successful consent enables a service.
+- `provider_tokens`, `oauth_states`, `agent_state`: server-only; RLS and revoked
+  browser grants. OAuth states expire in ten minutes and are consumed atomically.
+- All user-owned rows cascade on account deletion. Privileged functions verify
+  the live Auth user instead of trusting user IDs or phone numbers in requests.
+
+Run `tests/rls.sql` in SQL Editor. It uses a transaction and rolls back all fixtures.
+It verifies ownership isolation, blocked cross-user updates, private credentials,
+blocked forged connection/history records and anonymous access.
+
+## Functions and secrets
+
+```sh
+supabase functions deploy integrations agent account-delete --project-ref vlimtocbrxxnzobhkcoy --use-api
+supabase secrets set --env-file supabase/functions/.env.local --project-ref vlimtocbrxxnzobhkcoy
+```
+
+Copy `functions/.env.example` to the ignored `.env.local` and populate it.
+`APP_URL` must be the exact frontend origin (for example `http://localhost:3000`),
+not a URL supplied by a browser request. Supabase supplies its own URL/service key.
+Keep all provider keys and refresh tokens out of frontend environment variables.
+
+Functions use explicit `auth.getUser(token)` verification; platform JWT checking
+is disabled to support the OAuth callback and asymmetric signing keys. Only the
+OAuth callback accepts GET without a Supabase session, and it requires a random,
+expiring, single-use state and PKCE verifier from an authenticated initiation.
+
+## Provider setup
+
+**Current signup:** phone verification and the SMS hook are disabled. The frontend
+creates a Supabase anonymous user with an unverified contact number in metadata.
+Its session persists in the browser; profile, integrations, and history are scoped
+to its user ID by the existing RLS policies. A number is never used to look up or
+authorize an account. Reloads retain the account; signing out, clearing browser
+data, or switching devices loses access until verified account recovery is added.
+The server validates the live session for every privileged action, accepting
+anonymous users as well as existing verified phone users.
+
+### Shared deployment baseline — 10 October 2026
+
+Use the latest `main` as the baseline for app/backend work. Before deploying from
+another branch, merge `main` so an older `_shared/http.ts` does not restore the
+phone-verification requirement. Deploying a function bundles its shared helpers;
+updating a helper locally does not update already deployed functions.
+
+The live `integrations`, `agent`, and `account-delete` functions were redeployed
+with anonymous-session support. Live smoke checks confirmed that Contacts, Gmail,
+and Calendar return Google consent URLs for a new anonymous account, invalid
+sessions receive HTTP 401, and account deletion succeeds. Completing Google
+consent still requires the user's Google account. SMS verification remains
+disabled, and OpenAI has not been configured as part of this work.
+
+**Paused SMS implementation:** Zadarma delivers Supabase-generated OTPs through the `send-sms`
+Edge Function. Deploy it with `supabase functions deploy send-sms --use-api`.
+Set `ZADARMA_API_KEY`, `ZADARMA_API_SECRET`, and `SEND_SMS_HOOK_SECRET` as server
+secrets. Configure the Send SMS Auth Hook at
+`https://vlimtocbrxxnzobhkcoy.supabase.co/functions/v1/send-sms` with that same
+Standard Webhooks secret (`v1,whsec_` followed by 32 random bytes in base64).
+Enable Phone signup and confirmation. Current demo limits: 10 SMS per hour and
+60 seconds between requests. The hook restricts delivery to Bulgarian numbers,
+verifies signed requests, and never logs credentials, phone numbers or OTPs.
+Messages use Zadarma's default sender and a short English message to fit one SMS.
+Supabase verifies codes and creates sessions; Zadarma does not manage accounts.
+The hook does not automatically retry ambiguous provider failures.
+Configure CAPTCHA and review rate limits before public rollout. No production
+bypass codes are configured. Local development needs the same environment secrets
+and a running Edge Function; SMS sends consume real provider credit.
+
+Run SMS handler checks (mock delivery, no charges):
+`npx deno test --config supabase/functions/deno.json supabase/functions/send-sms/handler_test.ts`.
+
+**Google:** enable Gmail, Calendar, and People APIs in your OAuth app. Add scopes
+`gmail.modify`, `calendar`, and `contacts.readonly` under the Google API prefix.
+Use a Web application OAuth client. Register this exact redirect URI:
+
+```
+https://vlimtocbrxxnzobhkcoy.supabase.co/functions/v1/integrations
+```
+
+Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as Edge Function secrets. Add test
+users while Google's app is in Testing. The end user clicks Connect inside Alo,
+sees Google's consent screen, and returns to Alo. No user Supabase setup is needed.
+Disconnect removes Alo's stored access; users can also revoke the provider grant
+in Google's account settings. Revoking one Google grant can affect other services.
+
+**Outlook:** register a Microsoft web app supporting the intended account types,
+with the same callback URI. Delegated Graph permissions: Mail.Read,
+Calendars.Read, Contacts.Read, plus offline_access. Configure Microsoft client ID
+and secret. Writes are not offered for Outlook.
+
+**Places:** enable Places API (New) and set `GOOGLE_PLACES_API_KEY`. This is an
+Alo-level service key; a user enables it in Alo without a Google login.
+
+**Assistant:** set `OPENAI_API_KEY`, optionally `OPENAI_MODEL` and `APP_TIMEZONE`.
+Email/calendar write approval is single-use and consumed before the provider
+request. If the worker/network fails during a write, check the provider before
+retrying. A per-user lease serializes chat turns; saved messages survive reloads.
+
+## Validation
+
+```sh
+npx deno check --config supabase/functions/deno.json supabase/functions/agent/index.ts supabase/functions/integrations/index.ts supabase/functions/account-delete/index.ts
+```
+
+Test phone login, reload, profile edits, consent rejection/success, disconnect,
+chat approval/rejection, and account deletion using dedicated test accounts.
+No real SMS, emails, or calendar events should be sent by automated smoke checks.

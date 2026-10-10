@@ -17,7 +17,13 @@ export function formatPhone(phone: string): string {
   return `+359 ${p.slice(0, 3)} ${p.slice(3, 6)} ${p.slice(6)}`;
 }
 
-function AuthFrame({ extra, children }: { extra?: string; children: ReactNode }) {
+function AuthFrame({
+  extra,
+  children,
+}: {
+  extra?: string;
+  children: ReactNode;
+}) {
   const { lang } = useI18n();
   return (
     <div className="auth-layout">
@@ -30,7 +36,11 @@ function AuthFrame({ extra, children }: { extra?: string; children: ReactNode })
       <aside className="auth-photo">
         <img
           src="/assets/phone-conversation.jpg"
-          alt={lang === "bg" ? "Жена, която разговаря по телефона, седнала на стълби" : "A woman sitting on steps talking on the phone"}
+          alt={
+            lang === "bg"
+              ? "Жена, която разговаря по телефона, седнала на стълби"
+              : "A woman sitting on steps talking on the phone"
+          }
           fetchPriority="high"
         />
         <p className="auth-photo-caption" lang="en">
@@ -39,113 +49,35 @@ function AuthFrame({ extra, children }: { extra?: string; children: ReactNode })
           is just easier..
         </p>
       </aside>
-      <footer className="auth-copyright">© 2026 {lang === "bg" ? "Ало" : "Alo"}</footer>
+      <footer className="auth-copyright">
+        © 2026 {lang === "bg" ? "Ало" : "Alo"}
+      </footer>
       <LanguageSwitcher />
     </div>
   );
 }
 
 interface AuthProps {
-  view: "login" | "otp";
   mode: AuthMode;
   setMode: (m: AuthMode) => void;
   phone: string;
   setPhone: (p: string) => void;
-  onPhoneSubmit: () => void;
-  onBack: () => void;
-  onVerified: () => void;
+  onPhoneSubmit: (phone: string) => Promise<void>;
 }
 
 export function Auth({
-  view,
   mode,
   setMode,
   phone,
   setPhone,
   onPhoneSubmit,
-  onBack,
-  onVerified,
 }: AuthProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   const [error, setError] = useState("");
-  const [otp, setOtp] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  if (view === "otp") {
-    const submitOtp = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (otp !== "123456") {
-        setError(l("Използвай код 123456.", "Use code 123456."));
-        return;
-      }
-      onVerified();
-    };
-    return (
-      <AuthFrame>
-        <button
-          type="button"
-          className="text-button back-button"
-          onClick={() => {
-            setOtp("");
-            setError("");
-            onBack();
-          }}
-        >
-          <Icon name="back" />
-          {l("Назад", "Back")}
-        </button>
-        <h1 tabIndex={-1}>{l("Потвърди номера", "Confirm your number")}</h1>
-        <p id="otp-description" className="auth-description">
-          {l("Въведи шестцифрения код за потвърждение на", "Enter the six-digit verification code for")}{" "}
-          <strong>{formatPhone(phone)}</strong>.
-        </p>
-        <form onSubmit={submitOtp} noValidate>
-          <label htmlFor="otp">{l("Код за потвърждение", "Verification code")}</label>
-          <div className="otp-field">
-            <div className="otp-boxes" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, i) => (
-                <span key={i} className={otp[i] ? "filled" : ""}>
-                  {otp[i] || "–"}
-                </span>
-              ))}
-            </div>
-            <input
-              id="otp"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={otp}
-              aria-label={l("Шестцифрен код за потвърждение", "Six-digit verification code")}
-              onChange={(e) => {
-                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
-                setError("");
-              }}
-            />
-          </div>
-          <p id="form-error" className="form-error" role="alert">
-            {error}
-          </p>
-          <button className="primary full" type="submit">
-            {l("Влез", "Sign In")}
-            <Icon name="arrow" />
-          </button>
-          <button
-            type="button"
-            className="text-button fill-code"
-            onClick={() => {
-              setOtp("123456");
-              setError("");
-            }}
-          >
-            {l("Попълни 123456", "Fill in 123456")}
-          </button>
-        </form>
-      </AuthFrame>
-    );
-  }
-
-  const submitPhone = (e: React.FormEvent) => {
+  const submitPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     const n = normalizePhone(phone);
     if (!/^[89]\d{8}$/.test(n)) {
@@ -159,12 +91,25 @@ export function Auth({
     }
     setPhone(n);
     setError("");
-    onPhoneSubmit();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onPhoneSubmit(n);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <AuthFrame>
-      <div className="segmented" data-mode={mode} role="group" aria-label={l("Вход или регистрация", "Sign in or sign up")}>
+      <div
+        className="segmented"
+        data-mode={mode}
+        role="group"
+        aria-label={l("Вход или регистрация", "Sign in or sign up")}
+      >
         <span className="segmented-highlight" aria-hidden="true" />
         <button
           type="button"
@@ -192,7 +137,9 @@ export function Auth({
         </button>
       </div>
       <h1 tabIndex={-1}>
-        {mode === "login" ? l("Вход в Ало", "Sign in to Alo") : l("Създай профил", "Create an account")}
+        {mode === "login"
+          ? l("Вход в Ало", "Sign in to Alo")
+          : l("Създай профил", "Create an account")}
       </h1>
       <form onSubmit={submitPhone} noValidate>
         <label htmlFor="phone">{l("Мобилен номер", "Mobile number")}</label>
@@ -216,7 +163,7 @@ export function Auth({
         <p id="form-error" className="form-error" role="alert">
           {error}
         </p>
-        <button className="primary full" type="submit">
+        <button className="primary full" type="submit" disabled={busy}>
           {l("Продължи", "Continue")}
           <Icon name="arrow" />
         </button>

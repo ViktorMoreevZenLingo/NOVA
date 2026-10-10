@@ -28,16 +28,23 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
   // Sliding highlight for the active type tab.
   const filtersRef = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState({ left: 0, width: 0 });
-  const moveHighlight = () => {
-    const active = filtersRef.current?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (active) setHighlight({ left: active.offsetLeft, width: active.offsetWidth });
-  };
-  useLayoutEffect(moveHighlight, [filters.filter, lang]);
-  useEffect(() => {
-    const onResize = () => moveHighlight();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  useLayoutEffect(() => {
+    const tabs = filtersRef.current;
+    if (!tabs) return;
+    const moveHighlight = () => {
+      const active = tabs.querySelector<HTMLElement>('[aria-pressed="true"]');
+      if (!active) return;
+      const next = { left: active.offsetLeft, width: active.offsetWidth };
+      setHighlight((current) =>
+        current.left === next.left && current.width === next.width ? current : next,
+      );
+    };
+    moveHighlight();
+    const observer = new ResizeObserver(moveHighlight);
+    observer.observe(tabs);
+    tabs.querySelectorAll("button").forEach((button) => observer.observe(button));
+    return () => observer.disconnect();
+  }, [filters.filter, lang]);
 
   useEffect(() => {
     if (!popoverOpen) return;
@@ -85,8 +92,8 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
 
   return (
     <div className="history-toolbar">
-      <div className="history-filters" role="group" aria-label={l("Тип записи", "Record type")}>
-        <span className="history-tab-highlight tabs-ready" aria-hidden="true" style={{ transform: `translateX(${highlight.left}px)`, width: highlight.width }} />
+      <div ref={filtersRef} className={`history-filters${highlight.width ? " tabs-ready" : ""}`} role="group" aria-label={l("Тип записи", "Record type")}>
+        <span className="history-tab-highlight" aria-hidden="true" style={{ transform: `translateX(${highlight.left}px)`, width: highlight.width }} />
         {typeTabs.map(([id, label]) => (
           <button key={id} aria-pressed={filters.filter === id} onClick={() => set({ filter: id })}>
             {label}
