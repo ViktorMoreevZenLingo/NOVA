@@ -119,7 +119,7 @@ Deno.test("worker: persists create, consumes structured read, replies, and compl
     type: "structured_output_result",
     timestamp: 1,
     structured_output_result: {
-      success: true,
+      // Live API may omit success when value is present.
       value: {
         kind: "read",
         tool: "search_contacts",
@@ -267,4 +267,44 @@ Deno.test("worker: failed structured output cannot mark a task complete", async 
   }]);
   await f.run();
   assertEquals(f.task.status, "failed");
+});
+
+Deno.test("worker: Manus completion cannot substitute for a required write receipt", async () => {
+  const f = fixture();
+  f.patch({
+    manus_task_id: "m",
+    state: { phase: "poll", round: 0, required_tools: ["send_email"] },
+  });
+  f.events([{
+    type: "structured_output_result",
+    structured_output_result: {
+      value: { kind: "done", tool: "", args: "{}", text: "Email sent" },
+    },
+  }]);
+  await f.run();
+  assertEquals(f.task.status, "needs_input");
+  assertEquals(f.task.result, null);
+  f.steps["tool:0"] = {
+    status: "succeeded",
+    kind: "write:0",
+    output: { id: "provider-receipt" },
+  };
+  f.patch({
+    status: "running",
+    state: { ...f.task.state, phase: "poll" },
+    grants: [{
+      tool: "send_email",
+      constraints: { to: "a@example.com" },
+      generated_fields: ["subject", "body"],
+    }],
+  });
+  f.events([{
+    type: "structured_output_result",
+    timestamp: 2,
+    structured_output_result: {
+      value: { kind: "done", tool: "", args: "{}", text: "Email sent" },
+    },
+  }]);
+  await f.run();
+  assertEquals(f.task.status, "completed");
 });

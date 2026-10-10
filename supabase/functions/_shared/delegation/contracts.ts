@@ -17,6 +17,7 @@ export type State = {
   decision?: Decision;
   reply?: string;
   consumed_event?: string;
+  required_tools?: string[];
 };
 export type Task = {
   id: string;

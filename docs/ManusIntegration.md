@@ -63,6 +63,8 @@ The trusted backend can store a bounded user authorization in `grants`. Each gra
 }
 ```
 
+A known required write can also be declared with `required_tools: ["send_email"]`; completion requires a matching successful provider receipt. The Vapi adapter sets this for email/reply/calendar write intents. A Manus claim alone cannot complete those requests.
+
 Extra recipients/fields, changed constraints, Outlook writes, unknown tools and reused permissions are rejected or require a new approval. The Vapi adapter deliberately uses its existing stronger readback policy: it initially supplies no grants and waits for exact-action approval. Manus decisions never grant permission and are not provider success receipts.
 
 Supported tools:
@@ -81,7 +83,7 @@ Arguments are allowlisted and bounded in `delegation/validation.ts`. Existing OA
 
 `task-worker` is authenticated by `TASK_WORKER_SECRET`. Each invocation claims one ready task with `FOR UPDATE SKIP LOCKED` and a 120-second database lease, processes one durable phase, then handles one requested email delivery. Overlapping invocations claim different tasks. Provider requests have timeouts below the lease. Lost/expired leases cannot commit steps or advance tasks.
 
-Phases: create Manus task → poll/reconcile → execute one validated tool → feed receipt into the **same** Manus task. Structured output is rearmed on each continuation. Eight tool rounds per user clarification are allowed; then the task needs input. Manus receives profile context and bounded read results, never provider tokens or Supabase credentials. Its native account connectors are disabled.
+Phases: create Manus task → poll/reconcile → execute one validated tool → feed receipt into the **same** Manus task. Structured output is rearmed on each continuation. The parser supports live v2 events that omit `success` but contain a valid `value`; explicit failures and malformed decisions still fail. Eight tool rounds per user clarification are allowed; then the task needs input. Manus receives profile context and bounded read results, never provider tokens or Supabase credentials. Its native account connectors are disabled.
 
 External writes are journalled before sending. On restart, successful receipts are reused. A started write without a receipt becomes `needs_input / uncertain`, never a blind resend. Ambiguous Manus creation is reconciled by the unique `#alo:<task UUID>` title marker; continuation uses a unique turn marker. If recovery cannot prove what happened, execution pauses. Transient failures retry up to three attempts with backoff. Cancellation blocks further steps and requests Manus termination, but cannot undo an in-flight/completed email or event.
 
@@ -106,11 +108,13 @@ Actual callback/SMS placement remains the Vapi delivery developer's responsibili
 
 Branch pushes run tests only. The existing deployment workflow is now restricted to `main` (or manual dispatch). Deploying the branch manually was explicitly approved for shared Nova.
 
-1. Review and apply the additive `20261010112556` and `20261010114220` migrations. On the shared project they were applied individually, then marked applied with `supabase migration repair`; don't replay them. Use `supabase db push --dry-run` before future migrations.
+1. Review and apply the additive `20261010112556`, `20261010114220`, and `20261010115706` migrations. On the shared project they were applied individually, then marked applied with `supabase migration repair`; don't replay them. Use `supabase db push --dry-run` before future migrations.
 2. Set `MANUS_API_KEY`, `VAPI_TASK_SERVICE_SECRET`, `TASK_WORKER_SECRET`, `TASK_WEBHOOK_URL`, optional `VAPI_DELEGATION_SECRET`, and existing integration/auth secrets in Edge Function Secrets. Keep task secrets distinct from the Vapi public-facing tool credential. `TASK_WEBHOOK_URL` must exactly match the registered URL.
 3. Deploy `tasks task-worker task-webhook create-task get-task-status` using `supabase functions deploy ... --use-api`. Existing legacy functions remain for old tasks.
 4. POST `{"action":"register_webhook"}` to `task-worker` with the worker secret; this idempotently registers the separate Manus webhook without exposing the API key.
-5. Set Vault names `alo_task_project_url` and `alo_task_worker_secret`, then explicitly run `supabase/scripts/enable_task_scheduler.sql`. This minute schedule is deliberately not enabled by a migration. Task secrets are not rotated by the legacy CI deployment. The live Alo assistant uses the separate `VAPI_DELEGATION_SECRET`; the adapter also accepts the original `VAPI_TOOL_SECRET` so other existing clients keep working.
+5. Set Vault names `alo_task_project_url` and `alo_task_worker_secret`, then explicitly run `supabase/scripts/enable_task_scheduler.sql`. This minute schedule is deliberately not enabled by a migration. For private operator diagnostics, POST `{"action":"inspect_task","task_id":"..."}` with the worker secret. This may return private task output and must never be exposed to clients or public logs.
+
+Task secrets are not rotated by the legacy CI deployment. The live Alo assistant uses the separate `VAPI_DELEGATION_SECRET`; the adapter also accepts the original `VAPI_TOOL_SECRET` so other existing clients keep working.
 6. Update Vapi tool schemas and assistant call-ended routing; keep its voice/model configuration and caller verification intact.
 7. Run controlled tests with a verified-call fixture and designated integration account. Do not point a production fixture at an unrelated user's data.
 

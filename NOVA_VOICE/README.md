@@ -24,7 +24,7 @@ Full contract, permissions, recovery rules and deployment steps: [ManusIntegrati
 | Duplicate submit / end-call | Same task ID; call release occurs once |
 | Connected Gmail email-to-self | One explicitly requested email sent successfully |
 | Existing Vapi assistant on Zadarma Bulgaria | Five task tools and end-of-call routing configured; voice/model settings preserved |
-| New task suite | 18 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
+| New task suite | 19 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
 | Legacy voice suite | 59 tests passed; type checks and lint passed |
 | Alo UI | Production build passed; task approval view checked on desktop/mobile with mocked data |
 | Actual telephone call with caller PIN/question | Not exercised during this rollout; verified-call fixture used for backend checks |

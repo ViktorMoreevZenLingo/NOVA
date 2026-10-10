@@ -139,6 +139,17 @@ export function voiceDelegationHandler(config: {
         delivery_channels: call.args.delivery_channels ?? [],
         // The LLM cannot grant itself permission. Exact proposals are approved by readback or in the app.
         grants: [],
+        ...(["send_email", "reply_email", "create_calendar_event"].includes(
+            String(call.args.intent),
+          )
+          ? {
+            required_tools: [
+              call.args.intent === "create_calendar_event"
+                ? "create_calendar_event"
+                : "send_email",
+            ],
+          }
+          : {}),
       });
       const t = result.task;
       return {

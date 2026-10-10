@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       }
       const events = await manus.events(inspected.manus_task_id);
       return Response.json({
-        detail: await manus.getTask(inspected.manus_task_id),
+        status: (await manus.getTask(inspected.manus_task_id)).status,
         events: events.filter((e) =>
           ["structured_output_result", "error_message", "assistant_message"]
             .includes(e.type)

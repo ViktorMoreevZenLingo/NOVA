@@ -48,10 +48,10 @@ export class ManusApiError extends Error {
 }
 
 export type TaskEvent = {
-  timestamp?: number;
+  timestamp?: number | string;
   user_message?: { content?: string };
   structured_output_result?: {
-    success: boolean;
+    success?: boolean;
     value: unknown;
     error?: string;
   };

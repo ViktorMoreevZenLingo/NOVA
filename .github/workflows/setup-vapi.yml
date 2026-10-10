@@ -17,6 +17,8 @@ jobs:
         env:
           VAPI_API_KEY: ${{ secrets.VAPI_API_KEY }}
           VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
+          VAPI_DELEGATION_SECRET: ${{ secrets.VAPI_DELEGATION_SECRET }}
+          VAPI_ASSISTANT_ID: ${{ vars.VAPI_ASSISTANT_ID }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           VAPI_PHONE_NUMBER_ID: ${{ vars.VAPI_PHONE_NUMBER_ID }}
         run: deno run --allow-env --allow-read --allow-net=api.vapi.ai NOVA_VOICE/scripts/setup-vapi.ts

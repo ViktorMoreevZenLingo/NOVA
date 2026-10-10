@@ -205,7 +205,15 @@ export function validateSubmission(input: unknown, now = Date.now()) {
     delivery.length > 3 ||
     delivery.some((c) => !["email", "callback", "sms"].includes(c))
   ) throw new HttpError(400, "Invalid permissions or delivery channels.");
+  const required = d.required_tools ?? [];
+  if (
+    !Array.isArray(required) || required.length > 10 ||
+    required.some((tool) => typeof tool !== "string" || !WRITES.has(tool))
+  ) {
+    throw new HttpError(400, "Invalid required actions.");
+  }
   return {
+    ...(required.length ? { required_tools: required } : {}),
     request_id: text(d.request_id, 160),
     instruction: text(d.instruction),
     start_mode,
