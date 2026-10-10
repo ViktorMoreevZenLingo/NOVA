@@ -1,28 +1,37 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { taskRequest, type DelegatedTask } from "@/lib/tasks-api";
 export function TaskControls({
   id,
+  summary,
   onUpdated,
 }: {
   id: string;
+  summary?: string;
   onUpdated: () => void;
 }) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
+  const updated = useRef(onUpdated);
+  updated.current = onUpdated;
   const [task, setTask] = useState<DelegatedTask | null>(null),
     [answer, setAnswer] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
     let live = true;
+    let revision: number | undefined;
     setTask(null);
     setError("");
     const load = () =>
       taskRequest("get", id)
         .then((t) => {
-          if (live) setTask(t);
+          if (live) {
+            setTask(t);
+            if (revision !== undefined && revision !== t.revision) updated.current();
+            revision = t.revision;
+          }
         })
         .catch((e) => {
           if (live) setError(e.message);
@@ -56,8 +65,15 @@ export function TaskControls({
     }
   };
   const pending = task?.pending;
+  const description = task
+    ? task.error || task.result || (!pending ? task.instruction : "")
+    : summary;
+  const displayDescription = description === "Manus returned an unsupported or malformed tool request."
+    ? l("Задачата не беше завършена, защото полученият отговор не може да бъде обработен.", "The task could not finish because its response could not be processed.")
+    : description;
   return (
     <div className="task-controls" aria-busy={busy}>
+      {displayDescription && <p className="history-summary task-summary" role={task?.error ? "status" : undefined}>{displayDescription}</p>}
       {task?.run_at && (
         <p>
           {l("Насрочена за", "Scheduled for")}{" "}
@@ -69,7 +85,6 @@ export function TaskControls({
           · {task.timezone}
         </p>
       )}
-      {task?.error && <p role="status">{task.error}</p>}
       {pending && (
         <div className="task-response">
           <p>{pending.question}</p>

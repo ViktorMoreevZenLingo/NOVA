@@ -2415,7 +2415,7 @@ dialog .full {
 .history-legend { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; gap: 12px; padding: 11px 44px 11px 50px; background: #fafafa; border-bottom: 1px solid #eeeef0; color: #808087; font-size: 11px; }
 .history-copy .history-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .history-chip { display: inline-block; padding: 4px 7px; background: #f3f3f5; border-radius: 5px; color: #77777e; font-size: 10px; line-height: 1.3; font-variant-numeric: tabular-nums; }
-.history-status.complete, .history-status.in-progress { padding: 5px 8px; border-radius: 6px; background: #f0f0f2; color: #55555d; font-size: 11px; line-height: 1.3; white-space: nowrap; }
+.history-status { padding: 5px 8px; border-radius: 999px; background: #f0f0f2; color: #55555d; font-size: 11px; line-height: 1.3; white-space: nowrap; }
 .history-status.in-progress { background: #e9edf5; color: #45546d; }
 @media(max-width:750px) {
  .history-legend { padding: 10px 34px 10px 42px; }
@@ -2634,11 +2634,11 @@ input:focus, textarea:focus, .crafted-trigger:focus-visible { border-color: #929
 }
 
 /* Compact status symbols retain their accessible text on smaller screens. */
-.history-status.complete, .history-status.in-progress { display: inline-flex; align-items: center; gap: 5px; }
+.history-status { display: inline-flex; align-items: center; gap: 5px; }
 .history-status-symbol { display: block; order: -1; flex: 0 0 auto; width: 14px; height: 14px; }
 .history-status.in-progress .history-status-symbol { animation: history-status-spin 1s linear infinite; }
 @media (max-width: 750px) {
-  .history-status.complete, .history-status.in-progress,
+  .history-status,
   .history-row .history-status {
     display: inline-flex; align-items: center; justify-content: center;
     flex: 0 0 20px; width: 20px; height: 22px; padding: 0;
@@ -3130,6 +3130,7 @@ html:has(.history-index), body:has(.history-index) {
 
 .history-status.waiting { color: #77715d; background: #f2efe6; }
 .history-status.stopped { color: #8a4c4c; background: #f8eded; }
+.task-summary { white-space: pre-wrap; }
 .task-controls { display: grid; gap: 14px; margin: 24px 0; max-width: 560px; font-size: 13px; }
 .task-controls p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
 .task-response, .task-response form { display: grid; gap: 12px; }

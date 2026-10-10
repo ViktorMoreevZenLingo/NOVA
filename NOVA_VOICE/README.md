@@ -12,6 +12,8 @@ signed Manus webhook → wake worker; polling reconciles missed events
 completed task → separate email / callback / SMS delivery state
 ```
 
+Latency findings and next steps: [Voice latency plan](../docs/VoiceLatencyPlan.md).
+
 Full contract, permissions, recovery rules and deployment steps: [ManusIntegration](../docs/ManusIntegration.md).
 
 ## Delegated runtime verification — 10 October 2026
@@ -24,7 +26,9 @@ Full contract, permissions, recovery rules and deployment steps: [ManusIntegrati
 | Duplicate submit / end-call | Same task ID; call release occurs once |
 | Connected Gmail email-to-self | One explicitly requested email sent; subsequent Gmail search/read confirmed it |
 | Existing Vapi assistant on Zadarma Bulgaria | Six context/task tools and end-of-call routing configured; voice/model settings preserved |
-| New task suite | 23 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
+| Active GPT-Live prompts | Speaker and reasoner guidance updated in the actual active fields; date-only questions avoid delegation; model/effort unchanged pending latency comparison |
+| Calendar summary repair | Live recovery completed on the original Manus task: 11 Google Calendar events for 12–18 October, summarized in Bulgarian; no provider writes |
+| New task suite | 27 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
 | Legacy voice suite | 59 tests passed; type checks and lint passed |
 | Alo UI | Production build passed; task approval view checked on desktop/mobile with mocked data |
 | Actual telephone call review | Three user-reported calls inspected: missing date, wrong empty account, and premature success claim found; account consolidated and live config fixed |

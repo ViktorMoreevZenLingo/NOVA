@@ -1,3 +1,4 @@
+import { calendarRange } from "./calendar.ts";
 import { wakeTaskWorker } from "./wake.ts";
 // Adapter for the existing Vapi tool URLs. Caller authentication remains owned by NOVA_VOICE.
 import { type ActionIntent, prepareAction } from "../email/actions.ts";
@@ -172,6 +173,13 @@ export function voiceDelegationHandler(config: {
           };
         }
       }
+      const range = intent === "calendar"
+        ? calendarRange(
+          { ...call.args, to: call.args.to_date },
+          instruction,
+          String(call.args.timezone ?? "Europe/Sofia"),
+        )
+        : null;
       const details: Record<string, unknown> = {};
       for (
         const key of [
@@ -188,6 +196,10 @@ export function voiceDelegationHandler(config: {
           "attendees",
         ]
       ) if (call.args[key] !== undefined) details[key] = call.args[key];
+      if (range) {
+        delete details.days_ahead;
+        Object.assign(details, range);
+      }
       const result = await send(req.callId, {
         action: "submit",
         request_id: `vapi:${req.callId}:${call.id}`,
@@ -201,6 +213,9 @@ export function voiceDelegationHandler(config: {
         delivery_channels: call.args.delivery_channels ?? [],
         // The LLM cannot grant itself permission. Exact proposals are approved by readback or in the app.
         grants: [],
+        ...(range
+          ? { initial_read: { tool: "list_calendar_events", args: range } }
+          : {}),
         ...(action?.ok
           ? { prepared_action: { tool: intent, args: action.params } }
           : {}),

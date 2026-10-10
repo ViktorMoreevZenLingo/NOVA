@@ -1,5 +1,6 @@
 import { accessToken } from "./providers.ts";
 import { env, HttpError } from "./http.ts";
+import { queryLimitSchema } from "./query-limits.ts";
 
 type Args = Record<string, unknown>;
 const str = (a: Args, key: string) =>
@@ -85,12 +86,12 @@ export const serviceFor: Record<string, string> = {
 export function definitions(connected: Set<string>) {
   const all = [
     definition("list_recent_emails", "List recent email.", {
-      hours: { type: "integer" },
-      max: { type: "integer" },
+      hours: queryLimitSchema("list_recent_emails", "hours"),
+      max: queryLimitSchema("list_recent_emails", "max"),
     }),
     definition("search_emails", "Search Gmail.", {
       ...fields(["query"]),
-      max: { type: "integer" },
+      max: queryLimitSchema("search_emails", "max"),
     }, ["query"]),
     definition("get_email", "Read an email by its ID.", fields(["id"]), ["id"]),
     definition(
@@ -105,8 +106,8 @@ export function definitions(connected: Set<string>) {
       {
         from: { type: "string" },
         to: { type: "string" },
-        days_ahead: { type: "integer" },
-        max: { type: "integer" },
+        days_ahead: queryLimitSchema("list_calendar_events", "days_ahead"),
+        max: queryLimitSchema("list_calendar_events", "max"),
       },
     ),
     definition(

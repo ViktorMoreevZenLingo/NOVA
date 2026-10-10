@@ -1,3 +1,5 @@
+import { calendarRange } from "../../functions/_shared/delegation/calendar.ts";
+import { definitions } from "../../functions/_shared/tools.ts";
 import { assert, assertEquals, assertThrows } from "jsr:@std/assert@1.0.19";
 import {
   authorized,
@@ -7,6 +9,33 @@ import {
   validateGrant,
   validateSubmission,
 } from "../../functions/_shared/delegation/validation.ts";
+Deno.test("calendar reads: advertised limits match validation, including Manus max 50", () => {
+  const tools = definitions(new Set(["calendar", "gmail"]));
+  for (const tool of tools) {
+    for (
+      const [key, schema] of Object.entries(tool.function.parameters.properties)
+    ) {
+      const limit = schema as { type: string; maximum?: number };
+      if (limit.type !== "integer") continue;
+      const base = tool.function.name === "search_emails"
+        ? { query: "test" }
+        : {};
+      validateArgs(tool.function.name, { ...base, [key]: limit.maximum });
+      assertThrows(() =>
+        validateArgs(tool.function.name, { ...base, [key]: limit.maximum! + 1 })
+      );
+    }
+  }
+  assertEquals(
+    decision({
+      kind: "read",
+      tool: "list_calendar_events",
+      args: '{"from":"2026-10-12","to":"2026-10-18","max":50}',
+      text: "Read calendar",
+    }).kind,
+    "read",
+  );
+});
 Deno.test("submission: one-off schedules require offsets, valid zones, and future times", () => {
   const base = {
     request_id: "1",
@@ -123,6 +152,47 @@ Deno.test("tools: validate every supported integration and reject arbitrary acce
       tool: "send_email",
       args: JSON.stringify(valid.send_email),
       text: "",
+    })
+  );
+});
+
+Deno.test("calendar: next week is Monday–Sunday in Sofia, including DST and year boundaries", () => {
+  const range = (instruction: string, iso: string, args = {}) =>
+    calendarRange(args, instruction, "Europe/Sofia", new Date(iso));
+  assertEquals(
+    range("следващата седмица", "2026-10-10T12:00:00Z", { days_ahead: 14 }),
+    { from: "2026-10-12", to: "2026-10-18", max: 25 },
+  );
+  assertEquals(range("next week", "2026-10-19T12:00:00Z"), {
+    from: "2026-10-26",
+    to: "2026-11-01",
+    max: 25,
+  });
+  assertEquals(range("next week", "2026-12-31T12:00:00Z"), {
+    from: "2027-01-04",
+    to: "2027-01-10",
+    max: 25,
+  });
+  assertEquals(range("днес", "2026-10-10T22:30:00Z"), {
+    from: "2026-10-11",
+    to: "2026-10-11",
+    max: 25,
+  });
+  assertEquals(
+    range("next week", "2026-10-10T12:00:00Z", {
+      from: "2026-11-02",
+      to: "2026-11-03",
+    }),
+    { from: "2026-11-02", to: "2026-11-03", max: 25 },
+  );
+  assertThrows(() =>
+    validateSubmission({
+      request_id: "bad",
+      instruction: "Bad",
+      initial_read: {
+        tool: "send_email",
+        args: { to: "a@example.com", subject: "S", body: "B" },
+      },
     })
   );
 });

@@ -31,6 +31,7 @@ function fixture() {
   } as Task;
   const steps: Record<string, Step> = {};
   let creates = 0, writes = 0, stops = 0;
+  let prompt = "";
   let messages: TaskEvent[] = [];
   let services = ["gmail", "calendar", "contacts", "places", "outlook"];
   const store: Store = {
@@ -51,7 +52,8 @@ function fixture() {
     context: async () => ({ profile: null, services }),
   };
   const manus: ManusClient = {
-    createTask: async () => {
+    createTask: async (input) => {
+      prompt = input.content;
       creates++;
       return { taskId: "manus-1", taskUrl: null };
     },
@@ -89,6 +91,9 @@ function fixture() {
     manus,
     store,
     deps,
+    get prompt() {
+      return prompt;
+    },
     get creates() {
       return creates;
     },
@@ -347,4 +352,30 @@ Deno.test("worker: exact calendar action completes from a provider receipt witho
   f.patch({ status: "running", state });
   await f.run();
   assertEquals(f.writes, 1);
+});
+
+Deno.test("worker: preload calendar receipt before Manus; reconnect and retries do not lose range", async () => {
+  const f = fixture();
+  const initial_read = {
+    tool: "list_calendar_events",
+    args: { from: "2026-10-12", to: "2026-10-18", max: 25 },
+  };
+  f.patch({ state: { phase: "create", round: 0, initial_read } });
+  f.services([]);
+  await f.run();
+  assertEquals(f.task.pending?.kind, "connection");
+  assertEquals(f.writes, 0);
+  assertEquals(f.creates, 0);
+  f.services(["calendar"]);
+  f.patch({ status: "running", pending: null });
+  await f.run();
+  assertEquals(f.writes, 1);
+  assertEquals(f.creates, 1);
+  assertEquals(f.prompt.includes("2026-10-12"), true);
+  assertEquals(f.prompt.includes("ALREADY read"), true);
+  assertEquals(f.task.state.initial_read, undefined);
+  f.patch({ state: { phase: "create", round: 0, initial_read } });
+  await f.run();
+  assertEquals(f.writes, 1);
+  assertEquals(f.creates, 1);
 });

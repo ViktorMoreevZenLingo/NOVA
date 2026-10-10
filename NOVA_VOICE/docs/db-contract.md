@@ -2,6 +2,12 @@
 
 There's one Supabase project (`vlimtocbrxxnzobhkcoy`) and one migration history (`supabase/migrations`, applied by `supabase db push` in CI). Every schema change is a new migration file in `supabase/migrations`. Don't edit migrations that are already applied, and don't change schema from the dashboard without adding a migration.
 
+## Current delegated runtime
+
+New requests use `alo_tasks`, leased `alo_task_steps`, deduplicated `alo_task_events`, and separate `alo_task_deliveries`. The authoritative API and ownership contract is [ManusIntegration](../../docs/ManusIntegration.md). Legacy security-level/PIN fields below are retained for old tasks; new telephone requests use the owner-requested phone matching policy, with exact-action approval for writes.
+
+Migration `20261010122000_task_initial_context.sql` additively replaces `alo_task_submit` to persist optional validated `state.initial_read = {tool, args}`. It does not change browser grants or expose provider tokens. The worker checks the connection and journals the result as the task's `initial-context` read step before sending bounded data to Manus. `prepared_action` continues to require exact approval and bypasses Manus only for fully specified supported writes.
+
 ## Who owns what
 
 | Table / function | Owner | Browser (signed-in user) | Written by |

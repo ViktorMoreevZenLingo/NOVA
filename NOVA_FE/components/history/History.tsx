@@ -105,8 +105,9 @@ export function History({ records, selected, onSelect, onTaskUpdated }: HistoryP
             <StatusIndicator record={record} />
             <time dateTime={record.date}>{fullDate(record, lang)}</time>
           </div>
-          <p className="history-summary">{record.detail?.[lang]}</p>
-          {record.detail?.engine === "manus" && <TaskControls id={record.id} onUpdated={onTaskUpdated || (() => {})} />}
+          {record.detail?.engine === "manus" ? (
+            <TaskControls key={record.id} id={record.id} summary={record.detail?.[lang]} onUpdated={onTaskUpdated || (() => {})} />
+          ) : <p className="history-summary">{record.detail?.[lang]}</p>}
           {record.type === "call" ? (
             <>
               <h2>{l("От този разговор", "From this call")}</h2>

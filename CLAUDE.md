@@ -19,7 +19,7 @@
   - Each of our functions has `handler.ts` (pure, dependency-injected, tested) and `index.ts` (wires env + real clients).
   - DB status changes go through `store.transition(id, fromStatuses, patch)`. Never update a status unconditionally.
   - User-visible history comes from the `agent_tasks` → `activity` trigger. Email only goes out via `notifyTask` (lease → send → mark).
-  - Callers are identified by their confirmed `auth.users.phone` plus PIN. Never send anything to recipients chosen by the LLM.
+  - New telephone calls use authenticated Vapi caller-number matching to a confirmed phone or unique prototype contact phone, as explicitly requested by the owner; do not restore PIN/security-question prompts. Writes still require exact-action approval. Never send anything to recipients chosen by the LLM.
   - Vapi responses are always HTTP 200 `{results:[{toolCallId, result|error}]}`.
   - Logs go through `_shared/log.ts`. Never log PINs, secrets, prompts or results.
 - Verify from `NOVA_VOICE/`: `deno task test`, `deno task check`, `deno task lint`. Then `supabase start` (from the repo root) and run `deno task test:integration` plus both `NOVA_VOICE/tests/sql/rls.sql` and `supabase/tests/rls.sql`.
