@@ -78,7 +78,7 @@ export function taskHandler(
               lease_id: row.lease_id,
               requires_recipient_auth: true,
               message:
-                "Your Alo task is complete. Open Alo to view the result.",
+                "Your NOVA AI task is complete. Open NOVA AI to view the result.",
             },
           });
         }

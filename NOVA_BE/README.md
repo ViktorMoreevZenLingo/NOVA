@@ -1,6 +1,6 @@
-# Ало (Alo) — Backend
+# NOVA AI — Backend
 
-Spring Boot backend for **Ало**, a voice assistant web app. It owns users,
+Spring Boot backend for **NOVA AI**, a voice assistant web app. It owns users,
 sessions, and the Google OAuth connections (Calendar, Gmail, Contacts) that the
 voice tools will use.
 

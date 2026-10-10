@@ -11,9 +11,9 @@ import { execute } from "../tools.ts";
 import { hasGmail, ownGmailAddress } from "./gmail.ts";
 
 const SUBJECTS: Record<TaskResult["status"], string> = {
-  completed: "Alo: your task is done",
-  needs_input: "Alo: your task needs more information",
-  failed: "Alo: your task could not be completed",
+  completed: "NOVA AI: your task is done",
+  needs_input: "NOVA AI: your task needs more information",
+  failed: "NOVA AI: your task could not be completed",
 };
 
 export const sendResultEmail: SendResultEmail = async (userId, result) => {
@@ -25,7 +25,7 @@ export const sendResultEmail: SendResultEmail = async (userId, result) => {
   const body = [
     result.summary,
     result.taskUrl ? `\nFull details: ${result.taskUrl}` : "",
-    "\n—\nSent by Alo from your own Gmail to yourself. You can also find this in the app's History.",
+    "\n—\nSent by NOVA AI from your own Gmail to yourself. You can also find this in the app's History.",
   ].join("\n");
   await execute(userId, "send_email", { to, subject: SUBJECTS[result.status], body });
   log.info("email.sent", { taskId: result.taskId, status: result.status });

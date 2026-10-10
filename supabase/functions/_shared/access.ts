@@ -49,7 +49,7 @@ export async function checkAccess(
     return say("too many wrong answers to the verification question. Tell the caller you can't do this on this call.");
   }
   if (!settings.verificationQuestion) {
-    return say("the caller has not set a verification question. Tell them to set one in the Alo app (Security) first.");
+    return say("the caller has not set a verification question. Tell them to set one in the NOVA AI app (Security) first.");
   }
   if (!verificationAnswer) {
     return say(

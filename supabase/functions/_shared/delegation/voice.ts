@@ -72,11 +72,11 @@ export function voiceDelegationHandler(config: {
   const readback = async (task: Task, callId: string) => {
     const action = task.pending;
     if (action?.kind !== "approval") {
-      return "This task needs an answer in Alo History before it can continue.";
+      return "This task needs an answer in NOVA AI History before it can continue.";
     }
     const exact = JSON.stringify({ action: action.tool, details: action.args });
     if (exact.length > 1700) {
-      return "This action is too long to approve by phone. Open Alo History to review and approve it.";
+      return "This action is too long to approve by phone. Open NOVA AI History to review and approve it.";
     }
     checked(
       await db.from("call_sessions").update({
@@ -146,7 +146,7 @@ export function voiceDelegationHandler(config: {
       }
     }
     const verifiedContext =
-      `The caller is matched to their Alo account. Do not ask for a PIN or security question. Current time in Europe/Sofia: ${
+      `The caller is matched to their NOVA AI account. Do not ask for a PIN or security question. Current time in Europe/Sofia: ${
         new Intl.DateTimeFormat("en-GB", {
           timeZone: "Europe/Sofia",
           dateStyle: "full",
@@ -220,7 +220,7 @@ export function voiceDelegationHandler(config: {
           return {
             toolCallId: call.id,
             result:
-              `${verifiedContext} This call's account has no ${service} connection. Connect ${service} in this same Alo account, then try again. No task or event has been created. Do not ask for verification again.`,
+              `${verifiedContext} This call's account has no ${service} connection. Connect ${service} in this same NOVA AI account, then try again. No task or event has been created. Do not ask for verification again.`,
           };
         }
       }
@@ -307,7 +307,7 @@ export function voiceDelegationHandler(config: {
             : t.status === "scheduled"
             ? `It is scheduled to start at ${t.run_at} (${t.timezone}); completion may be later.`
             : "It is queued for cloud execution; do not say it is running or promise completion during this call."
-        } Results appear in Alo History. No email or telephone notification is sent unless requested. Writes wait for exact-action approval.`,
+        } Results appear in NOVA AI History. No email or telephone notification is sent unless requested. Writes wait for exact-action approval.`,
       };
     }
     let query = db.from("alo_tasks").select("*").eq("user_id", owner);
@@ -342,7 +342,7 @@ export function voiceDelegationHandler(config: {
             toolCallId: call.id,
             error: e instanceof HttpError
               ? e.message
-              : "The action outcome could not be checked. Do not repeat it; check its status in Alo.",
+              : "The action outcome could not be checked. Do not repeat it; check its status in NOVA AI.",
           };
         }
       }
@@ -424,7 +424,7 @@ export function voiceDelegationHandler(config: {
       });
       return {
         toolCallId: call.id,
-        result: `Task ${result.task.status}. Results remain in Alo History.`,
+        result: `Task ${result.task.status}. Results remain in NOVA AI History.`,
       };
     }
     return {
@@ -435,9 +435,9 @@ export function voiceDelegationHandler(config: {
         t.pending?.kind === "approval"
           ? " An action needs approval; use decide_action to review it."
           : t.pending?.kind === "question"
-          ? " Clarification is needed; open Alo History to read and answer the question."
+          ? " Clarification is needed; open NOVA AI History to read and answer the question."
           : ""
-      } ${t.result ? "The result is available in Alo History." : ""}`,
+      } ${t.result ? "The result is available in NOVA AI History." : ""}`,
     };
   };
   const tools = vapiToolEndpoint(config.vapiSecret, {

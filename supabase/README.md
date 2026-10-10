@@ -1,4 +1,4 @@
-# Alo Supabase backend
+# NOVA AI Supabase backend
 
 Target: `vlimtocbrxxnzobhkcoy` (Nova Team Project).
 
@@ -90,9 +90,9 @@ https://vlimtocbrxxnzobhkcoy.supabase.co/functions/v1/integrations
 ```
 
 Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as Edge Function secrets. Add test
-users while Google's app is in Testing. The end user clicks Connect inside Alo,
-sees Google's consent screen, and returns to Alo. No user Supabase setup is needed.
-Disconnect removes Alo's stored access; users can also revoke the provider grant
+users while Google's app is in Testing. The end user clicks Connect inside NOVA AI,
+sees Google's consent screen, and returns to NOVA AI. No user Supabase setup is needed.
+Disconnect removes NOVA AI's stored access; users can also revoke the provider grant
 in Google's account settings. Revoking one Google grant can affect other services.
 
 **Outlook:** register a Microsoft web app supporting the intended account types,
@@ -101,7 +101,7 @@ Calendars.Read, Contacts.Read, plus offline_access. Configure Microsoft client I
 and secret. Writes are not offered for Outlook.
 
 **Places:** enable Places API (New) and set `GOOGLE_PLACES_API_KEY`. This is an
-Alo-level service key; a user enables it in Alo without a Google login.
+NOVA AI-level service key; a user enables it in NOVA AI without a Google login.
 
 **Assistant:** set `OPENAI_API_KEY`, optionally `OPENAI_MODEL` and `APP_TIMEZONE`.
 Email/calendar write approval is single-use and consumed before the provider

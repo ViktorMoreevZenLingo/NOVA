@@ -9,10 +9,10 @@ export const MOCK_HISTORY: HistoryRecord[] = [
     type: "sms",
     date: "2026-10-10T09:44:00+03:00",
     status: "sent",
-    title: pair("Ало ти изпрати телефона на Иван", "Alo sent you Ivan’s number"),
+    title: pair("NOVA AI ти изпрати телефона на Иван", "NOVA AI sent you Ivan’s number"),
     detail: pair(
-      "СМС от Ало до теб: „Телефонът на Иван Петров е 0888 123 456.“",
-      "SMS from Alo to you: “Ivan Petrov’s phone number is 0888 123 456.”",
+      "СМС от NOVA AI до теб: „Телефонът на Иван Петров е 0888 123 456.“",
+      "SMS from NOVA AI to you: “Ivan Petrov’s phone number is 0888 123 456.”",
     ),
     message: pair(
       "Телефонът на Иван Петров е 0888 123 456.",
@@ -34,10 +34,10 @@ export const MOCK_HISTORY: HistoryRecord[] = [
       ["00:28", "user", pair("Ще я прегледам. Благодаря!", "I’ll review it. Thanks!")],
       ["00:33", "alo", pair("Добре, приятен ден!", "Sounds good. Have a lovely day!")],
     ],
-    title: pair("Ало ти се обади за срещата", "Alo called you about the meeting"),
+    title: pair("NOVA AI ти се обади за срещата", "NOVA AI called you about the meeting"),
     detail: pair(
-      "Ало ти се обади с резултата: срещата с Мария е добавена в календара за 12 октомври, 14:00–14:30, в офиса.",
-      "Alo called you with the result: your meeting with Maria was added to the calendar for October 12, 14:00–14:30, at the office.",
+      "NOVA AI ти се обади с резултата: срещата с Мария е добавена в календара за 12 октомври, 14:00–14:30, в офиса.",
+      "NOVA AI called you with the result: your meeting with Maria was added to the calendar for October 12, 14:00–14:30, at the office.",
     ),
     call: "call-1",
     task: "task-2",
@@ -77,7 +77,7 @@ export const MOCK_HISTORY: HistoryRecord[] = [
       "A meeting with Maria and an email with the details.",
     ),
     transcript: [
-      ["00:00", "user", pair("Ало, запази ми среща с Мария в понеделник в два, за половин час.", "Alo, schedule a half-hour meeting with Maria on Monday at two.")],
+      ["00:00", "user", pair("NOVA AI, запази ми среща с Мария в понеделник в два, за половин час.", "NOVA AI, schedule a half-hour meeting with Maria on Monday at two.")],
       ["00:18", "alo", pair("На 12 октомври, от 14:00 до 14:30. Къде ще е срещата?", "October 12, from 14:00 to 14:30. Where will you meet?")],
       ["00:31", "user", pair("В офиса. Добави я в календара.", "At the office. Add it to the calendar.")],
       ["00:44", "alo", pair("Срещата е добавена. Да подготвя ли и имейл до Мария?", "The meeting is added. Shall I also draft an email to Maria?")],

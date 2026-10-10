@@ -29,7 +29,7 @@ function AuthFrame({
     <div className="auth-layout">
       <main className="auth-main">
         <header className="auth-header">
-          <Brand label={lang === "bg" ? "ало" : "alo"} />
+          <Brand label="NOVA AI" />
         </header>
         <div className={`auth-content ${extra ?? ""} enter`}>{children}</div>
       </main>
@@ -50,7 +50,7 @@ function AuthFrame({
         </p>
       </aside>
       <footer className="auth-copyright">
-        © 2026 {lang === "bg" ? "Ало" : "Alo"}
+        © 2026 NOVA AI
       </footer>
       <LanguageSwitcher />
     </div>
@@ -138,7 +138,7 @@ export function Auth({
       </div>
       <h1 tabIndex={-1}>
         {mode === "login"
-          ? l("Вход в Ало", "Sign in to Alo")
+          ? l("Вход в NOVA AI", "Sign in to NOVA AI")
           : l("Създай профил", "Create an account")}
       </h1>
       <form onSubmit={submitPhone} noValidate>

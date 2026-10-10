@@ -15,7 +15,7 @@ type CalendarEvent = {
 
 export const buildCalendarPrompt: BuildCalendarPrompt = async (instruction, userId, params) => {
   if (!(await hasConnection(userId, "calendar"))) {
-    throw new NonRetryableTaskError("Google Calendar is not connected. Connect it in the Alo app under Integrations, then call again.");
+    throw new NonRetryableTaskError("Google Calendar is not connected. Connect it in the NOVA AI app under Integrations, then call again.");
   }
   const days = typeof params?.days_ahead === "number" ? Math.min(Math.max(Math.round(params.days_ahead), 1), 60) : 14;
   const data = await execute(userId, "list_calendar_events", { days_ahead: days, max: 50 }) as { items?: CalendarEvent[] };

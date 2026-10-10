@@ -34,7 +34,7 @@ export function emailQuery(params: Record<string, unknown> | undefined): string 
 
 export const buildGmailPrompt: BuildGmailPrompt = async (instruction, userId, params) => {
   if (!(await hasGmail(userId))) {
-    throw new NonRetryableTaskError("Gmail is not connected. Connect it in the Alo app under Integrations, then call again.");
+    throw new NonRetryableTaskError("Gmail is not connected. Connect it in the NOVA AI app under Integrations, then call again.");
   }
   // Only what the caller asked for (Gmail search on their own inbox), else the last 72h.
   const query = emailQuery(params);

@@ -21,7 +21,7 @@ export function addressOf(value: string): string {
 
 export const buildReplyPrompt: BuildReplyPrompt = async (instruction, userId, params) => {
   if (!(await hasGmail(userId))) {
-    throw new NonRetryableTaskError("Gmail is not connected. Connect it in the Alo app under Integrations, then call again.");
+    throw new NonRetryableTaskError("Gmail is not connected. Connect it in the NOVA AI app under Integrations, then call again.");
   }
   const query = emailQuery(params) ?? "in:inbox";
   const [match] = await execute(userId, "search_emails", { query, max: 1 }) as (EmailItem & { id: string })[];

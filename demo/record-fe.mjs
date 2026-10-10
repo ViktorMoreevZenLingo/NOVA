@@ -92,7 +92,7 @@ try {
   const video = page.video();
   await context.close();
   const raw = await video.path();
-  const target = path.join(out, 'alo-fe-demo.mp4');
+  const target = path.join(out, 'nova-ai-fe-demo.mp4');
   const result = spawnSync(ffmpeg, ['-y','-i',raw,'-an','-c:v','libx264','-crf','20','-pix_fmt','yuv420p','-r','30','-movflags','+faststart',target], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr);
   await writeFile(path.join(out,'manifest.json'), JSON.stringify({ simulated:true, audio:false, width:1920, height:1080, activityReads, failures, file:target }, null,2));

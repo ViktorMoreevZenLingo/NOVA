@@ -31,7 +31,7 @@ export async function deliverOneEmail(db = admin()) {
     sending = true;
     await runTool(delivery.user_id, "send_email", {
       to: emailAddress,
-      subject: `Alo: ${task.instruction.slice(0, 100)}`,
+      subject: `NOVA AI: ${task.instruction.slice(0, 100)}`,
       body: task.result.slice(0, 20000),
     });
     checked(

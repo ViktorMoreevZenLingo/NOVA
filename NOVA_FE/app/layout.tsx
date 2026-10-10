@@ -3,8 +3,8 @@ import { I18nProvider } from "@/lib/i18n-context";
 import "./globals.css";
 
 export const metadata = {
-  title: "Ало — личният ти асистент",
-  description: "Ало — твоят персонален AI асистент по телефона.",
+  title: "NOVA AI — личният ти асистент",
+  description: "NOVA AI — твоят персонален AI асистент по телефона.",
 };
 
 export const viewport = {

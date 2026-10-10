@@ -47,8 +47,8 @@ export function HomeOverview({
     <section className="home-overview">
       <p className="home-description">
         {l(
-          "Тук виждаш какво е свършил Ало и какво предстои. Свържи услугите си, за да му дадеш повече възможности да ти помага.",
-          "See what Alo has done and what’s still in progress. Connect your services to give Alo more ways to help you.",
+          "Тук виждаш какво е свършил NOVA AI и какво предстои. Свържи услугите си, за да му дадеш повече възможности да ти помага.",
+          "See what NOVA AI has done and what’s still in progress. Connect your services to give NOVA AI more ways to help you.",
         )}
       </p>
 
@@ -79,7 +79,7 @@ export function HomeOverview({
 
       <section aria-labelledby="recommended-title">
         <div className="home-section-title">
-          <h2 id="recommended-title">{l("Свържи с Ало", "Connect to Alo")}</h2>
+          <h2 id="recommended-title">{l("Свържи с NOVA AI", "Connect to NOVA AI")}</h2>
           <button
             className="text-button"
             onClick={() => onNavigate("integrations")}
