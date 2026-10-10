@@ -27,6 +27,14 @@ export async function checkAccess(
 ): Promise<AccessDecision> {
   // Checking a task's status reveals as much as reading it: treat as medium.
   const assessment = intent === "status" ? { risk: "medium" as const, reason: "reveals task status" } : assessRisk(intent, params);
+  if (auth.method === "phone") {
+    return {
+      ok: true,
+      assessment,
+      required: assessment.risk === "high" ? ["caller_id", "approval"] : ["caller_id"],
+      satisfied: ["caller_id"],
+    };
+  }
   const settings = await deps.store.getVoiceSettings(auth.profile.user_id);
   const required = requiredLayers(assessment.risk, settings.securityLevel);
   const satisfied: Layer[] = ["caller_id", "pin"];

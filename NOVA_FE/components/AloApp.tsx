@@ -308,6 +308,7 @@ export function AloApp() {
         )}
         {view === "history" && (
           <History
+            onTaskUpdated={() => { void refreshAccount().catch(() => setToast(l("Неуспешно обновяване.", "Could not refresh History."))); }}
             records={historyRecords}
             selected={selected}
             onSelect={(id) => setSelected(id)}

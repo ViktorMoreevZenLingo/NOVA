@@ -7,13 +7,9 @@
     "parameters": {
       "type": "object",
       "properties": {
-        "pin": {
+        "task_id": {
           "type": "string",
-          "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
-        },
-        "verification_answer": {
-          "type": "string",
-          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
+          "description": "Exact task UUID when known; otherwise latest task."
         }
       }
     }

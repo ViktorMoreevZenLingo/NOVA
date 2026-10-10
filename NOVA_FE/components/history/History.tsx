@@ -13,10 +13,12 @@ import { loadChatSessions, type ChatSession } from "@/lib/account-api";
 import { Icon } from "@/components/ui/Icon";
 import { HistoryLegend, HistoryRow, StatusIndicator } from "./HistoryRow";
 import { HistoryToolbar } from "./HistoryToolbar";
+import { TaskControls } from "./TaskControls";
 import { Transcript } from "./Transcript";
 
 interface HistoryProps {
   records: HistoryRecord[];
+  onTaskUpdated?: () => void;
   selected: string | null;
   onSelect: (id: string | null) => void;
 }
@@ -34,7 +36,7 @@ interface ChatEntry {
   when: string | null;
 }
 
-export function History({ records, selected, onSelect }: HistoryProps) {
+export function History({ records, selected, onSelect, onTaskUpdated }: HistoryProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   const [filters, setFilters] = useState(defaultFilters());
@@ -104,6 +106,7 @@ export function History({ records, selected, onSelect }: HistoryProps) {
             <time dateTime={record.date}>{fullDate(record, lang)}</time>
           </div>
           <p className="history-summary">{record.detail?.[lang]}</p>
+          {record.detail?.engine === "manus" && <TaskControls id={record.id} onUpdated={onTaskUpdated || (() => {})} />}
           {record.type === "call" ? (
             <>
               <h2>{l("От този разговор", "From this call")}</h2>

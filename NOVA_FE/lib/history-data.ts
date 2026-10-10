@@ -16,7 +16,7 @@ export interface HistoryRecord {
   status?: string;
   duration?: string;
   title: Pair;
-  detail?: Pair;
+  detail?: Pair & { engine?: "manus" };
   message?: Pair;
   transcript?: Turn[];
   call?: string;
@@ -24,7 +24,16 @@ export interface HistoryRecord {
 }
 
 export const isComplete = (r: HistoryRecord) =>
-  r.type === "call" || ["done", "sent", "notified"].includes(r.status || "");
+  r.type === "call" || ["done", "sent", "notified", "completed"].includes(r.status || "");
+
+export function historyStatus(record: HistoryRecord, lang: Lang): string {
+  const labels: Record<string, [string, string]> = {
+    waiting_call: ["След разговора", "Waiting for call end"], scheduled: ["Насрочена", "Scheduled"],
+    queued: ["На опашка", "Queued"], running: ["В процес", "Running"],
+    needs_input: ["Нужен е отговор", "Needs input"], failed: ["Неуспешна", "Failed"], cancelled: ["Отменена", "Cancelled"],
+  };
+  return isComplete(record) ? (lang === "bg" ? "Завършено" : "Complete") : labels[record.status || ""]?.[lang === "bg" ? 0 : 1] || (lang === "bg" ? "В процес" : "In Progress");
+}
 
 const secondsOf = (r: HistoryRecord): number | null => {
   if (!r.duration) return null;
@@ -133,14 +142,7 @@ export function filterRecords(
             : "";
   const end =
     f.period === "custom" ? f.toDate : f.period === "all" ? "" : today;
-  const statusText = (r: HistoryRecord) =>
-    isComplete(r)
-      ? lang === "bg"
-        ? "Завършено"
-        : "Complete"
-      : lang === "bg"
-        ? "В процес"
-        : "In Progress";
+  const statusText = (r: HistoryRecord) => historyStatus(r, lang);
 
   return records
     .filter((r) => {
@@ -149,7 +151,7 @@ export function filterRecords(
       return (
         (f.filter === "all" || r.type === f.filter) &&
         (f.statusFilter === "all" ||
-          isComplete(r) === (f.statusFilter === "complete")) &&
+          (f.statusFilter === "complete" ? isComplete(r) : f.statusFilter === "progress" ? !isComplete(r) && !["failed", "cancelled", "scheduled", "waiting_call", "needs_input"].includes(r.status || "") : r.status === f.statusFilter)) &&
         (!start || day >= start) &&
         (!end || day <= end) &&
         (f.durationFilter === "all" ||

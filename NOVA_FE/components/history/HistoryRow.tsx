@@ -4,6 +4,7 @@ import { useI18n } from "@/lib/i18n-context";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import {
   isComplete,
+  historyStatus,
   listDate,
   shortDuration,
   type HistoryRecord,
@@ -19,14 +20,17 @@ const TYPE_ICON: Record<HistoryRecord["type"], IconName> = {
 export function StatusIndicator({ record }: { record: HistoryRecord }) {
   const { lang } = useI18n();
   const complete = isComplete(record);
-  const label = complete ? (lang === "bg" ? "Завършено" : "Complete") : lang === "bg" ? "В процес" : "In Progress";
+  const label = historyStatus(record, lang);
+  const stopped = ["failed", "cancelled"].includes(record.status || "");
+  const waiting = ["scheduled", "waiting_call", "needs_input"].includes(record.status || "");
+
   return (
-    <span className={`history-status ${complete ? "complete" : "in-progress"}`} title={label}>
+    <span className={`history-status ${complete ? "complete" : stopped ? "stopped" : waiting ? "waiting" : "in-progress"}`} title={label} aria-label={label}>
       <span className="history-status-label">{label}</span>
       <svg className="history-status-symbol" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         {complete ? (
           <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-        ) : (
+        ) : stopped ? <path d="m6 6 8 8m0-8-8 8" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" /> : waiting ? <><circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth={1.6} /><path d="M10 6v4l3 2" stroke="currentColor" strokeWidth={1.6} /></> : (
           <>
             <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth={1.8} opacity=".2" />
             <path d="M10 3a7 7 0 0 1 7 7" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />

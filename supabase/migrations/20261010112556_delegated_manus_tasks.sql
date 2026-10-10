@@ -6,13 +6,9 @@ create table if not exists public.call_sessions (
   pin_failures integer not null default 0,
   verified_at timestamptz
 );
-
 alter table public.call_sessions add column if not exists ended_at timestamptz;
-
 alter table public.call_sessions enable row level security;
-
 revoke all on public.call_sessions from public, anon, authenticated;
-
 grant all on public.call_sessions to service_role;
 
 create table public.alo_tasks (
@@ -49,23 +45,14 @@ create table public.alo_tasks (
   check (start_mode <> 'scheduled' or run_at is not null),
   check (start_mode <> 'after_call' or call_id is not null)
 );
-
 create index alo_tasks_user_date on public.alo_tasks(user_id,created_at desc);
-
 create index alo_tasks_due on public.alo_tasks(next_run_at) where status in ('queued','scheduled','running');
-
 create index alo_tasks_call on public.alo_tasks(call_id) where call_id is not null;
-
 create index alo_tasks_activity on public.alo_tasks(user_id,call_activity_id) where call_activity_id is not null;
-
 alter table public.alo_tasks enable row level security;
-
 revoke all on public.alo_tasks from public, anon, authenticated;
-
 grant select on public.alo_tasks to authenticated;
-
 grant all on public.alo_tasks to service_role;
-
 create policy alo_tasks_owner on public.alo_tasks for select to authenticated using (user_id=(select auth.uid()));
 
 create table public.alo_task_steps (
@@ -77,15 +64,12 @@ create table public.alo_task_steps (
   created_at timestamptz not null default now(),
   primary key(task_id, step_key)
 );
-
 create table public.alo_task_events (
   event_id text primary key,
   task_id uuid not null references public.alo_tasks(id) on delete cascade,
   created_at timestamptz not null default now()
 );
-
 create index alo_task_events_task on public.alo_task_events(task_id);
-
 create table public.alo_task_deliveries (
   id uuid primary key default gen_random_uuid(),
   task_id uuid not null references public.alo_tasks(id) on delete cascade,
@@ -98,23 +82,14 @@ create table public.alo_task_deliveries (
   created_at timestamptz not null default now(),
   unique(task_id,channel)
 );
-
 create index alo_task_deliveries_owner on public.alo_task_deliveries(user_id);
-
 create index alo_task_deliveries_pending on public.alo_task_deliveries(created_at) where status='pending';
-
 alter table public.alo_task_steps enable row level security;
-
 alter table public.alo_task_events enable row level security;
-
 alter table public.alo_task_deliveries enable row level security;
-
 revoke all on public.alo_task_steps,public.alo_task_events,public.alo_task_deliveries from public,anon,authenticated;
-
 grant all on public.alo_task_steps,public.alo_task_events,public.alo_task_deliveries to service_role;
-
 grant select on public.alo_task_deliveries to authenticated;
-
 create policy alo_deliveries_owner on public.alo_task_deliveries for select to authenticated using(user_id=(select auth.uid()));
 
 create function public.alo_task_mirror() returns trigger language plpgsql set search_path='' as $$
@@ -132,13 +107,10 @@ begin
   end if;
   return new;
 end $$;
-
 -- AFTER: the parent task must exist before inserting a delivery FK.
 create function public.alo_task_touch() returns trigger language plpgsql set search_path='' as $$
 begin new.updated_at:=now(); new.revision:=old.revision+1; return new; end $$;
-
 create trigger alo_task_touch before update on public.alo_tasks for each row execute function public.alo_task_touch();
-
 create trigger alo_task_mirror after insert or update on public.alo_tasks for each row execute function public.alo_task_mirror();
 
 -- All RPCs are invoker-rights and service-only. Locks serialize submit/end-call and cancel/steps.
@@ -166,7 +138,6 @@ begin
   end if;
   return t;
 end $$;
-
 create function public.alo_call_ended(p_user uuid,p_call text) returns integer language plpgsql set search_path='' as $$
 declare n integer;
 begin
@@ -176,7 +147,6 @@ begin
   update public.alo_tasks set status='queued',next_run_at=now() where call_id=p_call and user_id=p_user and status='waiting_call';
   get diagnostics n=row_count; return n;
 end $$;
-
 create function public.alo_task_claim() returns setof public.alo_tasks language sql set search_path='' as $$
   update public.alo_tasks set lease_id=gen_random_uuid(),lease_until=now()+interval '120 seconds',
     status=case when cancel_requested then status else 'running' end
@@ -187,7 +157,6 @@ create function public.alo_task_claim() returns setof public.alo_tasks language 
     order by next_run_at,created_at for update skip locked limit 1)
   returning *;
 $$;
-
 create function public.alo_task_save(p_id uuid,p_lease uuid,p_patch jsonb) returns boolean language plpgsql set search_path='' as $$
 begin
   update public.alo_tasks set
@@ -205,7 +174,6 @@ begin
     where id=p_id and lease_id=p_lease and lease_until>now();
   return found;
 end $$;
-
 create function public.alo_step_begin(p_id uuid,p_lease uuid,p_key text,p_kind text) returns jsonb language plpgsql set search_path='' as $$
 declare s public.alo_task_steps;
 begin
@@ -216,7 +184,6 @@ begin
   insert into public.alo_task_steps(task_id,step_key,kind,status) values(p_id,p_key,p_kind,'started') returning * into s;
   return jsonb_build_object('fresh',true,'step',to_jsonb(s));
 end $$;
-
 create function public.alo_step_finish(p_id uuid,p_lease uuid,p_key text,p_output jsonb) returns boolean language plpgsql set search_path='' as $$
 begin
   perform 1 from public.alo_tasks where id=p_id and lease_id=p_lease and lease_until>now() for update;
@@ -224,7 +191,6 @@ begin
   update public.alo_task_steps set status='succeeded',output=p_output where task_id=p_id and step_key=p_key and status='started';
   return found;
 end $$;
-
 create function public.alo_task_command(p_user uuid,p_id uuid,p_revision integer,p_command text,p_data jsonb) returns public.alo_tasks language plpgsql set search_path='' as $$
 declare t public.alo_tasks;
 begin
@@ -250,7 +216,6 @@ begin
   end if;
   return t;
 end $$;
-
 create function public.alo_delivery_claim(p_channel text) returns setof public.alo_task_deliveries language plpgsql set search_path='' as $$
 begin
   -- Expired claims are ambiguous, never automatically redelivered.
@@ -260,5 +225,4 @@ begin
 end $$;
 
 revoke execute on function public.alo_task_mirror(),public.alo_task_touch(),public.alo_task_submit(uuid,jsonb),public.alo_call_ended(uuid,text),public.alo_task_claim(),public.alo_task_save(uuid,uuid,jsonb),public.alo_step_begin(uuid,uuid,text,text),public.alo_step_finish(uuid,uuid,text,jsonb),public.alo_task_command(uuid,uuid,integer,text,jsonb),public.alo_delivery_claim(text) from public,anon,authenticated;
-
 grant execute on function public.alo_task_mirror(),public.alo_task_touch(),public.alo_task_submit(uuid,jsonb),public.alo_call_ended(uuid,text),public.alo_task_claim(),public.alo_task_save(uuid,uuid,jsonb),public.alo_step_begin(uuid,uuid,text,text),public.alo_step_finish(uuid,uuid,text,jsonb),public.alo_task_command(uuid,uuid,integer,text,jsonb),public.alo_delivery_claim(text) to service_role;

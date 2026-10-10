@@ -170,7 +170,12 @@ function textPart(part: any): string {
   }
   return (part?.parts || []).map(textPart).find(Boolean) || "";
 }
-export async function execute(userId: string, name: string, a: Args) {
+export async function execute(
+  userId: string,
+  name: string,
+  a: Args,
+  timezone = TIMEZONE,
+) {
   const service = serviceFor[name];
   if (!service) throw new HttpError(400, "Unknown tool");
   if (service === "places") {
@@ -277,8 +282,8 @@ export async function execute(userId: string, name: string, a: Args) {
       if (to < from) to = from;
       // Resolve to local-day boundaries so "tomorrow" means tomorrow here,
       // not UTC midnight.
-      timeMin = zonedDayStart(from, TIMEZONE).toISOString();
-      timeMax = zonedDayStart(addDays(to, 1), TIMEZONE).toISOString();
+      timeMin = zonedDayStart(from, timezone).toISOString();
+      timeMax = zonedDayStart(addDays(to, 1), timezone).toISOString();
     } else {
       timeMin = new Date().toISOString();
       timeMax = new Date(Date.now() + num(a, "days_ahead", 7, 365) * 86400000)
