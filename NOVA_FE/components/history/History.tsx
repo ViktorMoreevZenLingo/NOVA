@@ -77,6 +77,16 @@ export function History({ records, selected, onSelect }: HistoryProps) {
     [filters, lang, records],
   );
 
+  const isChatTab = filters.filter === "chat";
+  const chatQuery = filters.query.trim().toLocaleLowerCase();
+  const visibleChats = chatQuery
+    ? chats.filter((e) =>
+        `${e.title || ""} ${e.messages.map((m) => m.text).join(" ")}`
+          .toLocaleLowerCase()
+          .includes(chatQuery),
+      )
+    : chats;
+
   const recordById = (id: string | null) => records.find((r) => r.id === id);
   const record = recordById(selected);
   if (record) {
@@ -140,23 +150,22 @@ export function History({ records, selected, onSelect }: HistoryProps) {
       <HistoryToolbar
         filters={filters}
         setFilters={setFilters}
-        resultCount={found.length}
+        resultCount={isChatTab ? visibleChats.length : found.length}
       />
       <div
         className="history-list"
         id="history-results"
         tabIndex={0}
         role="region"
-        aria-label={l("Записи в историята", "History records")}
+        aria-label={isChatTab ? l("Разговори с Ало", "Alo chats") : l("Записи в историята", "History records")}
       >
-        <section className="history-chats">
-          <h2>{l("Разговори с Ало", "Alo chats")}</h2>
-          {chats.length === 0 ? (
-            <p className="history-chats-empty">
+        {isChatTab ? (
+          visibleChats.length === 0 ? (
+            <p className="history-empty">
               {l("Все още няма разговори с Ало.", "No Alo chats yet.")}
             </p>
           ) : (
-            chats.map((entry) => {
+            visibleChats.map((entry) => {
               const open = openChatId === entry.id;
               const title = entry.title ||
                 (entry.id === "current"
@@ -205,18 +214,20 @@ export function History({ records, selected, onSelect }: HistoryProps) {
                 </div>
               );
             })
-          )}
-        </section>
-
-        <HistoryLegend />
-        {found.length ? (
-          found.map((r) => (
-            <HistoryRow key={r.id} record={r} onSelect={onSelect} />
-          ))
+          )
         ) : (
-          <p className="history-empty">
-            {l("Няма намерени записи.", "No results found.")}
-          </p>
+          <>
+            <HistoryLegend />
+            {found.length ? (
+              found.map((r) => (
+                <HistoryRow key={r.id} record={r} onSelect={onSelect} />
+              ))
+            ) : (
+              <p className="history-empty">
+                {l("Няма намерени записи.", "No results found.")}
+              </p>
+            )}
+          </>
         )}
       </div>
     </section>
