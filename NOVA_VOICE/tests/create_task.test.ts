@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1";
-import { createTaskHandler } from "../supabase/functions/create-task/handler.ts";
-import { makeDeps, PIN, USER_EMAIL, USER_PHONE, VAPI_SECRET, vapiRequest } from "./fakes.ts";
+import { createTaskHandler } from "../../supabase/functions/create-task/handler.ts";
+import { makeDeps, PIN, USER_ID, USER_PHONE, VAPI_SECRET, vapiRequest } from "./fakes.ts";
 
 function setup(opts: { webCallPhone?: string } = {}) {
   const ctx = makeDeps();
@@ -32,9 +32,11 @@ Deno.test("create-task: happy path creates and submits a Manus task", async () =
   const task = store.only();
   assertEquals(task.status, "submitted");
   assertEquals(task.manus_task_id, "manus-1");
-  assertEquals(task.user_email, USER_EMAIL);
-  assertEquals(manus.created[0].connectors, ["gmail-connector"]);
-  assertEquals(manus.created[0].content, "GMAIL: Summarize important emails");
+  assertEquals(task.user_id, USER_ID);
+  assertEquals(manus.created[0].connectors, []);
+  assertMatch(manus.created[0].content, new RegExp(`^GMAIL\\(${USER_ID}\\): Summarize important emails`));
+  // Alo profile goes along as context.
+  assertMatch(manus.created[0].content, /About the user[\s\S]*Name: Demo[\s\S]*Prefers short answers/);
 });
 
 Deno.test("create-task: research intent uses no connectors and guardrails", async () => {

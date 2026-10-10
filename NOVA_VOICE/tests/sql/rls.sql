@@ -1,28 +1,40 @@
--- RLS checks for the portal contract. Run against a local stack:
+-- RLS + helper checks for the phone assistant tables (Alo has its own: supabase/tests/rls.sql). Run against a local stack:
 --   psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '"')" -v ON_ERROR_STOP=1 -f tests/sql/rls.sql
 -- Everything runs in a transaction that is rolled back.
 begin;
 
--- Two users; the auth trigger creates their profiles.
-insert into auth.users (id, email, instance_id, aud, role)
+-- Two Alo users (phone sign-up), plus one with an unconfirmed phone.
+insert into auth.users (id, phone, phone_confirmed_at, instance_id, aud, role)
 values
-  ('11111111-1111-4111-8111-111111111111', 'a@example.com', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
-  ('22222222-2222-4222-8222-222222222222', 'b@example.com', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
+  ('11111111-1111-4111-8111-111111111111', '359888000001', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+  ('22222222-2222-4222-8222-222222222222', '359888000002', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+  ('33333333-3333-4333-8333-333333333333', '359888000003', null,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
 
+-- Caller lookup: Vapi's "+359..." format matches; unconfirmed phones never match.
 do $$ begin
-  assert (select count(*) from public.assistant_profiles where notify_email in ('a@example.com', 'b@example.com')) = 2,
-    'auth trigger did not create assistant_profiles';
+  assert public.nova_user_id_by_phone('+359888000001') = '11111111-1111-4111-8111-111111111111', 'phone lookup';
+  assert public.nova_user_id_by_phone('+359 888 000 002') = '22222222-2222-4222-8222-222222222222', 'phone lookup (spaces)';
+  assert public.nova_user_id_by_phone('+359888000003') is null, 'unconfirmed phone must not match';
+  assert public.nova_user_id_by_phone('+359888999999') is null, 'unknown phone';
 end $$;
 
-insert into public.agent_tasks (user_id, intent, prompt, user_email)
+insert into public.agent_tasks (user_id, intent, prompt)
 values
-  ('11111111-1111-4111-8111-111111111111', 'research', 'A task', 'a@example.com'),
-  ('22222222-2222-4222-8222-222222222222', 'research', 'B task', 'b@example.com');
+  ('11111111-1111-4111-8111-111111111111', 'research', 'A task'),
+  ('22222222-2222-4222-8222-222222222222', 'research', 'B task');
 
-insert into public.user_integrations (user_id, provider, status)
-values
-  ('11111111-1111-4111-8111-111111111111', 'gmail', 'connected'),
-  ('22222222-2222-4222-8222-222222222222', 'gmail', 'not_connected');
+-- Every task is mirrored into the Alo History (activity), same id.
+do $$ begin
+  assert (select count(*) from public.activity a join public.agent_tasks t using (id) where a.type = 'task' and a.status = 'in_progress') = 2,
+    'tasks must be mirrored into activity';
+end $$;
+update public.agent_tasks set status = 'submitted' where prompt = 'A task';
+update public.agent_tasks set status = 'completed', result = 'All good' where prompt = 'A task';
+do $$ begin
+  assert (select a.status = 'done' and a.detail ->> 'en' = 'All good' from public.activity a join public.agent_tasks t using (id) where t.prompt = 'A task'),
+    'completion must be mirrored';
+end $$;
+update public.agent_tasks set status = 'pending', result = null where prompt = 'A task';
 
 -- Act as user A.
 set local role authenticated;
@@ -31,33 +43,26 @@ select set_config('request.jwt.claims', '{"sub":"11111111-1111-4111-8111-1111111
 do $$ begin
   assert (select count(*) from public.agent_tasks) = 1, 'A must see exactly its own task';
   assert (select prompt from public.agent_tasks) = 'A task', 'A sees the wrong task';
-  assert (select count(*) from public.assistant_profiles) = 1, 'A must see only its own profile';
-  assert (select count(*) from public.user_integrations) = 1, 'A must see only its own integration';
+  assert (select count(*) from public.activity) = 1, 'A must see only its own history';
   assert (select count(*) from public.call_sessions) = 0, 'call_sessions must be invisible';
 end $$;
 
--- A may rename itself...
-update public.assistant_profiles set display_name = 'Alice';
-do $$ begin
-  assert (select display_name from public.assistant_profiles) = 'Alice', 'display_name update failed';
-end $$;
-
--- ...but may not change notify_email, write tasks, or call service functions.
+-- A may not write tasks, call service functions or look up phones.
 do $$ begin
   begin
-    update public.assistant_profiles set notify_email = 'evil@example.com';
-    raise exception 'notify_email update should be denied';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    insert into public.agent_tasks (user_id, intent, prompt, user_email)
-    values ('11111111-1111-4111-8111-111111111111', 'research', 'x', 'a@example.com');
+    insert into public.agent_tasks (user_id, intent, prompt)
+    values ('11111111-1111-4111-8111-111111111111', 'research', 'x');
     raise exception 'task insert should be denied';
   exception when insufficient_privilege then null;
   end;
   begin
     perform public.claim_notification(gen_random_uuid());
     raise exception 'claim_notification should be denied';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.nova_user_id_by_phone('+359888000002');
+    raise exception 'phone lookup should be denied';
   exception when insufficient_privilege then null;
   end;
 end $$;
@@ -73,8 +78,6 @@ set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 do $$ begin
   assert (select count(*) from public.agent_tasks) = 0, 'anon must see no tasks';
-  assert (select count(*) from public.assistant_profiles) = 0, 'anon must see no profiles';
-  assert (select count(*) from public.user_integrations) = 0, 'anon must see no integrations';
 end $$;
 
 -- Service-role helpers behave as designed.

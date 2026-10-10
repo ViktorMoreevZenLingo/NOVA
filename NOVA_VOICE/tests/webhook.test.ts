@@ -1,7 +1,7 @@
 import { assertEquals, assertMatch } from "jsr:@std/assert@1";
-import { manusWebhookHandler } from "../supabase/functions/manus-webhook/handler.ts";
-import { createAndSubmitTask } from "../supabase/functions/_shared/tasks.ts";
-import { makeDeps, makeSigner, USER_EMAIL, USER_ID } from "./fakes.ts";
+import { manusWebhookHandler } from "../../supabase/functions/manus-webhook/handler.ts";
+import { createAndSubmitTask } from "../../supabase/functions/_shared/tasks.ts";
+import { makeDeps, makeSigner, USER_ID } from "./fakes.ts";
 
 const WEBHOOK_URL = "https://example.supabase.co/functions/v1/manus-webhook";
 
@@ -16,7 +16,6 @@ async function setup() {
     vapi_tool_call_id: "tc-1",
     intent: "research",
     prompt: "Find hackathon tips",
-    user_email: USER_EMAIL,
   });
 
   async function send(payload: unknown, opts: { tamper?: boolean; ts?: number } = {}) {
@@ -48,7 +47,7 @@ Deno.test("webhook: finish completes the task and sends one email", async () => 
   assertEquals(task.status, "completed");
   assertEquals(task.result, "Here is the summary");
   assertEquals(email.sent.length, 1);
-  assertEquals(email.sent[0].recipient, USER_EMAIL);
+  assertEquals(email.sent[0].userId, USER_ID);
   assertEquals(email.sent[0].result.status, "completed");
 });
 

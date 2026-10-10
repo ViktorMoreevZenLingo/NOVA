@@ -3,7 +3,7 @@ name: Deploy Supabase
 on:
   push:
     branches: [main, feat/vapi-manus]
-    paths: ["supabase/**", ".github/workflows/deploy.yml"]
+    paths: ["supabase/**", "NOVA_VOICE/**", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +24,8 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Unit tests
+      - name: Unit tests (phone assistant)
+        working-directory: NOVA_VOICE
         run: deno task test
 
       - uses: supabase/setup-cli@v1
@@ -34,41 +35,30 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Database connection
-        run: |
-          host=$(grep -ohE '[a-z0-9.-]+\.pooler\.supabase\.com' supabase/.temp/pooler-url 2>/dev/null | head -1 || true)
-          if [ -z "$host" ]; then echo "::error::Could not find the pooler host after supabase link"; ls -la supabase/.temp || true; exit 1; fi
-          {
-            echo "PGHOST=$host"
-            echo "PGPORT=5432"
-            echo "PGUSER=postgres.$PROJECT_REF"
-            echo "PGDATABASE=postgres"
-            echo "PGSSLMODE=require"
-          } >> "$GITHUB_ENV"
-
-      - name: Show existing schema (read-only, for syncing with the Lovable portal)
-        env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          psql -c '\dt public.*' || true
-          psql -c 'select version, name from supabase_migrations.schema_migrations order by version' || true
-
-      # Our own migration history (see scripts/apply-migrations.sh); Lovable keeps
-      # using supabase_migrations, so neither side blocks the other.
+      # One shared migration history (Alo + phone assistant). Our first two
+      # migrations were applied outside it earlier; marking them is idempotent.
       - name: Apply migrations
-        env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: scripts/apply-migrations.sh
+        run: |
+          supabase migration repair --status applied 20261010000001 20261010000002 --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
 
       - name: Set function secrets and Vault config
         env:
+          # Phone assistant
           MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
-          MANUS_GMAIL_CONNECTOR_ID: ${{ vars.MANUS_GMAIL_CONNECTOR_ID || '9444d960-ab7e-450f-9cb9-b9467fb0adda' }}
           VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
           TEST_USER_PIN: ${{ secrets.TEST_USER_PIN }}
           DEMO_WEBCALL_PHONE: ${{ vars.DEMO_WEBCALL_PHONE }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM: ${{ vars.RESEND_FROM }}
+          # Alo app (empty values are skipped, so secrets set by hand are kept)
+          APP_URL: ${{ vars.APP_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+          APP_TIMEZONE: ${{ vars.APP_TIMEZONE }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
         run: |
           set -euo pipefail
           project_url="https://${PROJECT_REF}.supabase.co"
@@ -81,9 +71,11 @@ jobs:
           {
             echo "MANUS_WEBHOOK_URL=${project_url}/functions/v1/manus-webhook"
             echo "CRON_SECRET=${cron_secret}"
-            for name in MANUS_API_KEY MANUS_GMAIL_CONNECTOR_ID VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE RESEND_API_KEY RESEND_FROM; do
+            for name in MANUS_API_KEY VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE \
+                        APP_URL OPENAI_API_KEY OPENAI_MODEL APP_TIMEZONE GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
+                        MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET GOOGLE_PLACES_API_KEY; do
               value="${!name:-}"
-              if [ -n "$value" ]; then echo "${name}=${value}"; else echo "::warning::${name} is not set" >&2; fi
+              if [ -n "$value" ]; then echo "${name}=${value}"; else echo "::notice::${name} not in GitHub; keeping the value in Supabase (if any)" >&2; fi
             done
           } > "$env_file"
           supabase secrets set --project-ref "$PROJECT_REF" --env-file "$env_file"
@@ -106,13 +98,13 @@ jobs:
         run: |
           if [ -z "$MANUS_API_KEY" ]; then echo "::warning::MANUS_API_KEY not set; skipping"; exit 0; fi
           MANUS_WEBHOOK_URL="https://${PROJECT_REF}.supabase.co/functions/v1/manus-webhook" \
-            deno run --allow-env --allow-net=api.manus.ai scripts/register-manus-webhook.ts
+            deno run --allow-env --allow-net=api.manus.ai NOVA_VOICE/scripts/register-manus-webhook.ts
 
       - name: Smoke check
         run: |
           # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
           base="https://${PROJECT_REF}.supabase.co/functions/v1"
-          for fn in create-task get-task-status reconcile manus-webhook; do
+          for fn in create-task get-task-status reconcile manus-webhook agent integrations account-delete; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
             echo "$fn -> $code"
           done

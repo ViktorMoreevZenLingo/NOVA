@@ -157,3 +157,19 @@ Then both branches start from it.
 - Locally: `supabase start` + `supabase functions serve`, driven by curl with the fixtures.
 - RLS test (a SQL script under `tests/sql/`): user A can't select user B's tasks, profiles or integrations, and anon users can't select anything.
 - Real end to end: phone call → hang up → the portal shows the task flipping live → the row goes `submitted → completed` with `notified_at` set → the email is received → the task shows in the Manus UI. The README checklist marks each piece **mocked** or **verified real**.
+
+---
+
+## Update 2026-10-10 — merged with the Alo app (`SupabaseIntegrated`)
+
+The plan above predates the team's Alo app. What changed after merging Nick's Supabase backend:
+
+- **No Lovable, no separate portal repo.** The app is `NOVA_FE` (Next.js) in this repo, on the same Supabase project.
+- **Caller identity:** callers are matched on Alo's SMS-verified `auth.users.phone` (`nova_user_id_by_phone`) plus the PIN. `assistant_profiles` and `phone_e164` were dropped.
+- **Results:**
+  - Every task is mirrored into Alo's `activity` table, which the app's History reads.
+  - An email goes from the user's own Gmail to themselves, via Alo's Google OAuth.
+  - Resend and `notify_email` were dropped. Users sign in by phone and have no email address.
+- **Gmail:** the caller's own inbox is read through Alo's `_shared/tools.ts` and passed to Manus as data. The Manus Gmail connector is no longer used, because it can only see one account. Without Gmail connected, the task fails right away.
+- `user_integrations` was dropped in favour of Alo's `connections`.
+- **Migrations:** one shared history again (`supabase db push`); the separate `apply-migrations.sh` workaround was removed.

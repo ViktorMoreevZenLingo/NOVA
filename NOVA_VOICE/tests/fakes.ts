@@ -1,18 +1,17 @@
 // In-memory fakes for the DB, Manus and email layers. They mirror the
 // conditional-update semantics of the real SQL (see migrations/*_init.sql).
-import type { TaskResult } from "../supabase/functions/_shared/contracts.ts";
-import type { AgentTask, CallSession, NewTask, Profile, TaskStore } from "../supabase/functions/_shared/db.ts";
-import type { ManusClient, ManusTask } from "../supabase/functions/_shared/manus.ts";
-import type { TaskDeps } from "../supabase/functions/_shared/tasks.ts";
+import type { TaskResult } from "../../supabase/functions/_shared/contracts.ts";
+import type { AgentTask, CallSession, NewTask, Profile, TaskStore } from "../../supabase/functions/_shared/db.ts";
+import type { ManusClient, ManusTask } from "../../supabase/functions/_shared/manus.ts";
+import type { TaskDeps } from "../../supabase/functions/_shared/tasks.ts";
 
 export const USER_ID = "00000000-0000-4000-8000-000000000001";
 export const USER_PHONE = "+15550001111";
-export const USER_EMAIL = "demo@example.com";
 export const PIN = "123456";
 export const VAPI_SECRET = "vapi-secret";
 
 export class FakeStore implements TaskStore {
-  profiles: Profile[] = [{ user_id: USER_ID, notify_email: USER_EMAIL }];
+  profiles: Profile[] = [{ user_id: USER_ID, name: "Demo", notes: "Prefers short answers." }];
   phones = new Map<string, string>([[USER_PHONE, USER_ID]]);
   sessions = new Map<string, CallSession>();
   tasks: AgentTask[] = [];
@@ -173,11 +172,11 @@ export class FakeManus implements ManusClient {
 }
 
 export class FakeEmail {
-  sent: { recipient: string; result: TaskResult }[] = [];
+  sent: { userId: string; result: TaskResult }[] = [];
   fail = false;
-  send = (recipient: string, result: TaskResult) => {
+  send = (userId: string, result: TaskResult) => {
     if (this.fail) return Promise.reject(new Error("resend down"));
-    this.sent.push({ recipient, result });
+    this.sent.push({ userId, result });
     return Promise.resolve();
   };
 }
@@ -189,7 +188,7 @@ export function makeDeps() {
   const deps: TaskDeps = {
     store,
     manus,
-    buildGmailPrompt: (instruction) => Promise.resolve({ content: `GMAIL: ${instruction}`, connectors: ["gmail-connector"] }),
+    buildGmailPrompt: (instruction, userId) => Promise.resolve({ content: `GMAIL(${userId}): ${instruction}`, connectors: [] }),
     sendResultEmail: email.send,
   };
   return { store, manus, email, deps };

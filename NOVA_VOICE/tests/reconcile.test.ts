@@ -1,7 +1,7 @@
 import { assertEquals, assertMatch } from "jsr:@std/assert@1";
-import { reconcileHandler } from "../supabase/functions/reconcile/handler.ts";
-import { createAndSubmitTask } from "../supabase/functions/_shared/tasks.ts";
-import { makeDeps, USER_EMAIL, USER_ID } from "./fakes.ts";
+import { reconcileHandler } from "../../supabase/functions/reconcile/handler.ts";
+import { createAndSubmitTask } from "../../supabase/functions/_shared/tasks.ts";
+import { makeDeps, USER_ID } from "./fakes.ts";
 
 const CRON_SECRET = "cron-secret";
 
@@ -17,7 +17,6 @@ function setup() {
       vapi_tool_call_id: crypto.randomUUID(),
       intent: "research",
       prompt: "Find hackathon tips",
-      user_email: USER_EMAIL,
     });
   return { ...ctx, run, create, handler };
 }

@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { verifyManusSignature } from "../supabase/functions/_shared/manus.ts";
+import { verifyManusSignature } from "../../supabase/functions/_shared/manus.ts";
 import { makeSigner } from "./fakes.ts";
 
 const URL = "https://example.supabase.co/functions/v1/manus-webhook";

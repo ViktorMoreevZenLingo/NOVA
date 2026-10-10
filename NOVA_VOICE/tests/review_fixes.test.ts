@@ -1,11 +1,12 @@
 // Regression tests for the code-review findings (lease, needs_input reconcile,
 // orphan adoption, re-ask, hourly PIN lockout, key rotation).
 import { assertEquals, assertMatch } from "jsr:@std/assert@1";
-import { createTaskHandler } from "../supabase/functions/create-task/handler.ts";
-import { manusWebhookHandler } from "../supabase/functions/manus-webhook/handler.ts";
-import { reconcileHandler } from "../supabase/functions/reconcile/handler.ts";
-import { createAndSubmitTask } from "../supabase/functions/_shared/tasks.ts";
-import { makeDeps, makeSigner, PIN, USER_EMAIL, USER_ID, VAPI_SECRET, vapiRequest } from "./fakes.ts";
+import { createTaskHandler } from "../../supabase/functions/create-task/handler.ts";
+import { manusWebhookHandler } from "../../supabase/functions/manus-webhook/handler.ts";
+import { reconcileHandler } from "../../supabase/functions/reconcile/handler.ts";
+import { createAndSubmitTask } from "../../supabase/functions/_shared/tasks.ts";
+import { NonRetryableTaskError } from "../../supabase/functions/_shared/contracts.ts";
+import { makeDeps, makeSigner, PIN, USER_ID, VAPI_SECRET, vapiRequest } from "./fakes.ts";
 
 const WEBHOOK_URL = "https://example.supabase.co/functions/v1/manus-webhook";
 const newTask = (toolCallId = crypto.randomUUID()) => ({
@@ -14,7 +15,6 @@ const newTask = (toolCallId = crypto.randomUUID()) => ({
   vapi_tool_call_id: toolCallId,
   intent: "research" as const,
   prompt: "Find hackathon tips",
-  user_email: USER_EMAIL,
 });
 
 async function setup() {
@@ -133,12 +133,18 @@ Deno.test("pin: lockout across many calls for the same profile (hourly)", async 
   assertEquals(store.tasks.length, 0);
 });
 
-Deno.test("pin: profile without notify_email is refused", async () => {
-  const { deps, store } = await setup();
-  store.profiles[0].notify_email = null;
+Deno.test("submit: non-retryable error (Gmail not connected) fails at once and tells the caller", async () => {
+  const { deps, store, manus, email } = await setup();
+  deps.buildGmailPrompt = () => Promise.reject(new NonRetryableTaskError("Gmail is not connected."));
   const handler = createTaskHandler(deps, { vapiSecret: VAPI_SECRET, caller: { pin: PIN } });
-  const res = await handler(vapiRequest([{ id: "tc", name: "create_task", args: { intent: "research", instruction: "x", pin: PIN } }]));
-  assertMatch((await res.json()).results[0].error, /not registered/);
+  const res = await handler(
+    vapiRequest([{ id: "tc", name: "create_task", args: { intent: "summarize_emails", instruction: "x", pin: PIN } }]),
+  );
+  assertMatch((await res.json()).results[0].error, /Gmail is not connected/);
+  assertEquals(store.only().status, "failed");
+  assertEquals(manus.created.length, 0);
+  assertEquals(email.sent.length, 1);
+  assertEquals(email.sent[0].result.status, "failed");
 });
 
 Deno.test("webhook: rotated signing key is refetched once", async () => {

@@ -32,16 +32,18 @@ export function createTaskHandler(deps: TaskDeps, config: CreateTaskConfig) {
       vapi_tool_call_id: call.id,
       intent,
       prompt: instruction,
-      user_email: auth.profile.notify_email,
     });
     log.info("create_task.done", { callId: req.callId, taskId: task.id, submitted });
 
     const ref = task.id.slice(0, 4).toUpperCase();
+    if (task.status === "failed") {
+      return { toolCallId: call.id, error: `The task could not be started: ${task.error_message ?? "unknown reason"}` };
+    }
     return {
       toolCallId: call.id,
       result: submitted
-        ? `Task accepted (reference ${ref}). The agent keeps working after the call; results will be emailed to the user. The caller can hang up now.`
-        : `Task saved (reference ${ref}) but the agent couldn't start it yet. It will retry automatically and email the user when done.`,
+        ? `Task accepted (reference ${ref}). The agent keeps working after the call; the result will appear in the Alo app's History and, if Gmail is connected, in the caller's inbox. The caller can hang up now.`
+        : `Task saved (reference ${ref}) but the agent couldn't start it yet. It will retry automatically; the result will appear in the Alo app.`,
     };
   };
 

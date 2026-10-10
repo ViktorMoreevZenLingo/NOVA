@@ -3,14 +3,14 @@
   "async": false,
   "function": {
     "name": "create_task",
-    "description": "Delegate a task to the cloud agent. The agent keeps working after the call ends and emails the result to the caller's registered address.",
+    "description": "Delegate a task to the cloud agent. The agent keeps working after the call ends; the result appears in the Alo app's History and, if Gmail is connected, in the caller's own inbox.",
     "parameters": {
       "type": "object",
       "properties": {
         "intent": {
           "type": "string",
           "enum": ["summarize_emails", "research"],
-          "description": "summarize_emails: anything about the caller's Gmail inbox. research: web research or any other general task."
+          "description": "summarize_emails: anything about the caller's own Gmail inbox (must be connected in the Alo app). research: web research or any other general task."
         },
         "instruction": {
           "type": "string",

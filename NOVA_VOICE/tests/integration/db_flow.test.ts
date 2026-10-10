@@ -3,11 +3,11 @@
 //   SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<from `supabase status`> deno task test:integration
 import { assert, assertEquals, assertMatch } from "jsr:@std/assert@1";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { createTaskHandler } from "../../supabase/functions/create-task/handler.ts";
-import { manusWebhookHandler } from "../../supabase/functions/manus-webhook/handler.ts";
-import { reconcileHandler } from "../../supabase/functions/reconcile/handler.ts";
-import { createTaskStore } from "../../supabase/functions/_shared/db.ts";
-import type { TaskDeps } from "../../supabase/functions/_shared/tasks.ts";
+import { createTaskHandler } from "../../../supabase/functions/create-task/handler.ts";
+import { manusWebhookHandler } from "../../../supabase/functions/manus-webhook/handler.ts";
+import { reconcileHandler } from "../../../supabase/functions/reconcile/handler.ts";
+import { createTaskStore } from "../../../supabase/functions/_shared/db.ts";
+import type { TaskDeps } from "../../../supabase/functions/_shared/tasks.ts";
 import { FakeEmail, FakeManus, makeSigner, PIN, VAPI_SECRET, vapiRequest } from "../fakes.ts";
 
 const url = Deno.env.get("SUPABASE_URL");
@@ -21,16 +21,15 @@ Deno.test({
   sanitizeResources: false,
   fn: async () => {
     const admin = createClient(url!, key!, { auth: { persistSession: false } });
-    const email = `it-${crypto.randomUUID()}@example.com`;
-    const phone = `+1555${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
-    const { data: created, error } = await admin.auth.admin.createUser({ email, email_confirm: true, password: crypto.randomUUID() });
+    // Alo users sign up by SMS OTP: a confirmed phone, no email.
+    const phone = `+359${Math.floor(800_000_000 + Math.random() * 99_999_999)}`;
+    const { data: created, error } = await admin.auth.admin.createUser({ phone, phone_confirm: true });
     if (error) throw error;
     const userId = created.user.id;
 
     try {
-      // Auth trigger created the profile; admin assigns the phone.
-      const { error: phoneErr } = await admin.from("assistant_profiles").update({ phone_e164: phone }).eq("user_id", userId);
-      if (phoneErr) throw phoneErr;
+      const { error: profileErr } = await admin.from("profiles").insert({ id: userId, name: "Integration", notes: "Likes bullet points." });
+      if (profileErr) throw profileErr;
 
       const manus = new FakeManus();
       const mail = new FakeEmail();
@@ -76,7 +75,12 @@ Deno.test({
       assertEquals(rows!.length, 1);
       const task = rows![0];
       assertEquals(task.status, "submitted");
-      assertEquals(task.user_email, email);
+      assertMatch(manus.created[0].content, /Likes bullet points/);
+
+      // Mirrored into the Alo app's History.
+      const { data: act1 } = await admin.from("activity").select().eq("id", task.id).single();
+      assertEquals(act1.type, "task");
+      assertEquals(act1.status, "in_progress");
       assertEquals(manus.created.length, 1);
 
       // Signed webhook, delivered twice.
@@ -106,7 +110,10 @@ Deno.test({
       assert(done.notified_at);
       assert(done.completed_at);
       assertEquals(mail.sent.length, 1);
-      assertEquals(mail.sent[0].recipient, email);
+      assertEquals(mail.sent[0].userId, userId);
+      const { data: act2 } = await admin.from("activity").select().eq("id", task.id).single();
+      assertEquals(act2.status, "done");
+      assertEquals(act2.detail.en, "3 important emails");
 
       // Reconcile finds nothing left to do for this task.
       const reconcile = reconcileHandler(deps, { cronSecret: "c", staleAfterMs: 0 });
@@ -118,7 +125,6 @@ Deno.test({
         user_id: userId,
         intent: "research",
         prompt: "y",
-        user_email: email,
         status: "completed",
         result: "r",
       }).select().single();

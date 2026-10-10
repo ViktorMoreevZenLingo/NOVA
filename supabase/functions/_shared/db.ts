@@ -13,7 +13,6 @@ export type AgentTask = {
   vapi_tool_call_id: string | null;
   intent: TaskIntent;
   prompt: string;
-  user_email: string;
   status: TaskStatus;
   manus_task_id: string | null;
   manus_task_url: string | null;
@@ -29,13 +28,15 @@ export type AgentTask = {
   notified_at: string | null;
 };
 
-export type Profile = { user_id: string; notify_email: string | null };
+/** Caller identity (auth user) plus Alo profile data, if the user filled it in. */
+export type Profile = { user_id: string; name: string | null; notes: string | null };
 
 export type CallSession = { vapi_call_id: string; user_id: string | null; pin_failures: number; verified_at: string | null };
 
-export type NewTask = Pick<AgentTask, "user_id" | "vapi_call_id" | "vapi_tool_call_id" | "intent" | "prompt" | "user_email">;
+export type NewTask = Pick<AgentTask, "user_id" | "vapi_call_id" | "vapi_tool_call_id" | "intent" | "prompt">;
 
 export type TaskStore = {
+  /** Matches a confirmed auth.users.phone (Alo signs users in by SMS OTP). */
   findProfileByPhone(phone: string): Promise<Profile | null>;
   getProfile(userId: string): Promise<Profile | null>;
   getCallSession(callId: string): Promise<CallSession | null>;
@@ -76,14 +77,20 @@ function must<T>(res: { data: T; error: { message: string } | null }, what: stri
 export function createTaskStore(db: SupabaseClient = createServiceClient()): TaskStore {
   const tasks = () => db.from("agent_tasks");
 
+  async function getProfile(userId: string): Promise<Profile> {
+    const row = must(await db.from("profiles").select("name, notes").eq("id", userId).maybeSingle(), "getProfile") as
+      | { name: string | null; notes: string | null }
+      | null;
+    return { user_id: userId, name: row?.name ?? null, notes: row?.notes ?? null };
+  }
+
   return {
     async findProfileByPhone(phone) {
-      return must(await db.from("assistant_profiles").select("user_id, notify_email").eq("phone_e164", phone).maybeSingle(), "findProfileByPhone");
+      const userId = must(await db.rpc("nova_user_id_by_phone", { p_phone: phone }), "findProfileByPhone") as string | null;
+      return userId ? await getProfile(userId) : null;
     },
 
-    async getProfile(userId) {
-      return must(await db.from("assistant_profiles").select("user_id, notify_email").eq("user_id", userId).maybeSingle(), "getProfile");
-    },
+    getProfile,
 
     async getCallSession(callId) {
       return must(await db.from("call_sessions").select("*").eq("vapi_call_id", callId).maybeSingle(), "getCallSession");

@@ -8,8 +8,8 @@ const SPOKEN_STATUS: Record<AgentTask["status"], string> = {
   pending: "is being started",
   submitted: "is still in progress",
   submit_failed: "hasn't started yet; it will be retried automatically",
-  completed: "is complete; the results were sent by email",
-  needs_input: "is paused because the agent needs more information; details were sent by email",
+  completed: "is complete; the result is in the Alo app's History",
+  needs_input: "is paused because the agent needs more information; details are in the Alo app's History",
   failed: "could not be completed",
 };
 

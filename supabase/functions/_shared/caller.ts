@@ -1,5 +1,6 @@
 // Caller authentication for voice calls. Caller ID alone is not trusted:
-// the caller's number selects the profile, and a spoken PIN proves identity.
+// the caller's number selects the account (its SMS-verified phone in Alo),
+// and a spoken PIN proves identity.
 // Once verified, the rest of the call doesn't need the PIN again.
 import { safeEqual } from "./crypto.ts";
 import type { Profile, TaskStore } from "./db.ts";
@@ -16,10 +17,8 @@ export type CallerConfig = {
   webCallPhone?: string;
 };
 
-export type VerifiedProfile = Profile & { notify_email: string };
-
 export type CallerAuth =
-  | { ok: true; profile: VerifiedProfile }
+  | { ok: true; profile: Profile }
   | { ok: false; reason: "unknown_caller" | "pin_required" | "pin_incorrect" | "locked" };
 
 export async function authenticateCaller(
@@ -32,12 +31,12 @@ export async function authenticateCaller(
   if (session && session.pin_failures >= MAX_PIN_FAILURES) return { ok: false, reason: "locked" };
   if (session?.verified_at && session.user_id) {
     const profile = await store.getProfile(session.user_id);
-    if (profile?.notify_email) return { ok: true, profile: { ...profile, notify_email: profile.notify_email } };
+    if (profile) return { ok: true, profile };
   }
 
   const phone = req.customerNumber ?? (req.callType === "webCall" ? config.webCallPhone : undefined);
   const profile = phone ? await store.findProfileByPhone(phone) : null;
-  if (!profile?.notify_email) return { ok: false, reason: "unknown_caller" };
+  if (!profile) return { ok: false, reason: "unknown_caller" };
   if ((await store.recentPinFailures(profile.user_id)) >= MAX_HOURLY_PIN_FAILURES) return { ok: false, reason: "locked" };
 
   if (!pin) return { ok: false, reason: "pin_required" };
@@ -47,12 +46,12 @@ export async function authenticateCaller(
   }
 
   await store.markCallVerified(req.callId, profile.user_id);
-  return { ok: true, profile: { ...profile, notify_email: profile.notify_email } };
+  return { ok: true, profile };
 }
 
 /** What the assistant should say/do for each auth failure. */
 export const AUTH_ERROR_MESSAGES: Record<Exclude<CallerAuth, { ok: true }>["reason"], string> = {
-  unknown_caller: "This phone number is not registered. Politely tell the caller you can't help on this line.",
+  unknown_caller: "This phone number is not registered. Tell the caller to sign up in the Alo app with this number first.",
   pin_required: "Ask the caller for their 6-digit PIN, then call this tool again with the `pin` argument.",
   pin_incorrect: "The PIN was incorrect. Ask the caller to repeat their PIN.",
   locked: "Too many incorrect PIN attempts. Tell the caller you can't continue on this call.",

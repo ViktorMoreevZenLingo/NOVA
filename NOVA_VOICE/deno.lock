@@ -8,7 +8,8 @@
     "npm:@supabase/functions-js@2.117.3": "2.117.3",
     "npm:@supabase/postgrest-js@2.117.3": "2.117.3",
     "npm:@supabase/realtime-js@2.117.3": "2.117.3",
-    "npm:@supabase/storage-js@2.117.3": "2.117.3"
+    "npm:@supabase/storage-js@2.117.3": "2.117.3",
+    "npm:@supabase/supabase-js@2.117.3": "2.117.3"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -65,6 +66,16 @@
       "dependencies": [
         "iceberg-js",
         "tslib"
+      ]
+    },
+    "@supabase/supabase-js@2.117.3": {
+      "integrity": "sha512-K+f8PimXDunPWQ63CKRXaF5pbVPJxmfw5ryAnh0s9S9PkwcuqBjiSpIaqpF7KLDljeYwXIL85ST8QxaO0+XuvA==",
+      "dependencies": [
+        "@supabase/auth-js",
+        "@supabase/functions-js",
+        "@supabase/postgrest-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js"
       ]
     },
     "iceberg-js@0.8.1": {
