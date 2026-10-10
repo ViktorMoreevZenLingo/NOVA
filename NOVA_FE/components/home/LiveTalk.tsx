@@ -3,9 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
-import { getRealtimeSession } from "@/lib/realtime-api";
+import { execRealtimeTool, getRealtimeSession } from "@/lib/realtime-api";
 
 type Status = "connecting" | "listening" | "speaking" | "error";
+
+interface FnCall {
+  type: string;
+  name: string;
+  call_id: string;
+  arguments: string;
+}
 
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const INACTIVITY_MS = 90_000; // auto-end an idle session to avoid wasted cost
@@ -25,6 +32,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dcRef = useRef<RTCDataChannel | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -70,6 +78,40 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
     }
     if (peak > ACTIVE_LEVEL) lastActiveRef.current = performance.now();
     rafRef.current = requestAnimationFrame(monitor);
+  };
+
+  // Run the model's tool calls server-side and feed the results back.
+  const runToolCalls = async (calls: FnCall[]) => {
+    for (const call of calls) {
+      let args: unknown = {};
+      try {
+        args = JSON.parse(call.arguments || "{}");
+      } catch {
+        args = {};
+      }
+      const result = await execRealtimeTool(call.name, args);
+      dcRef.current?.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: { type: "function_call_output", call_id: call.call_id, output: result },
+        }),
+      );
+    }
+    lastActiveRef.current = performance.now();
+    dcRef.current?.send(JSON.stringify({ type: "response.create" }));
+  };
+
+  const handleEvent = (raw: string) => {
+    let ev: { type?: string; response?: { output?: FnCall[] } };
+    try {
+      ev = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (ev.type === "response.done") {
+      const calls = (ev.response?.output || []).filter((i) => i.type === "function_call");
+      if (calls.length) void runToolCalls(calls);
+    }
   };
 
   useEffect(() => {
@@ -121,8 +163,10 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         micSrc.connect(micAnalyser);
         micAnalyserRef.current = micAnalyser;
 
-        // Data channel is required by the Realtime WebRTC transport.
-        pc.createDataChannel("oai-events");
+        // Data channel carries events — incl. the model's tool (function) calls.
+        const dc = pc.createDataChannel("oai-events");
+        dcRef.current = dc;
+        dc.onmessage = (e) => handleEvent(e.data);
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
