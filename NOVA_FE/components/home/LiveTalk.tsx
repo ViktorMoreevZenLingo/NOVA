@@ -17,9 +17,7 @@ interface RtItem {
   content?: { type?: string; text?: string; transcript?: string }[];
 }
 
-const debug = (...a: unknown[]) => {
-  if (process.env.NODE_ENV !== "production") console.debug("[live]", ...a);
-};
+const debug = (...a: unknown[]) => console.debug("[live]", ...a);
 
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const INACTIVITY_MS = 90_000; // auto-end an idle session to avoid wasted cost
@@ -50,22 +48,28 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const lastActiveRef = useRef(0);
   const statusRef = useRef<Status>("connecting");
   const levelRef = useRef(0);
-  const turnsRef = useRef<{ role: "user" | "alo"; text: string }[]>([]);
+  const appendQueueRef = useRef<Promise<void>>(Promise.resolve());
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  // Persist the live transcript into the shared conversation, then close.
+  // Save each turn to the shared conversation as it happens, serialized so the
+  // appends don't race the agent lock.
+  const saveTurn = (role: "user" | "alo", text: string) => {
+    const clean = text.trim();
+    if (!clean) return;
+    debug("save turn", role, clean);
+    appendQueueRef.current = appendQueueRef.current
+      .then(() => appendChat([{ role, text: clean }]))
+      .then(() => debug("append ok", role))
+      .catch((err) => debug("append FAILED", err));
+  };
+
+  // Wait for pending saves, then close so the chat reload shows everything.
   const persistAndClose = async () => {
-    const turns = turnsRef.current.filter((t) => t.text.trim());
-    turnsRef.current = [];
-    debug("saving turns:", turns.length, turns);
-    if (turns.length) {
-      try {
-        await appendChat(turns);
-        debug("append ok");
-      } catch (err) {
-        debug("append FAILED", err);
-      }
+    try {
+      await appendQueueRef.current;
+    } catch {
+      /* already logged */
     }
     onCloseRef.current();
   };
@@ -138,8 +142,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
     debug("event", t);
     // User's turn — from the input transcription.
     if (t.includes("input_audio_transcription.completed") && ev.transcript?.trim()) {
-      turnsRef.current.push({ role: "user", text: ev.transcript.trim() });
-      debug("captured user:", ev.transcript.trim());
+      saveTurn("user", ev.transcript);
       return;
     }
     if (t !== "response.done") return;
@@ -156,10 +159,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
           .map((p) => p.transcript || p.text || "")
           .join(" ")
           .trim();
-        if (text) {
-          turnsRef.current.push({ role: "alo", text });
-          debug("captured alo:", text);
-        }
+        if (text) saveTurn("alo", text);
       }
     }
   };
@@ -216,6 +216,9 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         // Data channel carries events — incl. the model's tool (function) calls.
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
+        dc.onopen = () => debug("datachannel open");
+        dc.onclose = () => debug("datachannel closed");
+        dc.onerror = (e) => debug("datachannel error", e);
         dc.onmessage = (e) => handleEvent(e.data);
 
         const offer = await pc.createOffer();
