@@ -1,4 +1,5 @@
 import { calendarRange } from "./calendar.ts";
+import { type DirectVoice, READ_TOOLS } from "./direct-voice.ts";
 import { wakeTaskWorker } from "./wake.ts";
 // Adapter for the existing Vapi tool URLs. Caller authentication remains owned by NOVA_VOICE.
 import { type ActionIntent, prepareAction } from "../email/actions.ts";
@@ -11,7 +12,7 @@ import {
 } from "../caller.ts";
 import type { TaskStore } from "../db.ts";
 import { hasVapiSecret } from "../crypto.ts";
-import { admin, checked } from "../http.ts";
+import { admin, checked, HttpError } from "../http.ts";
 import {
   stringArg,
   type ToolHandler,
@@ -29,6 +30,7 @@ export function voiceDelegationHandler(config: {
   caller: CallerConfig;
   store: TaskStore;
   legacy: (request: Request) => Promise<Response>;
+  direct?: DirectVoice;
 }, db = admin()) {
   const api = taskHandler(config.taskSecret, db);
   const send = async (callId: string, body: Record<string, unknown>) => {
@@ -78,6 +80,7 @@ export function voiceDelegationHandler(config: {
     }
     checked(
       await db.from("call_sessions").update({
+        review_task_id: null,
         review_alo_task_id: task.id,
         review_alo_revision: task.revision,
       }).eq("vapi_call_id", callId),
@@ -113,6 +116,26 @@ export function voiceDelegationHandler(config: {
     );
     if (!access.ok) return { toolCallId: call.id, result: access.message };
     const owner = auth.profile.user_id;
+    if (config.direct && READ_TOOLS.includes(call.name)) {
+      try {
+        return {
+          toolCallId: call.id,
+          result: await config.direct.read(
+            owner,
+            call.name,
+            call.args,
+            req.callId,
+          ),
+        };
+      } catch (e) {
+        return {
+          toolCallId: call.id,
+          error: e instanceof HttpError
+            ? e.message
+            : "Could not read this service. No background task was created.",
+        };
+      }
+    }
     const verifiedContext =
       `The caller is matched to their Alo account. Do not ask for a PIN or security question. Current time in Europe/Sofia: ${
         new Intl.DateTimeFormat("en-GB", {
@@ -137,13 +160,33 @@ export function voiceDelegationHandler(config: {
         }. Do not claim other services are connected.`,
       };
     }
-    if (call.name === "create_task") {
+    if (call.name === "create_task" || call.name === "prepare_action") {
       const instruction = stringArg(call.args, "instruction");
       if (!instruction) {
         return { toolCallId: call.id, error: "Tell me what task to save." };
       }
+      const preparing = call.name === "prepare_action";
       const intent = String(call.args.intent);
-      const action = ["send_email", "create_calendar_event"].includes(intent)
+      if (
+        preparing && !["send_email", "create_calendar_event"].includes(intent)
+      ) {
+        return {
+          toolCallId: call.id,
+          error: "Only email sends and calendar events can be prepared.",
+        };
+      }
+      if (
+        !preparing &&
+        (call.args.delegation_requested !== true ||
+          !stringArg(call.args, "delegation_request"))
+      ) {
+        return {
+          toolCallId: call.id,
+          error:
+            "Manus requires the caller's explicit request for delegated/background work. Use direct read tools or prepare_action for everyday requests. No task was created.",
+        };
+      }
+      const action = preparing
         ? prepareAction(intent as ActionIntent, call.args)
         : null;
       if (action && !action.ok) {
@@ -157,7 +200,6 @@ export function voiceDelegationHandler(config: {
         reply_email: "gmail",
         summarize_emails: "gmail",
         contacts: "contacts",
-        places: "places",
         outlook: "outlook",
       } as Record<string, string>)[intent];
       if (service) {
@@ -213,6 +255,14 @@ export function voiceDelegationHandler(config: {
         delivery_channels: call.args.delivery_channels ?? [],
         // The LLM cannot grant itself permission. Exact proposals are approved by readback or in the app.
         grants: [],
+        ...(!preparing
+          ? {
+            delegation: {
+              requested: true,
+              request: stringArg(call.args, "delegation_request"),
+            },
+          }
+          : {}),
         ...(range
           ? { initial_read: { tool: "list_calendar_events", args: range } }
           : {}),
@@ -256,6 +306,37 @@ export function voiceDelegationHandler(config: {
     if (requestedId) query = query.eq("id", requestedId);
     if (call.name === "decide_action") {
       const decision = stringArg(call.args, "decision");
+      if (config.direct && decision) {
+        try {
+          return {
+            toolCallId: call.id,
+            result: await config.direct.decide(
+              owner,
+              req.callId,
+              call.id,
+              decision,
+            ),
+          };
+        } catch (e) {
+          const session = await config.store.getCallSession(req.callId);
+          const review = checked(
+            await db.from("call_sessions").select("review_alo_task_id").eq(
+              "vapi_call_id",
+              req.callId,
+            ).single(),
+          ).data;
+          if (
+            e instanceof HttpError && e.status === 409 &&
+            session?.review_task_id && !review?.review_alo_task_id
+          ) return legacyTool(call, req);
+          return {
+            toolCallId: call.id,
+            error: e instanceof HttpError
+              ? e.message
+              : "The action outcome could not be checked. Do not repeat it; check its status in Alo.",
+          };
+        }
+      }
       let t: Task | null = null;
       let revision: number | undefined;
       if (decision) {
@@ -351,8 +432,12 @@ export function voiceDelegationHandler(config: {
     };
   };
   const tools = vapiToolEndpoint(config.vapiSecret, {
+    ...(config.direct
+      ? Object.fromEntries(READ_TOOLS.map((name) => [name, handler]))
+      : {}),
     get_call_context: handler,
     create_task: handler,
+    prepare_action: handler,
     get_task_status: handler,
     decide_action: handler,
     cancel_task: handler,

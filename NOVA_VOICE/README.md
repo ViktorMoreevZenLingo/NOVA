@@ -1,3 +1,5 @@
+> Current routing and rollout: [Direct voice requests](../docs/FastVoiceRequests.md). Everyday reads/writes use synchronous Alo tools; only explicitly delegated work uses Manus.
+
 # NOVA_VOICE — the Alo phone assistant
 
 New Vapi requests now enter Alo's durable `alo_tasks` queue through the existing `create-task` and `get-task-status` URLs. Work starts now, after an authenticated end-of-call report, or once at a scheduled time. Manus runs the reasoning; Alo executes approved integration operations and stores results in History. Email is sent only when requested. Callback/SMS requests are durable handoffs for the delivery worker.

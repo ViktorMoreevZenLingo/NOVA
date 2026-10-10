@@ -3,7 +3,7 @@
   "async": false,
   "function": {
     "name": "create_task",
-    "description": "Save a delegated cloud task: now, after this call ends, or once at an explicit date/time. Services are connected in Alo. Writes need exact-action approval. Results are in History; request email/callback/SMS only if the caller asks.",
+    "description": "Create a Manus task ONLY after the caller explicitly asks to delegate/background the work or use Manus. Never use for ordinary reads, simple questions, or as an automatic fallback. Preserve the caller request and scheduling/delivery preferences.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -21,7 +21,7 @@
             "outlook",
             "task"
           ],
-          "description": "research: web/general questions. summarize_emails: read the caller's own Gmail. calendar: questions about their schedule. reply_email: AI drafts a reply to one of their emails (sent only after approval). send_email: an email the caller dictates. create_calendar_event: a new event. Gmail/Calendar must be connected in the Alo app."
+          "description": "Classify explicitly delegated work. Use research for public/web research, including venue comparisons; it does not require Google Places. Use private integration intents only when the request needs that account data. Everyday reads use direct tools; exact email sends/events use prepare_action."
         },
         "instruction": {
           "type": "string",
@@ -102,11 +102,21 @@
         "to_date": {
           "type": "string",
           "description": "calendar: last local date, YYYY-MM-DD, inclusive. Use to_date, not the email-recipient to field."
+        },
+        "delegation_requested": {
+          "type": "boolean",
+          "description": "True only when the caller explicitly requested delegation/background work or Manus."
+        },
+        "delegation_request": {
+          "type": "string",
+          "description": "The caller’s actual instruction explicitly requesting delegated work; do not invent consent."
         }
       },
       "required": [
         "intent",
-        "instruction"
+        "instruction",
+        "delegation_requested",
+        "delegation_request"
       ]
     }
   },

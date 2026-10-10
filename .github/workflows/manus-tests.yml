@@ -16,7 +16,7 @@ jobs:
         with:
           deno-version: v2.9.6
       - run: deno test --allow-read --allow-env --allow-sys --config supabase/functions/deno.json supabase/tests/delegation
-      - run: deno check --config supabase/functions/deno.json supabase/functions/tasks/index.ts supabase/functions/task-worker/index.ts supabase/functions/task-webhook/index.ts
+      - run: deno check --config supabase/functions/deno.json supabase/functions/tasks/index.ts supabase/functions/task-worker/index.ts supabase/functions/task-webhook/index.ts supabase/functions/voice-tools/index.ts
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

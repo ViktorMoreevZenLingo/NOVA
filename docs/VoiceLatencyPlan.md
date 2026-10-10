@@ -1,3 +1,5 @@
+> Implemented direct routing: see [Fast voice requests](FastVoiceRequests.md) for deployment, measured backend latency and the remaining voice validation.
+
 # Alo voice latency: findings and implementation plan
 
 10 October 2026. Based on the live Vapi configuration, call timestamps, and the failed calendar task. Improvements below are not claimed as measured until repeated calls verify them.

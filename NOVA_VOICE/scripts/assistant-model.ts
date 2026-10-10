@@ -36,6 +36,9 @@ export function configureAssistantModel(
         `These Alo task procedures govern the tools configured on this assistant.\n${instructions}\nReturn only the concise result or exact missing detail to the speaker. Do not narrate internal reasoning.`,
       ),
     };
+    // Vapi normalizes classic messages during PATCH and can overwrite explicit
+    // GPT-Live prompts. Publish only its native speaker/reasoner instruction fields.
+    delete model.messages;
   }
   return model;
 }

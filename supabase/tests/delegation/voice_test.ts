@@ -98,7 +98,9 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
       }),
     });
   const args = {
-    intent: "research",
+    intent: "places", // Explicit public research must not require a Places connection.
+    delegation_requested: true,
+    delegation_request: "Work on finding a park in the background",
     instruction: "Find a park",
     start_mode: "after_call",
     user_id: "attacker",
@@ -113,6 +115,10 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
   assertEquals(tasks.length, 1);
   assertEquals(tasks[0].user_id, USER_ID);
   assertEquals(tasks[0].grants, []);
+  assertEquals(tasks[0].delegation, {
+    requested: true,
+    request: args.delegation_request,
+  });
   assertEquals(tasks[0].delivery_channels, []);
   assert(!tasks[0].instruction.includes(PIN));
   await handler(request(args));

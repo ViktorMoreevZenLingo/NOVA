@@ -107,7 +107,7 @@ jobs:
         run: |
           # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
           base="https://${PROJECT_REF}.supabase.co/functions/v1"
-          for fn in create-task get-task-status reconcile manus-webhook voice-approve agent integrations account-delete; do
+          for fn in voice-tools create-task get-task-status reconcile manus-webhook voice-approve agent integrations account-delete; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
             echo "$fn -> $code"
           done

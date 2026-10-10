@@ -312,6 +312,13 @@ export async function processTask(t: Task, d: WorkerDeps) {
           current.lease_id !== t.lease_id
         ) return;
         result = await d.runTool(t.user_id, out.tool, args, t.timezone);
+        if (
+          WRITES.has(out.tool) && (!result || typeof result !== "object" ||
+            typeof (result as { id?: unknown }).id !== "string" ||
+            !(result as { id: string }).id)
+        ) {
+          throw new Error("Provider write returned no receipt ID");
+        }
         await store.finish(t, key, result);
       }
       if (state.direct) {
@@ -383,6 +390,16 @@ export async function processTask(t: Task, d: WorkerDeps) {
         err.status === 409
           ? err.message
           : "Check the connected service or reconnect it, then continue.",
+      );
+      return;
+    }
+    const unfinishedWrite = Object.values(await store.steps(t)).some((step) =>
+      step.kind?.startsWith("write:") && step.status === "started"
+    );
+    if (unfinishedWrite) {
+      await pause(
+        "uncertain",
+        "The provider did not confirm the action. Check the connected service before trying again; Alo will not automatically repeat it.",
       );
       return;
     }

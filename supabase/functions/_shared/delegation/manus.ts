@@ -8,6 +8,17 @@ const DEFAULT_BASE_URL = "https://api.manus.ai/v2";
 const REQUEST_TIMEOUT_MS = 15_000;
 const SIGNATURE_MAX_AGE_S = 300;
 
+/** Direct actions and cancellation without a Manus ID need no Manus configuration. */
+export function lazyManusClient(factory: () => ManusClient): ManusClient {
+  let client: ManusClient | undefined;
+  return new Proxy({} as ManusClient, {
+    get(_target, key) {
+      client ??= factory();
+      return Reflect.get(client, key);
+    },
+  });
+}
+
 export type ManusTaskStatus = "running" | "stopped" | "waiting" | "error";
 
 export type ManusTask = {

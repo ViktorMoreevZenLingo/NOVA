@@ -1,6 +1,7 @@
 import { accessToken } from "./providers.ts";
 import { env, HttpError } from "./http.ts";
 import { queryLimitSchema } from "./query-limits.ts";
+import { convert } from "npm:html-to-text@9.0.5";
 
 type Args = Record<string, unknown>;
 const str = (a: Args, key: string) =>
@@ -74,6 +75,7 @@ export const serviceFor: Record<string, string> = {
   list_recent_emails: "gmail",
   search_emails: "gmail",
   get_email: "gmail",
+  get_latest_email: "gmail",
   send_email: "gmail",
   list_calendar_events: "calendar",
   create_calendar_event: "calendar",
@@ -94,6 +96,11 @@ export function definitions(connected: Set<string>) {
       max: queryLimitSchema("search_emails", "max"),
     }, ["query"]),
     definition("get_email", "Read an email by its ID.", fields(["id"]), ["id"]),
+    definition(
+      "get_latest_email",
+      "Read the newest message in Gmail Inbox, including its body. No date cutoff. Use for 'read my latest email'.",
+      {},
+    ),
     definition(
       "send_email",
       "Draft an email for explicit user approval. Never sends automatically.",
@@ -166,16 +173,34 @@ const decode = (value: string) =>
       c.charCodeAt(0)),
   );
 function textPart(part: any): string {
-  if (part?.mimeType === "text/plain" && part.body?.data) {
-    return decode(part.body.data);
-  }
-  return (part?.parts || []).map(textPart).find(Boolean) || "";
+  const find = (p: any, mime: string): string => {
+    if (p?.filename) return ""; // Do not read attached documents as the message body.
+    if (p?.mimeType === mime && p.body?.data) return decode(p.body.data);
+    return (p?.parts || []).map((child: any) => find(child, mime)).find(
+      Boolean,
+    ) || "";
+  };
+  const plain = find(part, "text/plain");
+  if (plain) return plain;
+  const html = find(part, "text/html");
+  return html
+    ? convert(html, {
+      wordwrap: false,
+      selectors: [
+        { selector: "a", options: { ignoreHref: true } },
+        { selector: "img", format: "skip" },
+        { selector: "script", format: "skip" },
+        { selector: "style", format: "skip" },
+      ],
+    })
+    : "";
 }
 export async function execute(
   userId: string,
   name: string,
   a: Args,
   timezone = TIMEZONE,
+  signal?: AbortSignal,
 ) {
   const service = serviceFor[name];
   if (!service) throw new HttpError(400, "Unknown tool");
@@ -191,14 +216,17 @@ export async function execute(
             "places.displayName,places.formattedAddress,places.googleMapsUri,places.nationalPhoneNumber",
         },
         body: JSON.stringify({ textQuery: str(a, "query"), pageSize: 5 }),
-        signal: AbortSignal.timeout(20000),
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(20000)])
+          : AbortSignal.timeout(20000),
       },
     );
     if (!res.ok) throw new HttpError(502, "Places search failed.");
     return res.json();
   }
-  const token = await accessToken(userId, service);
+  const token = await accessToken(userId, service, signal);
   const request = async (url: string, body?: unknown) => {
+    signal?.throwIfAborted();
     const response = await fetch(url, {
       method: body ? "POST" : "GET",
       headers: {
@@ -206,7 +234,9 @@ export async function execute(
         "Content-Type": "application/json",
       },
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(20000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(20000)])
+        : AbortSignal.timeout(20000),
     });
     if (!response.ok) {
       throw new HttpError(
@@ -219,6 +249,26 @@ export async function execute(
   const gmail = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
   const calendar =
     "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+  if (name === "get_latest_email") {
+    const listed = await request(
+      `${gmail}?${new URLSearchParams({ q: "in:inbox", maxResults: "1" })}`,
+    );
+    const latest = listed.messages?.[0];
+    if (!latest) return { empty: true, mailbox: "inbox" };
+    const message = await request(
+      `${gmail}/${encodeURIComponent(latest.id)}?format=full`,
+    );
+    const body = textPart(message.payload);
+    return {
+      id: message.id,
+      internalDate: message.internalDate,
+      headers: message.payload?.headers,
+      body: body.slice(0, 20000),
+      body_truncated: body.length > 20000,
+      snippet: message.snippet,
+      mailbox: "inbox",
+    };
+  }
   if (name === "list_recent_emails" || name === "search_emails") {
     const query = name === "search_emails"
       ? str(a, "query")
@@ -248,10 +298,12 @@ export async function execute(
     const data = await request(
       `${gmail}/${encodeURIComponent(str(a, "id"))}?format=full`,
     );
+    const body = textPart(data.payload);
     return {
       id: data.id,
       headers: data.payload?.headers,
-      body: textPart(data.payload).slice(0, 20000),
+      body: body.slice(0, 20000),
+      body_truncated: body.length > 20000,
     };
   }
   if (name === "send_email") {

@@ -379,3 +379,76 @@ Deno.test("worker: preload calendar receipt before Manus; reconnect and retries 
   assertEquals(f.writes, 1);
   assertEquals(f.creates, 1);
 });
+
+Deno.test("direct actions: immediate, scheduled and after-call email/event execution never initializes Manus; uncertain sends stop", async () => {
+  const { lazyManusClient } = await import(
+    "../../functions/_shared/delegation/manus.ts"
+  );
+  for (const start_mode of ["now", "scheduled", "after_call"] as const) {
+    for (const tool of ["send_email", "create_calendar_event"]) {
+      const f = fixture();
+      const args = tool === "send_email"
+        ? {
+          to: "self@example.test",
+          subject: "Confirmed",
+          body: "Confirmed body",
+        }
+        : {
+          title: "Confirmed",
+          start: "2026-10-26T10:00:00+02:00",
+          end: "2026-10-26T10:30:00+02:00",
+        };
+      f.deps.manus = lazyManusClient(() => {
+        throw new Error("Must not initialize Manus");
+      });
+      f.patch({
+        start_mode,
+        grants: [{ tool, constraints: args, generated_fields: [] }],
+        state: {
+          phase: "tools",
+          round: 0,
+          direct: true,
+          decision: {
+            kind: "action",
+            tool,
+            args: JSON.stringify(args),
+            text: "",
+          },
+        },
+      });
+      await f.run();
+      assertEquals(f.task.status, "completed");
+      assertEquals(f.writes, 1);
+      assertEquals(f.creates, 0);
+    }
+  }
+  const f = fixture();
+  const args = { to: "self@example.test", subject: "Confirmed", body: "Body" };
+  let attempts = 0;
+  f.deps.runTool = async () => {
+    attempts++;
+    throw new DOMException("Network timeout", "TimeoutError");
+  };
+  f.deps.manus = lazyManusClient(() => {
+    throw new Error("Must not initialize Manus");
+  });
+  f.patch({
+    grants: [{ tool: "send_email", constraints: args, generated_fields: [] }],
+    state: {
+      phase: "tools",
+      round: 0,
+      direct: true,
+      decision: {
+        kind: "action",
+        tool: "send_email",
+        args: JSON.stringify(args),
+        text: "",
+      },
+    },
+  });
+  await f.run();
+  assertEquals(f.task.pending?.kind, "uncertain");
+  assertEquals(f.task.status, "needs_input");
+  await f.run();
+  assertEquals(attempts, 1);
+});

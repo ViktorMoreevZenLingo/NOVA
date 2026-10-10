@@ -8,6 +8,7 @@ export async function runTool(
   name: string,
   args: Args,
   timezone = "Europe/Sofia",
+  signal?: AbortSignal,
 ) {
   validateArgs(name, args);
   const service = SERVICES[name];
@@ -63,5 +64,5 @@ export async function runTool(
     if (!response.ok) throw new HttpError(502, "Could not save the draft.");
     return response.json();
   }
-  return execute(userId, name, args, timezone);
+  return execute(userId, name, args, timezone, signal);
 }

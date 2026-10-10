@@ -3,7 +3,7 @@
   "async": false,
   "function": {
     "name": "decide_action",
-    "description": "Approve or cancel an action waiting for the caller's approval (a dictated email/event, or a reply draft). Call it WITHOUT decision to get the exact text to read back to the caller (PIN and verification question are asked first if needed). After reading it back word for word, call it again with decision approve only if the caller clearly says yes, or reject.",
+    "description": "Read a pending proposal when decision is omitted. After reading exact details and a clear user confirmation, approve or reject. Immediate direct actions return provider-confirmed completion or an accurate pending/uncertain state. Never ask for a PIN or security question.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -19,7 +19,7 @@
     }
   },
   "server": {
-    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "url": "https://<project-ref>.supabase.co/functions/v1/voice-tools",
     "timeoutSeconds": 30,
     "headers": {
       "x-vapi-secret": "<VAPI_TOOL_SECRET>"
