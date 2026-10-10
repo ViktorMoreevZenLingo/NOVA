@@ -22,7 +22,7 @@ export function AuthForm() {
   const form = useAuthForm();
 
   if (form.checking) {
-    return <p>{t.loading}</p>;
+    return <p className="load-state">{t.loading}</p>;
   }
 
   const onSubmit = (e: React.FormEvent) => {
@@ -30,21 +30,29 @@ export function AuthForm() {
     void form.submit();
   };
 
+  const topError = errorText(form.errorCode, t);
+
   return (
     <section>
-      <div role="tablist" aria-label={t.appName}>
+      <div
+        className="segmented"
+        data-mode={form.tab}
+        role="group"
+        aria-label={t.appName}
+      >
+        <span className="segmented-highlight" aria-hidden="true" />
         <button
           type="button"
-          role="tab"
-          aria-selected={form.tab === "login"}
+          aria-pressed={form.tab === "login"}
+          className={form.tab === "login" ? "selected" : ""}
           onClick={() => form.setTab("login")}
         >
           {t.tabLogin}
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={form.tab === "register"}
+          aria-pressed={form.tab === "register"}
+          className={form.tab === "register" ? "selected" : ""}
           onClick={() => form.setTab("register")}
         >
           {t.tabRegister}
@@ -55,9 +63,8 @@ export function AuthForm() {
 
       <form onSubmit={onSubmit} noValidate>
         {form.tab === "register" && (
-          <p>
+          <div className="profile-field">
             <label htmlFor="name">{t.nameLabel}</label>
-            <br />
             <input
               id="name"
               type="text"
@@ -66,46 +73,49 @@ export function AuthForm() {
               required
             />
             {form.nameMissing && (
-              <>
-                <br />
-                <span role="alert">{t.nameRequired}</span>
-              </>
+              <p className="form-error" role="alert">
+                {t.nameRequired}
+              </p>
             )}
-          </p>
+          </div>
         )}
 
-        <p>
+        <div className="profile-field">
           <label htmlFor="phone">{t.phoneLabel}</label>
-          <br />
-          <span aria-hidden="true">BG +359</span>{" "}
-          <input
-            id="phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            placeholder={t.phonePlaceholder}
-            value={form.phone}
-            onChange={(e) => form.setPhone(e.target.value)}
-            aria-invalid={form.phoneInvalid}
-            aria-describedby={form.phoneInvalid ? "phone-error" : undefined}
-          />
+          <div className="phone-field" data-invalid={form.phoneInvalid}>
+            <span className="country-prefix" aria-hidden="true">
+              BG <span>+359</span>
+            </span>
+            <input
+              id="phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              placeholder={t.phonePlaceholder}
+              value={form.phone}
+              onChange={(e) => form.setPhone(e.target.value)}
+              aria-invalid={form.phoneInvalid}
+              aria-describedby={form.phoneInvalid ? "phone-error" : undefined}
+            />
+          </div>
           {form.phoneInvalid && (
-            <>
-              <br />
-              <span id="phone-error" role="alert">
-                {t.phoneInvalid}
-              </span>
-            </>
+            <p id="phone-error" className="form-error" role="alert">
+              {t.phoneInvalid}
+            </p>
           )}
-        </p>
+        </div>
 
-        {errorText(form.errorCode, t) && (
-          <p role="alert">
-            {errorText(form.errorCode, t)}
+        {topError && (
+          <p className="form-error" role="alert">
+            {topError}
             {form.offerSwitchTo && (
               <>
                 {" "}
-                <button type="button" onClick={form.acceptSwitch}>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={form.acceptSwitch}
+                >
                   {form.offerSwitchTo === "register"
                     ? t.switchToRegister
                     : t.switchToLogin}
@@ -115,11 +125,13 @@ export function AuthForm() {
           </p>
         )}
 
-        <p>
-          <button type="submit" disabled={form.submitting}>
-            {t.continue}
-          </button>
-        </p>
+        <button
+          type="submit"
+          className="primary full fill-code"
+          disabled={form.submitting}
+        >
+          {t.continue}
+        </button>
       </form>
     </section>
   );

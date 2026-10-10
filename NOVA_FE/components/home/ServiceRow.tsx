@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
+import { Icon } from "@/components/ui/Icon";
 import type { GoogleService } from "@/lib/api";
 
 interface ServiceRowProps {
@@ -11,6 +12,13 @@ interface ServiceRowProps {
   onConnect: (service: GoogleService) => Promise<void>;
   onDisconnect: (service: GoogleService) => Promise<void>;
 }
+
+// Local, unmodified Google product logos (see public/assets/CREDITS.md).
+const LOGO: Record<GoogleService, string> = {
+  calendar: "/assets/google-calendar.svg",
+  contacts: "/assets/google-contacts.png",
+  gmail: "/assets/gmail.svg",
+};
 
 export function ServiceRow({
   service,
@@ -40,15 +48,27 @@ export function ServiceRow({
   };
 
   return (
-    <li>
-      <button type="button" onClick={handleClick} disabled={busy}>
-        <span aria-hidden="true">[G]</span>{" "}
-        <span>
-          <strong>{title}</strong>
-        </span>{" "}
-        <span>{connected ? t.connected : t.notConnected}</span>{" "}
-        <span>{connected ? t.disconnect : t.connect}</span>
-      </button>
-    </li>
+    <button
+      type="button"
+      className="service-panel"
+      onClick={handleClick}
+      disabled={busy}
+      aria-label={`${connected ? t.disconnect : t.connect} ${title}`}
+    >
+      <span className="service-icon">
+        <img className="service-logo" src={LOGO[service]} alt="" width={25} height={25} />
+      </span>
+      <span className="panel-copy">
+        <span className="panel-name">{title}</span>
+        <span className="panel-status">
+          {connected && <Icon name="check" />}
+          {connected ? t.connected : t.notConnected}
+        </span>
+      </span>
+      <span className="panel-action">
+        {connected ? t.disconnect : t.connect}
+        <Icon name="chevron" />
+      </span>
+    </button>
   );
 }

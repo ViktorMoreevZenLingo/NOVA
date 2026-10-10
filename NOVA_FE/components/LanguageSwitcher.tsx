@@ -1,27 +1,22 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n-context";
+import { Icon } from "@/components/ui/Icon";
+import type { Lang } from "@/lib/i18n";
 
 export function LanguageSwitcher() {
   const { lang, setLang } = useI18n();
   return (
-    <div role="group" aria-label="Language">
-      <button
-        type="button"
-        onClick={() => setLang("bg")}
-        aria-pressed={lang === "bg"}
-        disabled={lang === "bg"}
+    <div className="language-switcher">
+      <Icon name="globe" />
+      <select
+        aria-label="Language"
+        value={lang}
+        onChange={(e) => setLang(e.target.value as Lang)}
       >
-        BG
-      </button>
-      <button
-        type="button"
-        onClick={() => setLang("en")}
-        aria-pressed={lang === "en"}
-        disabled={lang === "en"}
-      >
-        EN
-      </button>
+        <option value="bg">BG</option>
+        <option value="en">EN</option>
+      </select>
     </div>
   );
 }

@@ -8,6 +8,7 @@ export interface Dictionary {
   appName: string;
   continue: string;
   footer: string;
+  photoAlt: string;
 
   // Auth page
   tabLogin: string;
@@ -60,6 +61,7 @@ const bg: Dictionary = {
   appName: "Ало",
   continue: "Продължи",
   footer: "© 2026 Ало",
+  photoAlt: "Жена, която разговаря по телефона, седнала на стълби",
 
   tabLogin: "Вход",
   tabRegister: "Регистрация",
@@ -108,6 +110,7 @@ const en: Dictionary = {
   appName: "Alo",
   continue: "Continue",
   footer: "© 2026 Alo",
+  photoAlt: "A woman talking on the phone, seated on a staircase",
 
   tabLogin: "Login",
   tabRegister: "Register",

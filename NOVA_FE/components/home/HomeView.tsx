@@ -5,6 +5,7 @@ import { useHome, type Notice } from "@/hooks/useHome";
 import type { Dictionary } from "@/lib/i18n";
 import type { GoogleService } from "@/lib/api";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Icon } from "@/components/ui/Icon";
 import { Sidebar } from "./Sidebar";
 import { ProfileRow } from "./ProfileRow";
 import { ServiceRow } from "./ServiceRow";
@@ -34,57 +35,75 @@ export function HomeView() {
   const home = useHome();
 
   return (
-    <main>
+    <div className="dashboard">
       <Sidebar onLogout={() => void home.logout()} />
 
-      <div>
-        <header>
-          <LanguageSwitcher />
-        </header>
+      <div className="dashboard-body">
+        <LanguageSwitcher />
 
-        {home.loading && <p>{t.loading}</p>}
+        <main className="dashboard-content enter">
+          {home.loading && <p className="load-state">{t.loading}</p>}
 
-        {home.loadError && (
-          <p role="alert">
-            {t.loadError}{" "}
-            <button type="button" onClick={home.retry}>
-              {t.retry}
-            </button>
-          </p>
-        )}
+          {home.loadError && (
+            <p className="load-error" role="alert">
+              {t.loadError}{" "}
+              <button
+                type="button"
+                className="secondary"
+                onClick={home.retry}
+              >
+                {t.retry}
+              </button>
+            </p>
+          )}
 
-        {!home.loading && !home.loadError && home.me && (
-          <section>
-            <h1>
-              {t.connectedServices}{" "}
-              <span>{t.counter(home.connectedCount, 3)}</span>
-            </h1>
+          {!home.loading && !home.loadError && home.me && (
+            <section aria-label={t.connectedServices}>
+              <div className="section-heading">
+                <h1>{t.connectedServices}</h1>
+                <span className="service-count">
+                  {t.counter(home.connectedCount, 3)}
+                </span>
+              </div>
 
-            {home.notice && (
-              <p role="status">
-                {noticeText(home.notice, t)}{" "}
-                <button type="button" onClick={home.dismissNotice}>
-                  ×
-                </button>
-              </p>
-            )}
+              {home.notice && (
+                <p
+                  className={`notice${
+                    home.notice.kind === "error" ? " error" : ""
+                  }`}
+                  role="status"
+                >
+                  {noticeText(home.notice, t)}
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={t.cancel}
+                    onClick={home.dismissNotice}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </p>
+              )}
 
-            <ul>
-              <ProfileRow me={home.me} onSave={home.saveProfile} />
-              {GOOGLE_SERVICES.map(({ service, titleKey }) => (
-                <ServiceRow
-                  key={service}
-                  service={service}
-                  title={t[titleKey] as string}
-                  connected={home.me!.services[service]}
-                  onConnect={home.connect}
-                  onDisconnect={home.disconnect}
-                />
-              ))}
-            </ul>
-          </section>
-        )}
+              <div className="services-list">
+                <ProfileRow me={home.me} onSave={home.saveProfile} />
+                {GOOGLE_SERVICES.map(({ service, titleKey }) => (
+                  <ServiceRow
+                    key={service}
+                    service={service}
+                    title={t[titleKey] as string}
+                    connected={home.me!.services[service]}
+                    onConnect={home.connect}
+                    onDisconnect={home.disconnect}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </main>
+
+        <footer className="dashboard-footer">{t.footer}</footer>
       </div>
-    </main>
+    </div>
   );
 }
