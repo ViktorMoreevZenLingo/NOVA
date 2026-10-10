@@ -28,7 +28,9 @@ Shared TypeScript contract between A and B: [`supabase/functions/_shared/contrac
 | create-task / manus-webhook / reconcile / get-task-status logic | ✅ 40 unit tests with fakes (`deno task test`) |
 | Handlers ↔ real Postgres (PostgREST, SQL claim/release, dedupe) | ✅ integration test against local Supabase (`deno task test:integration`), Manus + email faked |
 | Manus webhook signature verification | ✅ unit-tested with a locally generated RSA key (not yet against real Manus) |
-| Manus API calls (task.create, task.detail, listMessages, webhook.publicKey) | ⚠️ written from the official docs; **not yet run against the real API** |
+| Manus API key, `connector.list`, `webhook.list`, `webhook.create` | ✅ real calls from the deploy; webhook registered and **active** (Manus' activation ping got a 200 from our function) |
+| Manus `task.create` / `task.detail` / `listMessages` / signed webhooks | ⚠️ not yet exercised for real: needs `TEST_USER_PIN` + a demo profile |
+| Gmail connector in Manus | ❌ none installed yet (`connector.list` is empty), Track B |
 | Gmail prompt (`_shared/email/prompt.ts`) | 🟡 **stub**: Track B replaces it |
 | Email notification (`_shared/email/notify.ts`) | 🟡 **mock**: it only logs `email.mock_sent`. Track B replaces it with Resend |
 | Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
