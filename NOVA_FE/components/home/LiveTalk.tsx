@@ -8,12 +8,18 @@ import { appendChat } from "@/lib/agent-api";
 
 type Status = "connecting" | "listening" | "speaking" | "error";
 
-interface FnCall {
+interface RtItem {
   type: string;
-  name: string;
-  call_id: string;
-  arguments: string;
+  role?: string;
+  name?: string;
+  call_id?: string;
+  arguments?: string;
+  content?: { type?: string; text?: string; transcript?: string }[];
 }
+
+const debug = (...a: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") console.debug("[live]", ...a);
+};
 
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const INACTIVITY_MS = 90_000; // auto-end an idle session to avoid wasted cost
@@ -52,11 +58,13 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const persistAndClose = async () => {
     const turns = turnsRef.current.filter((t) => t.text.trim());
     turnsRef.current = [];
+    debug("saving turns:", turns.length, turns);
     if (turns.length) {
       try {
         await appendChat(turns);
-      } catch {
-        /* best effort */
+        debug("append ok");
+      } catch (err) {
+        debug("append FAILED", err);
       }
     }
     onCloseRef.current();
@@ -99,7 +107,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   };
 
   // Run the model's tool calls server-side and feed the results back.
-  const runToolCalls = async (calls: FnCall[]) => {
+  const runToolCalls = async (calls: RtItem[]) => {
     for (const call of calls) {
       let args: unknown = {};
       try {
@@ -107,11 +115,11 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
       } catch {
         args = {};
       }
-      const result = await execRealtimeTool(call.name, args);
+      const result = await execRealtimeTool(call.name || "", args);
       dcRef.current?.send(
         JSON.stringify({
           type: "conversation.item.create",
-          item: { type: "function_call_output", call_id: call.call_id, output: result },
+          item: { type: "function_call_output", call_id: call.call_id || "", output: result },
         }),
       );
     }
@@ -120,20 +128,39 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   };
 
   const handleEvent = (raw: string) => {
-    let ev: { type?: string; transcript?: string; response?: { output?: FnCall[] } };
+    let ev: { type?: string; transcript?: string; response?: { output?: RtItem[] } };
     try {
       ev = JSON.parse(raw);
     } catch {
       return;
     }
     const t = ev.type || "";
-    if (t === "response.done") {
-      const calls = (ev.response?.output || []).filter((i) => i.type === "function_call");
-      if (calls.length) void runToolCalls(calls);
-    } else if (t.includes("input_audio_transcription.completed") && ev.transcript?.trim()) {
+    debug("event", t);
+    // User's turn — from the input transcription.
+    if (t.includes("input_audio_transcription.completed") && ev.transcript?.trim()) {
       turnsRef.current.push({ role: "user", text: ev.transcript.trim() });
-    } else if (t.includes("audio_transcript.done") && ev.transcript?.trim()) {
-      turnsRef.current.push({ role: "alo", text: ev.transcript.trim() });
+      debug("captured user:", ev.transcript.trim());
+      return;
+    }
+    if (t !== "response.done") return;
+    const output = ev.response?.output || [];
+    const calls = output.filter((i) => i.type === "function_call");
+    if (calls.length) {
+      void runToolCalls(calls);
+      return;
+    }
+    // Alo's turn — the transcript of the assistant message.
+    for (const item of output) {
+      if (item.type === "message" && item.role === "assistant") {
+        const text = (item.content || [])
+          .map((p) => p.transcript || p.text || "")
+          .join(" ")
+          .trim();
+        if (text) {
+          turnsRef.current.push({ role: "alo", text });
+          debug("captured alo:", text);
+        }
+      }
     }
   };
 
