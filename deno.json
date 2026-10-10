@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "test": "deno test --allow-env tests/*.test.ts",
+    "check": "deno check supabase/functions/*/index.ts scripts/*.ts tests/*.ts tests/integration/*.ts",
+    "lint": "deno lint supabase/functions scripts tests",
+    "test:integration": "deno test --allow-env --allow-net=127.0.0.1 tests/integration/"
+  },
+  "fmt": {
+    "lineWidth": 140
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any",
+        "no-import-prefix"
+      ]
+    }
+  }
+}

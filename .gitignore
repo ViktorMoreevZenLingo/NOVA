@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+supabase/functions/.env
+.omc/
+.DS_Store
