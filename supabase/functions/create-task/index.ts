@@ -22,8 +22,7 @@ const handler = createTaskHandler(
   {
     vapiSecret: requireEnv("VAPI_TOOL_SECRET"),
     caller: {
-      pin: requireEnv("TEST_USER_PIN"),
-      webCallPhone: optionalEnv("DEMO_WEBCALL_PHONE"),
+      mode: "phone",
     },
   },
 );
@@ -33,8 +32,7 @@ Deno.serve(voiceDelegationHandler({
   vapiSecret: requireEnv("VAPI_TOOL_SECRET"),
   taskSecret: requireEnv("VAPI_TASK_SERVICE_SECRET"),
   caller: {
-    pin: requireEnv("TEST_USER_PIN"),
-    webCallPhone: optionalEnv("DEMO_WEBCALL_PHONE"),
+    mode: "phone",
   },
   store: createTaskStore(),
   legacy: handler,

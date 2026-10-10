@@ -4,13 +4,17 @@ Alo persists and authorizes tasks; Manus researches and reasons. Provider creden
 
 ## Vapi handoff
 
-The existing `create-task` and `get-task-status` URLs now adapt the existing Vapi tool protocol to the durable queue. They retain caller PIN and verification-question checks from NOVA_VOICE. `create_task` returns immediately after persistence. It accepts `start_mode` (`now`, `after_call`, `scheduled`), `run_at` (ISO time with offset), `timezone` (default Europe/Sofia), and `delivery_channels` (`email`, `callback`, `sms`; default none). No transcript-derived tasks are created.
+The existing `create-task` and `get-task-status` URLs now adapt the existing Vapi tool protocol to the durable queue. As explicitly requested by the product owner, live telephone calls use phone-number matching with no PIN or security question. The authenticated Vapi webhook supplies the caller number; model-supplied numbers/user IDs are ignored and browser-call customer numbers are rejected. `create_task` returns immediately after persistence. It accepts `start_mode` (`now`, `after_call`, `scheduled`), `run_at` (ISO time with offset), `timezone` (default Europe/Sofia), and `delivery_channels` (`email`, `callback`, `sms`; default none). No transcript-derived tasks are created.
 
 Update the tool definitions in `NOVA_VOICE/vapi/` and set the assistant's server URL to `/functions/v1/create-task`, using a configured `x-vapi-secret` header. Include `end-of-call-report` in `serverMessages`. That authenticated event releases the verified call's after-call tasks. Repeated reports are harmless. Configure `cancel_task` and `respond_to_task` from the supplied definitions. Existing tool names remain valid.
 
 `decide_action` reads the exact persisted proposal back, binds the call to its task revision, and approves only that proposal on the following explicit response. New tasks do not inherit approval from model-supplied fields. Long actions must be reviewed in the app. An approval queues execution; it does not claim the action has succeeded. Legacy approvals continue through their previous path.
 
-Caller verification remains the Vapi developer's existing phone lookup plus PIN and verification-question policy. The current prototype lookup also accepts profile `contact_phone` while SMS is paused; this adapter does not change it. A task still requires a server-verified call session, never a phone number supplied as task authorization.
+`get_call_context` loads the matched profile, current Europe/Sofia time and connections at call start. The assistant also has a dynamic Sofia clock in its system prompt. PIN/security-question parameters are removed from live Vapi tool schemas. Legacy PIN helpers/tests remain for old deployments; live entrypoints explicitly select `mode: "phone"` and no longer require `TEST_USER_PIN`.
+
+Phone matching prefers a confirmed auth phone. While SMS is paused, a unique prototype `contact_phone` can also match; ambiguous duplicates are rejected. This is caller-number matching, not cryptographic proof of possession: it relies on the telephone provider's caller metadata. A task still requires a session established through the authenticated Vapi endpoint, never a phone number supplied directly to the task API. On 10 October, the owner explicitly authorized consolidation of six prototype identities into the named account and transfer of its existing confirmed phone binding. No general automatic account merge by number is exposed.
+
+Fully specified `send_email` and `create_calendar_event` requests are persisted with an exact `prepared_action` and returned immediately for read-back approval. They do not wait for Manus to draft already supplied details. After approval, the leased worker executes the same persisted arguments, records the provider receipt, and completes the task. Scheduled and after-call conditions remain in force even when approval happens earlier. Missing integrations are reported before a voice task is accepted.
 
 ## Direct backend contract
 
@@ -81,7 +85,7 @@ Arguments are allowlisted and bounded in `delegation/validation.ts`. Existing OA
 
 ## Worker and recovery
 
-`task-worker` is authenticated by `TASK_WORKER_SECRET`. Each invocation claims one ready task with `FOR UPDATE SKIP LOCKED` and a 120-second database lease, processes one durable phase, then handles one requested email delivery. Overlapping invocations claim different tasks. Provider requests have timeouts below the lease. Lost/expired leases cannot commit steps or advance tasks.
+`task-worker` is authenticated by `TASK_WORKER_SECRET`. Each invocation claims up to eight ready phases within a 20-second dispatch budget, each with `FOR UPDATE SKIP LOCKED` and a 120-second database lease, processes one durable phase per claim, then handles one requested email delivery. Submission, approval and call-end events issue a best-effort background wakeup; the minute cron remains the recovery path. Overlapping invocations claim different tasks. Provider requests have timeouts below the lease. Lost/expired leases cannot commit steps or advance tasks.
 
 Phases: create Manus task → poll/reconcile → execute one validated tool → feed receipt into the **same** Manus task. Structured output is rearmed on each continuation. The parser supports live v2 events that omit `success` but contain a valid `value`; explicit failures and malformed decisions still fail. Eight tool rounds per user clarification are allowed; then the task needs input. Manus receives profile context and bounded read results, never provider tokens or Supabase credentials. Its native account connectors are disabled.
 
@@ -108,14 +112,14 @@ Actual callback/SMS placement remains the Vapi delivery developer's responsibili
 
 Branch pushes run tests only. The existing deployment workflow is now restricted to `main` (or manual dispatch). Deploying the branch manually was explicitly approved for shared Nova.
 
-1. Review and apply the additive `20261010112556`, `20261010114220`, and `20261010115706` migrations. On the shared project they were applied individually, then marked applied with `supabase migration repair`; don't replay them. Use `supabase db push --dry-run` before future migrations.
+1. Review and apply the additive `20261010112556`, `20261010114220`, `20261010115706`, and `20261010121500` migrations. On the shared project they were applied individually, then marked applied with `supabase migration repair`; don't replay them. Use `supabase db push --dry-run` before future migrations.
 2. Set `MANUS_API_KEY`, `VAPI_TASK_SERVICE_SECRET`, `TASK_WORKER_SECRET`, `TASK_WEBHOOK_URL`, optional `VAPI_DELEGATION_SECRET`, and existing integration/auth secrets in Edge Function Secrets. Keep task secrets distinct from the Vapi public-facing tool credential. `TASK_WEBHOOK_URL` must exactly match the registered URL.
 3. Deploy `tasks task-worker task-webhook create-task get-task-status` using `supabase functions deploy ... --use-api`. Existing legacy functions remain for old tasks.
 4. POST `{"action":"register_webhook"}` to `task-worker` with the worker secret; this idempotently registers the separate Manus webhook without exposing the API key.
 5. Set Vault names `alo_task_project_url` and `alo_task_worker_secret`, then explicitly run `supabase/scripts/enable_task_scheduler.sql`. This minute schedule is deliberately not enabled by a migration. For private operator diagnostics, POST `{"action":"inspect_task","task_id":"..."}` with the worker secret. This may return private task output and must never be exposed to clients or public logs.
 
 Task secrets are not rotated by the legacy CI deployment. The live Alo assistant uses the separate `VAPI_DELEGATION_SECRET`; the adapter also accepts the original `VAPI_TOOL_SECRET` so other existing clients keep working.
-6. Update Vapi tool schemas and assistant call-ended routing; keep its voice/model configuration and caller verification intact.
+6. Update Vapi tool schemas and assistant call-ended routing; preserve its voice/model configuration and use the supplied phone-matching contract (no PIN/security questions).
 7. Run controlled tests with a verified-call fixture and designated integration account. Do not point a production fixture at an unrelated user's data.
 
 Rollback: pause `alo-delegated-task-worker` in Cron, stop new submissions at the voice adapter, retain task tables and journals for reconciliation. Do not reset uncertain writes or delete pending deliveries as a shortcut. Legacy queue and cron remain separate.

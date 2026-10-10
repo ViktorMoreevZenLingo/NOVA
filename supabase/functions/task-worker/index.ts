@@ -56,10 +56,16 @@ Deno.serve(async (req) => {
         ).slice(0, 5),
       });
     }
-    const task = await store.claim();
-    if (task) await processTask(task, { store, manus, runTool });
+    let processed = 0;
+    const deadline = Date.now() + 20000;
+    while (processed < 8 && Date.now() < deadline) {
+      const task = await store.claim();
+      if (!task) break;
+      await processTask(task, { store, manus, runTool });
+      processed++;
+    }
     await deliverOneEmail();
-    return Response.json({ processed: task ? 1 : 0 });
+    return Response.json({ processed });
   } catch {
     return Response.json({
       error: "Worker unavailable; leased work will be recovered.",

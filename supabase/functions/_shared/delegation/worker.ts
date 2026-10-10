@@ -111,9 +111,11 @@ export async function processTask(t: Task, d: WorkerDeps) {
       });
       return;
     }
-    if (!t.manus_task_id) throw new Error("Missing Manus task");
+    if (!t.manus_task_id && !state.direct) {
+      throw new Error("Missing Manus task");
+    }
     if (state.phase === "poll") {
-      const detail = await manus.getTask(t.manus_task_id);
+      const detail = await manus.getTask(t.manus_task_id!);
       if (
         detail.status === "running" ||
         detail.has_running_background_jobs === true
@@ -128,7 +130,7 @@ export async function processTask(t: Task, d: WorkerDeps) {
         });
         return;
       }
-      const events = await manus.events(t.manus_task_id);
+      const events = await manus.events(t.manus_task_id!);
       if (detail.status === "waiting") {
         const message = events.find((e) => e.type === "assistant_message")
           ?.assistant_message?.content;
@@ -280,6 +282,20 @@ export async function processTask(t: Task, d: WorkerDeps) {
         result = await d.runTool(t.user_id, out.tool, args, t.timezone);
         await store.finish(t, key, result);
       }
+      if (state.direct) {
+        await save({
+          status: "completed",
+          pending: null,
+          error: null,
+          result: out.tool === "create_calendar_event"
+            ? `Calendar event created: ${String(args.title)} (${
+              String(args.start)
+            } – ${String(args.end)}).`
+            : `Email sent to ${String(args.to)}: ${String(args.subject)}.`,
+          state,
+        });
+        return;
+      }
       const receipt = JSON.stringify({ tool: out.tool, args, result });
       await save({
         state: {
@@ -302,7 +318,7 @@ export async function processTask(t: Task, d: WorkerDeps) {
       const step = await store.begin(t, key, "manus_reply");
       if (step.step.status !== "succeeded") {
         if (!step.fresh) {
-          const events = await manus.events(t.manus_task_id);
+          const events = await manus.events(t.manus_task_id!);
           if (
             !events.some((e) =>
               e.type === "user_message" &&
@@ -316,7 +332,7 @@ export async function processTask(t: Task, d: WorkerDeps) {
             return;
           }
         } else {await manus.reply(
-            t.manus_task_id,
+            t.manus_task_id!,
             `${marker}\n${state.reply}\nContinue the original task within its existing permissions. Return the next structured decision.`,
           );}
         await store.finish(t, key, { received: true });

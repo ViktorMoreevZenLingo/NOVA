@@ -308,3 +308,43 @@ Deno.test("worker: Manus completion cannot substitute for a required write recei
   await f.run();
   assertEquals(f.task.status, "completed");
 });
+
+Deno.test("worker: exact calendar action completes from a provider receipt without Manus; replay does not duplicate", async () => {
+  const f = fixture();
+  const args = {
+    title: "Meeting",
+    start: "2026-10-20T19:00:00+03:00",
+    end: "2026-10-20T20:00:00+03:00",
+  };
+  const state = {
+    phase: "tools" as const,
+    round: 0,
+    direct: true,
+    decision: {
+      kind: "action" as const,
+      tool: "create_calendar_event",
+      args: JSON.stringify(args),
+      text: "",
+    },
+  };
+  f.patch({ state });
+  await f.run();
+  assertEquals(f.task.pending?.kind, "approval");
+  assertEquals(f.writes, 0);
+  f.patch({
+    status: "running",
+    pending: null,
+    grants: [{
+      tool: "create_calendar_event",
+      constraints: args,
+      generated_fields: [],
+    }],
+  });
+  await f.run();
+  assertEquals(f.task.status, "completed");
+  assertEquals(f.writes, 1);
+  assertEquals(f.creates, 0);
+  f.patch({ status: "running", state });
+  await f.run();
+  assertEquals(f.writes, 1);
+});

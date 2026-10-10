@@ -212,7 +212,17 @@ export function validateSubmission(input: unknown, now = Date.now()) {
   ) {
     throw new HttpError(400, "Invalid required actions.");
   }
+  let prepared_action;
+  if (d.prepared_action !== undefined) {
+    const action = object(d.prepared_action);
+    const tool = text(action.tool, 80);
+    if (!["send_email", "create_calendar_event"].includes(tool)) {
+      throw new HttpError(400, "Unsupported prepared action.");
+    }
+    prepared_action = { tool, args: validateArgs(tool, action.args) };
+  }
   return {
+    ...(prepared_action ? { prepared_action } : {}),
     ...(required.length ? { required_tools: required } : {}),
     request_id: text(d.request_id, 160),
     instruction: text(d.instruction),

@@ -6,7 +6,7 @@ export async function database() {
   const db = new PGlite();
   await db.exec(
     `create role anon; create role authenticated; create role service_role bypassrls; create schema auth;
- create table auth.users(id uuid primary key);
+ create table auth.users(id uuid primary key, phone text, phone_confirmed_at timestamptz, deleted_at timestamptz, raw_user_meta_data jsonb);
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to authenticated,service_role; grant select on auth.users to service_role;
  insert into auth.users values('${A}'),('${B}');`,
@@ -31,6 +31,14 @@ export async function database() {
     await Deno.readTextFile(
       new URL(
         "../../migrations/20261010115706_task_write_receipts.sql",
+        import.meta.url,
+      ),
+    ),
+  );
+  await db.exec(
+    await Deno.readTextFile(
+      new URL(
+        "../../migrations/20261010121500_prepared_voice_actions.sql",
         import.meta.url,
       ),
     ),
@@ -215,6 +223,93 @@ Deno.test("database: approval binds exact persisted args; delivery is separate a
         [delivery.id],
       )).rows[0].status,
       "uncertain",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+Deno.test("database: prepared actions wait for exact approval and retain after-call/scheduled conditions", async () => {
+  const db = await database();
+  try {
+    await db.exec(
+      `insert into public.call_sessions(vapi_call_id,user_id,verified_at) values('prepared-call','${A}',now());`,
+    );
+    const action = {
+      tool: "create_calendar_event",
+      args: {
+        title: "Meeting",
+        start: "2026-10-20T19:00:00+03:00",
+        end: "2026-10-20T20:00:00+03:00",
+      },
+    };
+    for (const mode of ["now", "after_call", "scheduled"]) {
+      const t = await submit(
+        db,
+        A,
+        submission({
+          start_mode: mode,
+          call_id: "prepared-call",
+          run_at: mode === "scheduled" ? "2099-01-01T09:00:00Z" : null,
+          prepared_action: action,
+        }),
+      );
+      assertEquals(t.status, "needs_input");
+      assertEquals(t.state.direct, true);
+      assertEquals(t.pending.args, action.args);
+      assertEquals(t.grants, []);
+      const approved = (await db.query<any>(
+        "select * from public.alo_task_command($1,$2,$3,'approve','{}')",
+        [A, t.id, t.revision],
+      )).rows[0];
+      assertEquals(
+        approved.status,
+        mode === "after_call"
+          ? "waiting_call"
+          : mode === "scheduled"
+          ? "scheduled"
+          : "queued",
+      );
+      assertEquals(approved.grants[0].constraints, action.args);
+    }
+    await db.query("select public.alo_call_ended($1,'prepared-call')", [A]);
+    assertEquals(
+      (await db.query<any>(
+        "select status from public.alo_tasks where start_mode='after_call'",
+      )).rows[0].status,
+      "queued",
+    );
+  } finally {
+    await db.close();
+  }
+});
+Deno.test("database: phone matching prefers confirmed account and rejects anonymous ambiguity", async () => {
+  const db = await database();
+  try {
+    await db.query("update auth.users set raw_user_meta_data=$1", [
+      JSON.stringify({ contact_phone: "+359 879 576 787" }),
+    ]);
+    assertEquals(
+      (await db.query<any>(
+        "select public.nova_user_id_by_phone('+359879576787') id",
+      )).rows[0].id,
+      null,
+    );
+    await db.query(
+      "update auth.users set phone='+359879576787',phone_confirmed_at=now() where id=$1",
+      [A],
+    );
+    assertEquals(
+      (await db.query<any>(
+        "select public.nova_user_id_by_phone('359879576787') id",
+      )).rows[0].id,
+      A,
+    );
+    assertEquals(
+      (await db.query<any>(
+        "select public.nova_user_id_by_phone('359899000000') id",
+      )).rows[0].id,
+      null,
     );
   } finally {
     await db.close();

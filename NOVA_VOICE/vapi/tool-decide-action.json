@@ -14,14 +14,6 @@
             "reject"
           ],
           "description": "Only after reading the action back on this call."
-        },
-        "pin": {
-          "type": "string",
-          "description": "The caller's 6-digit PIN, digits only, if not given yet on this call."
-        },
-        "verification_answer": {
-          "type": "string",
-          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
         }
       }
     }

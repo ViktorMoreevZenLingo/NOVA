@@ -36,6 +36,7 @@ const existingTools: { id: string; function?: { name?: string }; server?: { url?
 const toolIds: string[] = [];
 for (
   const file of [
+    "tool-get-call-context.json",
     "tool-create-task.json",
     "tool-get-task-status.json",
     "tool-decide-action.json",

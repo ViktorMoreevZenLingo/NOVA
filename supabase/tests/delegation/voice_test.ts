@@ -78,7 +78,11 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
     store,
     legacy: async () => new Response("legacy"),
   }, db as never);
-  const request = (args: Record<string, unknown>, secret = VAPI_SECRET) =>
+  const request = (
+    args: Record<string, unknown>,
+    secret = VAPI_SECRET,
+    name = "create_task",
+  ) =>
     new Request("https://test/create-task", {
       method: "POST",
       headers: { "x-vapi-secret": secret },
@@ -88,7 +92,7 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
           call: { id: "call-1", customer: { number: USER_PHONE } },
           toolCallList: [{
             id: "tool-1",
-            function: { name: "create_task", arguments: args },
+            function: { name, arguments: args },
           }],
         },
       }),
@@ -113,6 +117,11 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
   assert(!tasks[0].instruction.includes(PIN));
   await handler(request(args));
   assertEquals(tasks.length, 1);
+  const context =
+    await (await handler(request({}, VAPI_SECRET, "get_call_context"))).json();
+  assert(context.results[0].result.includes("Europe/Sofia"));
+  assert(context.results[0].result.includes("Connected services"));
+  assert(!context.results[0].result.includes(PIN));
   const end = (secret = VAPI_SECRET) =>
     new Request("https://test/create-task", {
       method: "POST",
@@ -126,4 +135,55 @@ Deno.test("Vapi bridge: authentication retained, tasks persisted without waiting
   assertEquals(await (await handler(end())).json(), { released: 1 });
   assertEquals(await (await handler(end())).json(), { released: 0 });
   assertEquals(releases, 1);
+});
+
+Deno.test("voice: phone mode needs no PIN/question; spoofed model numbers and browser caller IDs cannot select an account", async () => {
+  const { authenticateCaller } = await import(
+    "../../functions/_shared/caller.ts"
+  );
+  const { checkAccess } = await import("../../functions/_shared/access.ts");
+  const store = new FakeStore();
+  const req = {
+    callId: "phone-call",
+    callType: "inboundPhoneCall",
+    callMetadata: { user_id: "attacker" },
+    customerNumber: USER_PHONE,
+    toolCalls: [],
+  };
+  const auth = await authenticateCaller(
+    store,
+    { mode: "phone" },
+    req,
+    undefined,
+  );
+  assert(auth.ok);
+  assertEquals(auth.profile.user_id, USER_ID);
+  const access = await checkAccess(
+    { store },
+    req,
+    auth,
+    "create_calendar_event",
+    {},
+    undefined,
+  );
+  assert(access.ok);
+  assertEquals(access.required, ["caller_id", "approval"]);
+  assertEquals(access.satisfied, ["caller_id"]);
+  assert(
+    (await authenticateCaller(store, { mode: "phone" }, req, undefined)).ok,
+  );
+  assert(
+    !(await authenticateCaller(store, { mode: "phone" }, {
+      ...req,
+      callId: "unknown",
+      customerNumber: "+359899000000",
+    }, undefined)).ok,
+  );
+  assert(
+    !(await authenticateCaller(store, { mode: "phone" }, {
+      ...req,
+      callId: "browser",
+      callType: "webCall",
+    }, undefined)).ok,
+  );
 });

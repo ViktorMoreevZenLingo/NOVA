@@ -1,3 +1,4 @@
+import { wakeTaskWorker } from "../_shared/delegation/wake.ts";
 import {
   admin,
   authenticate,
@@ -130,12 +131,12 @@ export function taskHandler(
         if (!internal) {
           throw new HttpError(403, "Only the voice backend can end a call.");
         }
-        return json({
-          released: await rpc("alo_call_ended", {
-            p_user: userId,
-            p_call: text(body.call_id, 160),
-          }),
+        const released = await rpc("alo_call_ended", {
+          p_user: userId,
+          p_call: text(body.call_id, 160),
         });
+        if (released) wakeTaskWorker();
+        return json({ released });
       }
       if (action === "submit") {
         if (!internal && body.call_id) {
@@ -156,6 +157,7 @@ export function taskHandler(
           p_user: userId,
           p_data: { ...data, request_hash: hash },
         });
+        wakeTaskWorker();
         return json({
           task: publicTask(task),
           acknowledgement: task.status === "scheduled"
@@ -198,6 +200,7 @@ export function taskHandler(
         p_command: action,
         p_data: data,
       });
+      wakeTaskWorker();
       return json({ task: publicTask(updated) });
     } catch (err) {
       return failure(err);

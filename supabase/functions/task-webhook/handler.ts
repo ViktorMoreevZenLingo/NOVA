@@ -1,3 +1,4 @@
+import { wakeTaskWorker } from "../_shared/delegation/wake.ts";
 import { admin, checked } from "../_shared/http.ts";
 import {
   type ManusClient,
@@ -47,6 +48,7 @@ export function webhookHandler(manus: ManusClient, url: string, db = admin()) {
             next_run_at: new Date().toISOString(),
           }).eq("id", task.id).eq("status", "running"),
         );
+        wakeTaskWorker();
       }
       return new Response("ok");
     } catch {

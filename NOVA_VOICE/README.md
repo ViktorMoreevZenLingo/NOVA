@@ -2,7 +2,7 @@
 
 New Vapi requests now enter Alo's durable `alo_tasks` queue through the existing `create-task` and `get-task-status` URLs. Work starts now, after an authenticated end-of-call report, or once at a scheduled time. Manus runs the reasoning; Alo executes approved integration operations and stores results in History. Email is sent only when requested. Callback/SMS requests are durable handoffs for the delivery worker.
 
-The Alo browser prototype still uses Supabase anonymous accounts while SMS authentication is paused. Caller lookup, PIN and verification-question checks remain in the voice layer.
+The Alo browser prototype still uses Supabase anonymous accounts while SMS authentication is paused. Live telephone calls match the caller number to the web account through the authenticated Vapi webhook. PIN and security-question prompts are disabled at the product owner’s request; exact-action read-back approval remains. Browser-supplied caller numbers cannot authorize telephone access.
 
 ```
 Vapi tools → caller checks → create-task adapter → alo_tasks → activity / History
@@ -22,13 +22,14 @@ Full contract, permissions, recovery rules and deployment steps: [ManusIntegrati
 | Minute scheduler and separate Manus webhook | Enabled; webhook active |
 | Immediate, after-call and one-off scheduled research | Completed with real Manus results |
 | Duplicate submit / end-call | Same task ID; call release occurs once |
-| Connected Gmail email-to-self | One explicitly requested email sent successfully |
-| Existing Vapi assistant on Zadarma Bulgaria | Five task tools and end-of-call routing configured; voice/model settings preserved |
-| New task suite | 19 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
+| Connected Gmail email-to-self | One explicitly requested email sent; subsequent Gmail search/read confirmed it |
+| Existing Vapi assistant on Zadarma Bulgaria | Six context/task tools and end-of-call routing configured; voice/model settings preserved |
+| New task suite | 23 tests passed, including Postgres/RLS, provider adapters, Vapi bridge, signatures and uncertain writes |
 | Legacy voice suite | 59 tests passed; type checks and lint passed |
 | Alo UI | Production build passed; task approval view checked on desktop/mobile with mocked data |
-| Actual telephone call with caller PIN/question | Not exercised during this rollout; verified-call fixture used for backend checks |
-| Calendar/Contacts live checks | Mocked only; no designated connected test account |
+| Actual telephone call review | Three user-reported calls inspected: missing date, wrong empty account, and premature success claim found; account consolidated and live config fixed |
+| Phone matching / calendar preparation | Live authenticated Vapi-envelope check passed without PIN/question; event was immediately read back and rejected, with no provider write |
+| Calendar/Contacts | Connections consolidated into the named account by explicit owner authorization; provider writes tested with mocks, no real calendar invite sent |
 | Places / Outlook live checks | Mocked only; provider credentials still missing |
 | Callback / SMS transmission | Handoff implemented; delivery transport remains the voice developer's responsibility |
 
@@ -68,7 +69,7 @@ Legacy `agent_tasks`, webhook and reconcile remain available to finish/review wo
 | Security levels: risk policy, PIN/lockout, verification question (L3, bcrypt), read-back approval by voice or app (L4), reply drafts, double-send protection | ✅ 22 unit tests (`tests/security.test.ts`) + SQL checks; migration `20261010130000` applied to the shared project and merged to `main`; real Gmail sending not yet exercised |
 | In-app Approve/Reject + Standard/Secure switch | ⚠️ optional for the MVP (phone approval works without the app); **frontend work**, API in [docs/db-contract.md](docs/db-contract.md#for-the-frontend) |
 
-### Next steps
+### Historical rollout steps (superseded by the delegated runtime above)
 1. Add the `TEST_USER_PIN` GitHub secret, then re-run the deploy.
 2. Sign up in the Alo app with the demo phone number and connect Gmail under Integrations.
 3. Run the first real task: curl `create-task` with `tests/fixtures/vapi-create-task.json`, after putting the demo phone and PIN into the fixture. Check that the row goes `submitted → completed`, History updates, and the email arrives.
@@ -104,7 +105,7 @@ send_email / create_calendar_event:          awaiting_approval ─────�
   - **Missed webhooks:** reconcile polls `task.detail` for `submitted` and `needs_input` tasks older than 3 minutes. Overlapping runs are prevented by `claim_reconcile_batch` (`FOR UPDATE SKIP LOCKED`).
   - **Orphaned Manus tasks:** each Manus title ends with `#nova:<row id>`. If `task.create` timed out on our side but Manus ran it anyway, its webhook adopts the row instead of being dropped.
 
-## Security levels and access layers
+## Legacy security levels and access layers (not active in live phone mode)
 
 Every phone request is **assessed for risk**. The risk decides which **verification layers** it needs, and the user's own setting is a floor on top of that. Every decision is recorded on the task (`risk_level`, `layers`).
 

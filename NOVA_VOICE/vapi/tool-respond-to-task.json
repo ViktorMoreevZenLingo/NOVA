@@ -10,12 +10,6 @@
         "task_id": {
           "type": "string"
         },
-        "pin": {
-          "type": "string"
-        },
-        "verification_answer": {
-          "type": "string"
-        },
         "answer": {
           "type": "string"
         }
