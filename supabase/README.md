@@ -39,9 +39,24 @@ expiring, single-use state and PKCE verifier from an authenticated initiation.
 
 ## Provider setup
 
-**Phone Auth:** enable Phone provider and configure SMS delivery in Supabase
-Authentication. Configure rate limits/CAPTCHA for public rollout. Add a test
-phone/OTP pair for local testing if desired; do not add production bypass codes.
+**Phone Auth:** Zadarma delivers Supabase-generated OTPs through the `send-sms`
+Edge Function. Deploy it with `supabase functions deploy send-sms --use-api`.
+Set `ZADARMA_API_KEY`, `ZADARMA_API_SECRET`, and `SEND_SMS_HOOK_SECRET` as server
+secrets. Configure the Send SMS Auth Hook at
+`https://vlimtocbrxxnzobhkcoy.supabase.co/functions/v1/send-sms` with that same
+Standard Webhooks secret (`v1,whsec_` followed by 32 random bytes in base64).
+Enable Phone signup and confirmation. Current demo limits: 10 SMS per hour and
+60 seconds between requests. The hook restricts delivery to Bulgarian numbers,
+verifies signed requests, and never logs credentials, phone numbers or OTPs.
+Messages use Zadarma's default sender and a short English message to fit one SMS.
+Supabase verifies codes and creates sessions; Zadarma does not manage accounts.
+The hook does not automatically retry ambiguous provider failures.
+Configure CAPTCHA and review rate limits before public rollout. No production
+bypass codes are configured. Local development needs the same environment secrets
+and a running Edge Function; SMS sends consume real provider credit.
+
+Run SMS handler checks (mock delivery, no charges):
+`npx deno test --config supabase/functions/deno.json supabase/functions/send-sms/handler_test.ts`.
 
 **Google:** enable Gmail, Calendar, and People APIs in your OAuth app. Add scopes
 `gmail.modify`, `calendar`, and `contacts.readonly` under the Google API prefix.
