@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Auth, formatPhone, type AuthMode } from "@/components/auth/Auth";
 import { Brand } from "@/components/ui/Brand";
@@ -24,11 +24,22 @@ import {
 } from "@/lib/profile-store";
 import type { ServiceId } from "@/lib/services";
 import { recordById } from "@/lib/history-data";
+import {
+  ensureSession,
+  getMe,
+  disconnectGoogle,
+  googleConnectUrl,
+  type GoogleService,
+  type MeServices,
+} from "@/lib/agent-api";
 
 type View = "login" | "otp" | "profile-setup" | DashView;
 type Modal = "options" | "edit" | "delete" | { service: ServiceId } | null;
 
 const CONNECTED_KEY = (phone: string) => `alo:connected:${phone}`;
+const SESSION_KEY = "alo:session";
+const GOOGLE: ServiceId[] = ["calendar", "contacts", "gmail"];
+const NO_SERVICES: MeServices = { calendar: false, contacts: false, gmail: false };
 
 export function AloApp() {
   const { lang } = useI18n();
@@ -38,20 +49,22 @@ export function AloApp() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [phone, setPhone] = useState("");
   const [profile, setProfile] = useState<Profile>(blankProfile());
-  const [connected, setConnected] = useState<Set<ServiceId>>(new Set());
+  // Simulated connections (Places / Outlook — no backend yet).
+  const [simConnected, setSimConnected] = useState<Set<ServiceId>>(new Set());
+  // Real Google connection state, from the backend (/api/me).
+  const [googleServices, setGoogleServices] = useState<MeServices>(NO_SERVICES);
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const showToast = useCallback(
-    (bg: string, en: string) => {
-      setToast(lang === "bg" ? bg : en);
-      clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(() => setToast(null), 3500);
-    },
-    [lang],
-  );
+  const phoneE164 = `+359${phone}`;
+
+  const showToast = (bg: string, en: string) => {
+    setToast(lang === "bg" ? bg : en);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  };
 
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
@@ -60,63 +73,169 @@ export function AloApp() {
     document.title = lang === "en" ? "Alo — your personal assistant" : "Ало — личният ти асистент";
   }, [lang]);
 
-  // Persist connected services per phone once we have a session.
+  // Persist simulated connections per phone once we have a session.
   useEffect(() => {
     if (!phone) return;
     try {
-      localStorage.setItem(CONNECTED_KEY(phone), JSON.stringify([...connected]));
+      localStorage.setItem(CONNECTED_KEY(phone), JSON.stringify([...simConnected]));
     } catch {
       /* ignore */
     }
-  }, [connected, phone]);
+  }, [simConnected, phone]);
 
-  const navigate = useCallback((next: View) => {
+  // Establish a backend session and pull real Google state + profile. Throws if
+  // the backend is unreachable so callers can fall back to local-only.
+  const loadGoogle = async (e164: string, name: string) => {
+    await ensureSession(e164, name);
+    const me = await getMe();
+    setGoogleServices(me.services);
+    return me;
+  };
+
+  // Resume an existing session after a reload or the OAuth round-trip, and
+  // surface the ?connected= / ?error= the Google callback redirects back with.
+  const booted = useRef(false);
+  useEffect(() => {
+    if (booted.current) return;
+    booted.current = true;
+    let connectedParam: string | null = null;
+    let errorParam: string | null = null;
+    let stored: string | null = null;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      connectedParam = params.get("connected");
+      errorParam = params.get("error");
+      stored = sessionStorage.getItem(SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (stored) {
+      const prof = loadProfile(stored, lang);
+      setPhone(stored);
+      setProfile(prof);
+      try {
+        setSimConnected(new Set(JSON.parse(localStorage.getItem(CONNECTED_KEY(stored)) || "[]")));
+      } catch {
+        /* ignore */
+      }
+      setView(connectedParam || errorParam ? "integrations" : "dashboard");
+      loadGoogle(`+359${stored}`, prof.name)
+        .then((me) => {
+          if (!prof.name && me.name) setProfile((p) => ({ ...p, name: me.name, notes: p.notes || me.about || "" }));
+        })
+        .catch(() => {});
+      if (connectedParam) showToast(`${connectedParam} е свързано успешно.`, `${connectedParam} connected successfully.`);
+      else if (errorParam) showToast(`Грешка при свързване: ${errorParam}`, `Connection error: ${errorParam}`);
+    }
+    if (connectedParam || errorParam) {
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigate = (next: View) => {
     if (next === "history") setSelected(null);
     setView(next);
     window.scrollTo(0, 0);
-  }, []);
+  };
 
-  const onVerified = useCallback(() => {
-    const loaded = loadProfile(phone, lang);
-    setProfile(loaded);
-    let conn: ServiceId[] = [];
+  const onVerified = async () => {
+    const local = loadProfile(phone, lang);
     try {
-      conn = JSON.parse(localStorage.getItem(CONNECTED_KEY(phone)) || "[]");
+      setSimConnected(new Set(JSON.parse(localStorage.getItem(CONNECTED_KEY(phone)) || "[]")));
     } catch {
-      conn = [];
+      setSimConnected(new Set());
     }
-    setConnected(new Set(conn));
-    navigate(loaded.name ? "dashboard" : "profile-setup");
-  }, [phone, lang, navigate]);
+    try {
+      sessionStorage.setItem(SESSION_KEY, phone);
+    } catch {
+      /* ignore */
+    }
+    // Pull the real profile/state from the backend; if it knows a name the local
+    // store doesn't, adopt it so a known user skips profile setup.
+    let merged = local;
+    try {
+      const me = await loadGoogle(phoneE164, local.name);
+      if (!local.name && me.name) {
+        merged = { ...local, name: me.name, notes: local.notes || me.about || "" };
+        saveProfile(phone, merged, lang);
+      }
+    } catch {
+      // Backend unavailable — continue with the local profile only.
+    }
+    setProfile(merged);
+    navigate(merged.name ? "dashboard" : "profile-setup");
+  };
 
-  const logout = useCallback(() => {
+  const logout = () => {
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
     setModal(null);
     setMode("login");
     setPhone("");
     setProfile(blankProfile());
-    setConnected(new Set());
+    setSimConnected(new Set());
+    setGoogleServices(NO_SERVICES);
     setSelected(null);
     setView("login");
-  }, []);
+  };
 
-  const saveProfileAndClose = useCallback(
-    (next: Profile, closeTo: () => void) => {
-      setProfile(next);
-      const persistent = phone ? saveProfile(phone, next, lang) : false;
-      closeTo();
-      return persistent;
-    },
-    [phone, lang],
-  );
+  const saveProfileAndClose = (next: Profile, closeTo: () => void): boolean => {
+    setProfile(next);
+    const persistent = phone ? saveProfile(phone, next, lang) : false;
+    closeTo();
+    return persistent;
+  };
 
-  const toggleService = useCallback((id: ServiceId) => {
-    setConnected((prev) => {
-      const nextSet = new Set(prev);
-      if (nextSet.has(id)) nextSet.delete(id);
-      else nextSet.add(id);
-      return nextSet;
-    });
-  }, []);
+  // Combined connection state for the UI: real Google + simulated others.
+  const connectedSet = new Set<ServiceId>();
+  (GOOGLE as GoogleService[]).forEach((s) => {
+    if (googleServices[s]) connectedSet.add(s);
+  });
+  (["places", "outlook"] as ServiceId[]).forEach((s) => {
+    if (simConnected.has(s)) connectedSet.add(s);
+  });
+
+  const onServiceAction = async (id: ServiceId) => {
+    const nowConnected = connectedSet.has(id);
+    if (GOOGLE.includes(id)) {
+      if (nowConnected) {
+        setModal(null);
+        try {
+          await ensureSession(phoneE164, profile.name);
+          await disconnectGoogle(id as GoogleService);
+          await loadGoogle(phoneE164, profile.name);
+          showToast("Услугата е прекъсната.", "Service disconnected.");
+        } catch {
+          showToast("Неуспешно прекъсване. Опитай пак.", "Couldn’t disconnect. Please try again.");
+        }
+      } else {
+        // Real Google OAuth — full-page redirect that shows the account chooser.
+        setModal(null);
+        try {
+          await ensureSession(phoneE164, profile.name);
+        } catch {
+          /* proceed; the callback will report if truly unauthenticated */
+        }
+        window.location.href = googleConnectUrl(id as GoogleService);
+      }
+    } else {
+      setSimConnected((prev) => {
+        const nextSet = new Set(prev);
+        if (nextSet.has(id)) nextSet.delete(id);
+        else nextSet.add(id);
+        return nextSet;
+      });
+      setModal(null);
+    }
+  };
 
   // ---- Auth / profile-setup screens -------------------------------------
   if (view === "login" || view === "otp") {
@@ -191,8 +310,8 @@ export function AloApp() {
       >
         {view === "dashboard" && (
           <HomeOverview
-            connected={connected}
-            phoneE164={`+359${phone}`}
+            connected={connectedSet}
+            phoneE164={phoneE164}
             userName={profile.name}
             onNavigate={(v) => navigate(v)}
             onOpenRecord={(id) => {
@@ -206,7 +325,7 @@ export function AloApp() {
         {view === "history" && <History selected={selected} onSelect={(id) => setSelected(id)} />}
         {view === "integrations" && (
           <Integrations
-            connected={connected}
+            connected={connectedSet}
             profile={profile}
             onEditProfile={() => setModal("edit")}
             onOpenService={(id) => setModal({ service: id })}
@@ -253,12 +372,9 @@ export function AloApp() {
       {modal && typeof modal === "object" && "service" in modal && (
         <ServiceDialog
           id={modal.service}
-          connected={connected.has(modal.service)}
+          connected={connectedSet.has(modal.service)}
           onClose={() => setModal(null)}
-          onToggle={() => {
-            toggleService(modal.service);
-            setModal(null);
-          }}
+          onToggle={() => void onServiceAction(modal.service)}
         />
       )}
 

@@ -89,7 +89,10 @@ public class GoogleOAuth {
                 .setAccessType("offline")
                 .setState(state);
         url.set("include_granted_scopes", true);
-        url.set("prompt", "consent");
+        // select_account forces Google's account chooser so a different email can
+        // be connected even when one is already signed in; consent keeps a refresh
+        // token coming back on every grant.
+        url.set("prompt", "select_account consent");
         String built = url.build();
         log.info("OAuth: built consent URL for service={} redirectUri={}", service, redirectUri());
         return built;

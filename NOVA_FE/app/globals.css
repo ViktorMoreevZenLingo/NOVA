@@ -3051,3 +3051,18 @@ html:has(.history-index), body:has(.history-index) {
     max-width: 88%;
   }
 }
+
+/* Clickable links + preserved line breaks in chat messages. */
+.chat-log .chat-bubble {
+  white-space: pre-wrap;
+}
+.chat-bubble a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.chat-bubble a:hover {
+  text-decoration-thickness: 2px;
+}

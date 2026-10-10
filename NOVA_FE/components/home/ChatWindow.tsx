@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
 import {
@@ -15,6 +15,30 @@ import {
 interface Message {
   role: "user" | "alo";
   text: string;
+}
+
+// Turn Markdown links [label](url) and bare http(s) URLs into clickable anchors.
+const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)/g;
+
+function renderMessage(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  let key = 0;
+  let m: RegExpExecArray | null;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(text)) !== null) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const href = m[2] ?? m[3]!;
+    const label = m[1] ?? m[3]!;
+    nodes.push(
+      <a key={key++} href={href} target="_blank" rel="noopener noreferrer">
+        {label}
+      </a>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
 }
 
 export function ChatWindow({ phoneE164, userName }: { phoneE164: string; userName: string }) {
@@ -131,7 +155,7 @@ export function ChatWindow({ phoneE164, userName }: { phoneE164: string; userNam
           <>
             {messages.map((m, i) => (
               <div key={i} className={`transcript-turn ${m.role === "user" ? "outgoing" : "incoming"}`}>
-                <p className="chat-bubble">{m.text}</p>
+                <p className="chat-bubble">{renderMessage(m.text)}</p>
                 <span className="chat-caption">{m.role === "user" ? l("Ти", "You") : l("Ало", "Alo")}</span>
               </div>
             ))}
