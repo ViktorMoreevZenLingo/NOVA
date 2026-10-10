@@ -65,7 +65,11 @@ do $$ begin
   assert (select count(*) from public.agent_tasks) = 1, 'A must see exactly its own task';
   assert (select prompt from public.agent_tasks) = 'A task', 'A sees the wrong task';
   assert (select count(*) from public.activity) = 1, 'A must see only its own history';
-  assert (select count(*) from public.call_sessions) = 0, 'call_sessions must be invisible';
+  begin
+    perform count(*) from public.call_sessions;
+    raise exception 'call_sessions must not be readable';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 
 -- A may not write tasks, call service functions or look up phones.
