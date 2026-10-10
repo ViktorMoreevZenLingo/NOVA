@@ -33,7 +33,8 @@ Shared TypeScript contract between A and B: [`supabase/functions/_shared/contrac
 | Email notification (`_shared/email/notify.ts`) | 🟡 **mock**: it only logs `email.mock_sent`. Track B replaces it with Resend |
 | Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
 | pg_cron reconcile schedule | ⚠️ migration written; Vault secrets set by the deploy workflow |
-| Deploy workflow (`.github/workflows/deploy.yml`) | ⚠️ written, first run pending |
+| Deploy workflow (`.github/workflows/deploy.yml`) | ✅ deploys to the shared project; our tables coexist with Lovable's |
+| Hosted functions | ✅ deployed; `create-task` / `get-task-status` need `TEST_USER_PIN` to boot |
 | End-to-end phone call | ❌ not yet |
 
 ## Repository layout
@@ -125,7 +126,8 @@ Deploys are done by [`.github/workflows/deploy.yml`](.github/workflows/deploy.ym
 3. sets the function secrets
 4. writes the cron job's Vault secrets (`project_url`, `cron_secret`)
 5. deploys all 4 functions
-6. smoke-checks that they boot
+6. registers the Manus webhook (idempotent) and prints the installed Manus connectors
+7. smoke-checks that the functions boot
 
 **Repository secrets** (Settings → Secrets and variables → Actions):
 
@@ -160,7 +162,8 @@ Deploying manually without GitHub works too:
 4. `supabase functions deploy`
 5. set the Vault secrets with `select public.nova_set_vault_secret('project_url', ...)` and `select public.nova_set_vault_secret('cron_secret', ...)`
 
-### 3. Register the Manus webhook (+ list connectors)
+### 3. Manus webhook (+ list connectors)
+The deploy workflow does this automatically. To run it by hand:
 ```bash
 MANUS_API_KEY=... MANUS_WEBHOOK_URL=https://<ref>.supabase.co/functions/v1/manus-webhook \
   deno run --allow-env --allow-net scripts/register-manus-webhook.ts

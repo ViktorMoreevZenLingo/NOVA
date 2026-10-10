@@ -100,11 +100,19 @@ jobs:
       - name: Deploy functions
         run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api
 
+      - name: Register Manus webhook (idempotent)
+        env:
+          MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
+        run: |
+          if [ -z "$MANUS_API_KEY" ]; then echo "::warning::MANUS_API_KEY not set; skipping"; exit 0; fi
+          MANUS_WEBHOOK_URL="https://${PROJECT_REF}.supabase.co/functions/v1/manus-webhook" \
+            deno run --allow-env --allow-net=api.manus.ai scripts/register-manus-webhook.ts
+
       - name: Smoke check
         run: |
           # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
           base="https://${PROJECT_REF}.supabase.co/functions/v1"
-          for fn in create-task get-task-status reconcile; do
+          for fn in create-task get-task-status reconcile manus-webhook; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
             echo "$fn -> $code"
           done
