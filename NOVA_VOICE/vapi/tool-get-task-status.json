@@ -1,0 +1,28 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "get_task_status",
+    "description": "Get the status of the caller's most recent task.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "pin": {
+          "type": "string",
+          "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
+        },
+        "verification_answer": {
+          "type": "string",
+          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
+        }
+      }
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/get-task-status",
+    "timeoutSeconds": 15,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
+  }
+}

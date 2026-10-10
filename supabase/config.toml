@@ -419,6 +419,9 @@ enabled = true
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
+# Every function authenticates its own callers, so the platform JWT check is off.
+
+# Alo app (NOVA_FE)
 [functions.integrations]
 # OAuth callbacks have no Supabase JWT. POST requests verify getUser explicitly.
 verify_jwt = false
@@ -430,4 +433,17 @@ verify_jwt = false
 
 [functions.send-sms]
 # Supabase Auth signs this hook using Standard Webhooks, not a user JWT.
+verify_jwt = false
+
+# Phone assistant (Vapi bearer secret, Manus RSA signature, cron secret)
+[functions.create-task]
+verify_jwt = false
+[functions.manus-webhook]
+verify_jwt = false
+[functions.get-task-status]
+verify_jwt = false
+[functions.reconcile]
+verify_jwt = false
+# Called by the Alo app; verifies the user session itself (like Alo's functions).
+[functions.voice-approve]
 verify_jwt = false

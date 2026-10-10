@@ -1,11 +1,20 @@
+# Node / Next.js (NOVA_FE, Design)
 dist/
-.DS_Store
 node_modules/
 .next/
 out/
+.playwright-cli/
+
+# Secrets
+.env
 .env*
 !.env.example
-.playwright-cli/
+supabase/functions/.env
+supabase/functions/.env.local
+
+# Tooling
+.omc/
+.DS_Store
 
 # Locally installed AI agent skills
 /.agents/skills/

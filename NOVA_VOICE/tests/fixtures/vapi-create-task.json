@@ -1,0 +1,16 @@
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [
+      {
+        "id": "curl-tool-call-1",
+        "type": "function",
+        "function": {
+          "name": "create_task",
+          "arguments": { "intent": "research", "instruction": "Find three tips for winning a hackathon", "pin": "123456" }
+        }
+      }
+    ],
+    "call": { "id": "curl-call-1", "type": "inboundPhoneCall", "customer": { "number": "+359888123456" } }
+  }
+}
