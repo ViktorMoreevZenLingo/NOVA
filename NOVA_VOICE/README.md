@@ -48,7 +48,7 @@ Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · conne
 | Result email from own Gmail to self (`_shared/email/notify.ts`) | ⚠️ same as above |
 | Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
 | End-to-end phone call | ❌ not yet |
-| Security levels: risk policy, PIN/lockout, verification question (L3, bcrypt), read-back approval by voice or app (L4), reply drafts, double-send protection | ✅ 22 unit tests (`tests/security.test.ts`) + SQL checks; real Gmail sending not yet exercised |
+| Security levels: risk policy, PIN/lockout, verification question (L3, bcrypt), read-back approval by voice or app (L4), reply drafts, double-send protection | ✅ 22 unit tests (`tests/security.test.ts`) + SQL checks; migration `20261010130000` applied to the shared project and merged to `main`; real Gmail sending not yet exercised |
 | In-app Approve/Reject + Standard/Secure switch | ⚠️ optional for the MVP (phone approval works without the app); **frontend work**, API in [docs/db-contract.md](docs/db-contract.md#for-the-frontend) |
 
 ### Next steps
