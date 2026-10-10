@@ -1,7 +1,9 @@
 import { getSupabase } from "./supabase";
 
 // Gets a short-lived OpenAI Realtime session token from our edge function.
-export async function getRealtimeSession(): Promise<{ token: string; model: string }> {
+export async function getRealtimeSession(
+  lang: "bg" | "en",
+): Promise<{ token: string; model: string }> {
   const sb = getSupabase();
   const {
     data: { session },
@@ -16,7 +18,7 @@ export async function getRealtimeSession(): Promise<{ token: string; model: stri
       ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       "Content-Type": "application/json",
     },
-    body: "{}",
+    body: JSON.stringify({ lang }),
   });
   if (!res.ok) {
     let message = `HTTP ${res.status}`;

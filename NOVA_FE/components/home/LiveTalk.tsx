@@ -143,7 +143,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
     let cancelled = false;
     (async () => {
       try {
-        const { token, model } = await getRealtimeSession();
+        const { token, model } = await getRealtimeSession(lang);
         if (cancelled) return;
 
         const pc = new RTCPeerConnection();
