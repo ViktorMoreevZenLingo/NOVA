@@ -2898,3 +2898,156 @@ html:has(.history-index), body:has(.history-index) {
 .services-list [data-service="gmail"]::before { background-position: 55% 35%; }
 .services-list [data-service="outlook"]::before { background-position: 55% 35%; }
 .services-list [data-service="places"]::before { background-position: 60% 40%; }
+
+/* Home-page chat window — talks to the real agent backend (/api/agent/*). */
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e5e5e7;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 0 14px rgb(0 0 0 / 5%);
+}
+.chat-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #eeeef0;
+  flex-shrink: 0;
+}
+.chat-window-header h2 {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.chat-window-header .text-button {
+  min-height: 32px;
+}
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 20px 16px;
+}
+.chat-log > * {
+  flex-shrink: 0;
+}
+.chat-log .transcript-turn {
+  max-width: min(78%, 520px);
+}
+.chat-empty {
+  margin: auto;
+  text-align: center;
+  color: #85858a;
+  font-size: 13px;
+  max-width: 320px;
+}
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+.chat-suggestion {
+  border: 1px solid #e1e1e5;
+  background: #fafafb;
+  border-radius: 999px;
+  padding: 8px 13px;
+  font-size: 12px;
+  color: #44444a;
+}
+.chat-suggestion:hover {
+  background: #f1f1f3;
+  border-color: #cfcfd4;
+}
+.chat-typing {
+  font-size: 12px;
+  color: #85858a;
+  padding: 2px 4px;
+}
+.chat-pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border-top: 1px solid #eeeef0;
+  background: #fff8e6;
+  font-size: 13px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.chat-pending .pending-summary {
+  flex: 1;
+  min-width: 180px;
+  color: #5a4a12;
+}
+.chat-pending-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.chat-pending-actions .primary,
+.chat-pending-actions .secondary {
+  min-height: 38px;
+  padding-inline: 16px;
+}
+.chat-error {
+  padding: 10px 16px;
+  border-top: 1px solid #eeeef0;
+  background: #fbeeee;
+  color: #a12e2e;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.chat-input {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid #eeeef0;
+  flex-shrink: 0;
+}
+.chat-input input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 1px solid #dcdcd9;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #fff;
+  color: #191919;
+}
+.chat-input input:focus {
+  outline: none;
+  border-color: #92929b;
+}
+.chat-send {
+  flex-shrink: 0;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  gap: 0;
+}
+.chat-send:disabled {
+  opacity: 0.5;
+}
+.chat-send .icon {
+  width: 18px;
+  height: 18px;
+}
+@media (max-width: 600px) {
+  .chat-log {
+    height: 300px;
+  }
+  .chat-log .transcript-turn {
+    max-width: 88%;
+  }
+}

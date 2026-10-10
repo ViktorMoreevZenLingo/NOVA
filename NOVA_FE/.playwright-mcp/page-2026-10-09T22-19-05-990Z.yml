@@ -1,7 +1,0 @@
-- generic [active] [ref=f1e1]:
-  - button "Open Next.js Dev Tools" [ref=f1e13] [cursor=pointer]
-  - alert [ref=f1e7]
-  - main [ref=f1e54]:
-    - strong [ref=f1e56]: Alo
-    - paragraph [ref=f1e57]: Loading…
-    - generic [ref=f1e58]: © 2026 Alo
