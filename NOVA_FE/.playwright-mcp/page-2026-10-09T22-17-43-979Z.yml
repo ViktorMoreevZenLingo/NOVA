@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - strong [ref=e4]: Ало
+    - generic [ref=e7]:
+      - tablist "Ало" [ref=e8]:
+        - tab "Вход" [ref=e9]
+        - tab "Регистрация" [selected] [ref=e10]
+      - heading "Регистрация в Ало" [level=1] [ref=e29]
+      - generic [ref=e12]:
+        - paragraph [ref=e30]:
+          - text: Име
+          - textbox "Име" [ref=e31]
+        - paragraph [ref=e13]:
+          - text: Мобилен номерBG +359
+          - textbox "Мобилен номер" [ref=e14]:
+            - /placeholder: 888 123 456
+            - text: 888 123 456
+        - paragraph [ref=e15]:
+          - button "Продължи" [ref=e16]
+    - generic [ref=e6]: © 2026 Ало
+  - button "Open Next.js Dev Tools" [ref=e22] [cursor=pointer]
+  - alert [ref=e26]

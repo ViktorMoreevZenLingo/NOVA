@@ -1,0 +1,48 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e22] [cursor=pointer]
+  - alert [ref=e26]
+  - main [ref=e32]:
+    - navigation "Alo" [ref=e88]:
+      - paragraph [ref=e34]:
+        - strong [ref=e35]: Alo
+      - list [ref=e36]:
+        - listitem [ref=e37]:
+          - link "Home" [ref=e89] [cursor=pointer]:
+            - /url: /home
+      - button "Options" [ref=e90]
+    - generic [ref=e41]:
+      - group "Language" [ref=e43]:
+        - button "BG" [ref=e44]
+        - button "EN" [disabled] [pressed] [ref=e45]
+      - generic [ref=e66]:
+        - heading "Connected services 1 of 3" [level=1] [ref=e91]
+        - status [ref=e68]:
+          - text: Google Calendar connected successfully.
+          - button "×" [ref=e69]
+        - list [ref=e70]:
+          - listitem [ref=e71]:
+            - generic [ref=e96]:
+              - paragraph [ref=e97]:
+                - text: Name
+                - textbox "Name" [ref=e98]: Иван
+              - paragraph [ref=e99]:
+                - text: About me
+                - textbox "About me" [ref=e100]
+              - paragraph [ref=e101]:
+                - button "Save" [ref=e102]
+                - button "Cancel" [ref=e103]
+          - listitem [ref=e76]:
+            - button [ref=e93]:
+              - text: "[G]"
+              - strong [ref=e79]: Google Calendar
+              - text: Connected Disconnect
+          - listitem [ref=e80]:
+            - button [ref=e94]:
+              - text: "[G]"
+              - strong [ref=e83]: Google Contacts
+              - text: Not connected Connect
+          - listitem [ref=e84]:
+            - button [ref=e95]:
+              - text: "[G]"
+              - strong [ref=e87]: Gmail
+              - text: Not connected Connect
