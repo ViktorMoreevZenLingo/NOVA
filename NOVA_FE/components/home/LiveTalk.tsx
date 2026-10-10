@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
 import { execRealtimeTool, getRealtimeSession } from "@/lib/realtime-api";
+import { appendChat } from "@/lib/agent-api";
 
 type Status = "connecting" | "listening" | "speaking" | "error";
 
@@ -43,8 +44,25 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const lastActiveRef = useRef(0);
   const statusRef = useRef<Status>("connecting");
   const levelRef = useRef(0);
+  const turnsRef = useRef<{ role: "user" | "alo"; text: string }[]>([]);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Persist the live transcript into the shared conversation, then close.
+  const persistAndClose = async () => {
+    const turns = turnsRef.current.filter((t) => t.text.trim());
+    turnsRef.current = [];
+    if (turns.length) {
+      try {
+        await appendChat(turns);
+      } catch {
+        /* best effort */
+      }
+    }
+    onCloseRef.current();
+  };
+  const closeRef = useRef(persistAndClose);
+  closeRef.current = persistAndClose;
 
   const setStatusOnce = (s: Status) => {
     if (statusRef.current === s) return;
@@ -102,15 +120,20 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   };
 
   const handleEvent = (raw: string) => {
-    let ev: { type?: string; response?: { output?: FnCall[] } };
+    let ev: { type?: string; transcript?: string; response?: { output?: FnCall[] } };
     try {
       ev = JSON.parse(raw);
     } catch {
       return;
     }
-    if (ev.type === "response.done") {
+    const t = ev.type || "";
+    if (t === "response.done") {
       const calls = (ev.response?.output || []).filter((i) => i.type === "function_call");
       if (calls.length) void runToolCalls(calls);
+    } else if (t.includes("input_audio_transcription.completed") && ev.transcript?.trim()) {
+      turnsRef.current.push({ role: "user", text: ev.transcript.trim() });
+    } else if (t.includes("audio_transcript.done") && ev.transcript?.trim()) {
+      turnsRef.current.push({ role: "alo", text: ev.transcript.trim() });
     }
   };
 
@@ -195,7 +218,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         rafRef.current = requestAnimationFrame(monitor);
         idleRef.current = setInterval(() => {
           if (!cancelled && performance.now() - lastActiveRef.current > INACTIVITY_MS) {
-            onCloseRef.current();
+            void closeRef.current();
           }
         }, 5000);
       } catch (err) {
@@ -257,7 +280,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
           type="button"
           className="live-btn close"
           aria-label={l("Затвори", "Close")}
-          onClick={onClose}
+          onClick={() => void closeRef.current()}
         >
           <Icon name="close" />
         </button>

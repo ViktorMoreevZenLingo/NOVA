@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
     const { user } = await authenticate(req);
     const body = await req.json();
-    if (!["chat", "confirm", "reset", "load"].includes(body.action)) {
+    if (!["chat", "confirm", "reset", "load", "append"].includes(body.action)) {
       throw new HttpError(400, "Unknown action");
     }
     const db = admin();
@@ -119,6 +119,24 @@ Deno.serve(async (req) => {
       pending = null;
       await save();
       return json({ reset: true });
+    }
+    if (body.action === "append") {
+      // Persist turns from the live (voice) session into the shared thread, so
+      // they appear in the text chat and archive with it on reset.
+      const turns = Array.isArray(body.turns) ? body.turns : [];
+      for (const t of turns) {
+        if (
+          t && typeof t.text === "string" && t.text.trim() &&
+          (t.role === "user" || t.role === "alo")
+        ) {
+          messages.push({
+            role: t.role === "user" ? "user" : "assistant",
+            content: t.text.trim(),
+          });
+        }
+      }
+      if (JSON.stringify(messages).length <= 250000) await save();
+      return json({ appended: true });
     }
     const connections = checked(
       await db.from("connections").select("service").eq("user_id", user.id),

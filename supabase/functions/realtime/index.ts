@@ -58,7 +58,10 @@ Deno.serve(async (req) => {
           type: "realtime",
           model: MODEL,
           instructions,
-          audio: { output: { voice: VOICE } },
+          audio: {
+            input: { transcription: { model: "gpt-4o-mini-transcribe" } },
+            output: { voice: VOICE },
+          },
           ...(tools.length ? { tools, tool_choice: "auto" } : {}),
         },
       }),
