@@ -284,7 +284,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
                 : "";
 
   return (
-    <div className="live-talk" role="dialog" aria-label={l("Говори с Ало", "Talk to Alo")}>
+    <div className="live-talk" role="group" aria-label={l("Говори с Ало", "Talk to Alo")}>
       <div
         className={`live-orb ${status}`}
         style={{ transform: `scale(${1 + (status === "listening" ? level * 0.35 : 0)})` }}
