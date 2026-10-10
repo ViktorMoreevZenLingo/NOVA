@@ -3,6 +3,25 @@ import { blankProfile, type Profile } from "./profile-store";
 import type { HistoryRecord } from "./history-data";
 import type { ServiceId } from "./services";
 
+export interface ChatSession {
+  id: string;
+  title: string | null;
+  ended_at: string;
+  messages: { role: "user" | "alo"; text: string }[];
+}
+
+/** Archived Alo conversations for the History page, newest first. */
+export async function loadChatSessions(): Promise<ChatSession[]> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("chat_sessions")
+    .select("id,title,ended_at,messages")
+    .order("ended_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return (data || []) as ChatSession[];
+}
+
 // Phone is profile context only during the prototype. Never use it to find or
 // authorize another account. Supabase's anonymous session supplies the owner ID.
 export async function startAccount(phone: string) {

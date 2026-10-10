@@ -92,6 +92,29 @@ Deno.serve(async (req) => {
       );
     };
     if (body.action === "reset") {
+      // Archive the conversation (if it has real turns) before clearing, so it
+      // shows up in the History page's Chats section.
+      const turns = messages
+        .filter((m: any) =>
+          ["user", "assistant"].includes(m.role) && m.content && !m.tool_calls
+        )
+        .map((m: any) => ({
+          role: m.role === "user" ? "user" : "alo",
+          text: m.content as string,
+        }));
+      if (turns.length) {
+        const firstUser = turns.find((t) => t.role === "user")?.text || "";
+        // Best-effort: never block clearing the chat if archiving fails
+        // (e.g. the chat_sessions table is not migrated yet).
+        try {
+          await db.from("chat_sessions").insert({
+            user_id: user.id,
+            title: firstUser.slice(0, 80) || null,
+            messages: turns,
+            ended_at: new Date().toISOString(),
+          });
+        } catch { /* ignore */ }
+      }
       messages = [];
       pending = null;
       await save();

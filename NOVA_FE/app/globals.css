@@ -3127,3 +3127,114 @@ html:has(.history-index), body:has(.history-index) {
   .history-filter-content .filter-calendar-collapse,
   .filter-range-calendar { transition: none; }
 }
+
+/* History › Chats section: the saved Alo conversation, expandable inline. */
+.history-chats {
+  margin: 0 0 20px;
+}
+.history-chats > h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.history-chats-empty {
+  font-size: 13px;
+  color: #85858a;
+  padding: 2px 2px 4px;
+}
+.history-chat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  border: 1px solid #e5e5e7;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  text-align: left;
+}
+.history-chat-card:hover {
+  background: #f7f7f8;
+}
+.history-chat-symbol {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: #f3f3f4;
+  color: #007aff;
+}
+.history-chat-symbol .icon {
+  width: 18px;
+  height: 18px;
+}
+.history-chat-copy {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.history-chat-copy strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.history-chat-copy > span {
+  font-size: 12px;
+  color: #77777c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-chat-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #727277;
+  white-space: nowrap;
+}
+.history-chat-card .icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #8c8c91;
+  transition: transform 160ms;
+}
+.history-chat-card .icon.rotated {
+  transform: rotate(90deg);
+}
+.history-chat-transcript {
+  margin-top: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+@media (prefers-reduced-motion: reduce) {
+  .history-chat-card .icon {
+    transition: none;
+  }
+}
+
+/* Chat history: one card per archived/current conversation. */
+.history-chat-item + .history-chat-item {
+  margin-top: 8px;
+}
+.history-chat-meta {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  flex-shrink: 0;
+  text-align: right;
+}
+.history-chat-when {
+  font-size: 11px;
+  color: #8c8c91;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .history-chat-meta {
+    display: none;
+  }
+}
