@@ -1,101 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
-import { confirmAction, sendChat, type PendingAction } from "@/lib/agent-api";
-import { synthesizeSpeech, transcribeAudio } from "@/lib/voice-api";
+import { getRealtimeSession } from "@/lib/realtime-api";
 
-type Status = "connecting" | "listening" | "thinking" | "speaking" | "confirm" | "error";
+type Status = "connecting" | "listening" | "speaking" | "error";
 
-// Voice-activity thresholds (RMS on a -1..1 waveform).
-const SPEAK_LEVEL = 0.025;
-const SILENCE_MS = 1300;
-const MAX_UTTERANCE_MS = 15000;
+const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
+const INACTIVITY_MS = 90_000; // auto-end an idle session to avoid wasted cost
+const ACTIVE_LEVEL = 0.02;
 
-const stripMarkdown = (t: string) =>
-  t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "$1").replace(/https?:\/\/\S+/g, "").trim();
-
+// OpenAI Realtime (gpt-realtime-mini) over WebRTC: the browser streams the mic
+// and plays the model's speech directly; server-side turn detection handles
+// listen/respond. We drive the orb/status from audio levels (robust to event
+// name changes) and auto-close on inactivity.
 export function LiveTalk({ onClose }: { onClose: () => void }) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
 
   const [status, setStatus] = useState<Status>("connecting");
   const [muted, setMuted] = useState(false);
-  const [pending, setPending] = useState<PendingAction | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [level, setLevel] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const streamRef = useRef<MediaStream | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const micRef = useRef<MediaStream | null>(null);
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const rafRef = useRef<number>(0);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const spokeRef = useRef(false);
-  const silenceRef = useRef<number | null>(null);
-  const startRef = useRef(0);
-  const mutedRef = useRef(false);
+  const micAnalyserRef = useRef<AnalyserNode | null>(null);
+  const remoteAnalyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef(0);
+  const idleRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const lastActiveRef = useRef(0);
+  const statusRef = useRef<Status>("connecting");
+  const levelRef = useRef(0);
   const aliveRef = useRef(true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  const stopPlayback = useCallback(() => {
-    try {
-      sourceRef.current?.stop();
-    } catch {
-      /* already stopped */
-    }
-    sourceRef.current = null;
-  }, []);
+  const setStatusOnce = (s: Status) => {
+    if (statusRef.current === s) return;
+    statusRef.current = s;
+    setStatus(s);
+  };
 
-  // Play TTS through the AudioContext so it isn't subject to <audio> autoplay
-  // blocking (the context is resumed on a user gesture when live mode opens).
-  const speak = useCallback(
-    (text: string) =>
-      new Promise<void>((resolve) => {
-        const plain = stripMarkdown(text);
-        const ctx = ctxRef.current;
-        if (!plain || !ctx) return resolve();
-        synthesizeSpeech(plain.slice(0, 4000), lang)
-          .then(async (blob) => {
-            if (!aliveRef.current) return resolve();
-            try {
-              const buffer = await ctx.decodeAudioData(await blob.arrayBuffer());
-              if (!aliveRef.current) return resolve();
-              try {
-                sourceRef.current?.stop();
-              } catch {
-                /* ignore */
-              }
-              if (ctx.state === "suspended") await ctx.resume().catch(() => {});
-              const node = ctx.createBufferSource();
-              node.buffer = buffer;
-              node.connect(ctx.destination);
-              let done = false;
-              const finish = () => {
-                if (done) return;
-                done = true;
-                resolve();
-              };
-              node.onended = finish;
-              sourceRef.current = node;
-              node.start();
-              // Safety net: always hand control back even if onended never fires.
-              setTimeout(finish, buffer.duration * 1000 + 800);
-            } catch {
-              resolve();
-            }
-          })
-          .catch(() => resolve());
-      }),
-    [lang],
-  );
-
-  // --- listening + voice-activity detection ---------------------------------
-
-  const monitor = useCallback(() => {
-    const analyser = analyserRef.current;
-    if (!analyser) return;
+  const rms = (analyser: AnalyserNode | null) => {
+    if (!analyser) return 0;
     const buf = new Uint8Array(analyser.fftSize);
     analyser.getByteTimeDomainData(buf);
     let sum = 0;
@@ -103,151 +54,118 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
       const v = (buf[i] - 128) / 128;
       sum += v * v;
     }
-    const rms = Math.sqrt(sum / buf.length);
-    setLevel(Math.min(1, rms * 6));
-    const now = performance.now();
-    if (rms > SPEAK_LEVEL) {
-      spokeRef.current = true;
-      silenceRef.current = null;
-    } else if (spokeRef.current) {
-      if (silenceRef.current == null) silenceRef.current = now;
-      else if (now - silenceRef.current > SILENCE_MS) {
-        stopRecording();
-        return;
-      }
+    return Math.sqrt(sum / buf.length);
+  };
+
+  const monitor = () => {
+    const mic = rms(micAnalyserRef.current);
+    const remote = rms(remoteAnalyserRef.current);
+    const peak = Math.max(mic, remote);
+    const next = Math.min(1, peak * 6);
+    if (Math.abs(next - levelRef.current) > 0.04) {
+      levelRef.current = next;
+      setLevel(next);
     }
-    if (now - startRef.current > MAX_UTTERANCE_MS && spokeRef.current) {
-      stopRecording();
-      return;
+    if (statusRef.current !== "connecting" && statusRef.current !== "error") {
+      setStatusOnce(remote > ACTIVE_LEVEL ? "speaking" : "listening");
     }
+    if (peak > ACTIVE_LEVEL) lastActiveRef.current = performance.now();
     rafRef.current = requestAnimationFrame(monitor);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const startListening = useCallback(() => {
-    if (!aliveRef.current || mutedRef.current) return;
-    const stream = streamRef.current;
-    if (!stream) return;
-    stopPlayback();
-    chunksRef.current = [];
-    spokeRef.current = false;
-    silenceRef.current = null;
-    startRef.current = performance.now();
-    const recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = (e) => {
-      if (e.data.size) chunksRef.current.push(e.data);
-    };
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-      if (!spokeRef.current || blob.size < 1200) {
-        // Nothing meaningful heard — keep listening.
-        if (aliveRef.current && !mutedRef.current) startListening();
-        return;
-      }
-      void processTurn(blob);
-    };
-    recorderRef.current = recorder;
-    recorder.start();
-    setStatus("listening");
-    rafRef.current = requestAnimationFrame(monitor);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monitor, stopPlayback]);
-
-  const stopRecording = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-  }, []);
-
-  const processTurn = useCallback(
-    async (blob: Blob) => {
-      setStatus("thinking");
-      setLevel(0);
-      try {
-        const text = (await transcribeAudio(blob, lang)).trim();
-        if (!aliveRef.current) return;
-        if (!text) {
-          startListening();
-          return;
-        }
-        const res = await sendChat(text);
-        if (!aliveRef.current) return;
-        if (res.pending) {
-          setPending(res.pending);
-          setStatus("confirm");
-          await speak(res.pending.summary);
-          return;
-        }
-        setStatus("speaking");
-        if (res.reply) await speak(res.reply);
-        if (!aliveRef.current) return;
-        startListening();
-      } catch (err) {
-        if (!aliveRef.current) return;
-        setError(err instanceof Error ? err.message : l("Нещо се обърка.", "Something went wrong."));
-        setStatus("error");
-      }
-    },
-    [lang, speak, startListening, l],
-  );
-
-  const resolvePending = useCallback(
-    async (approved: boolean) => {
-      const action = pending;
-      if (!action) return;
-      setPending(null);
-      setStatus("thinking");
-      try {
-        const res = await confirmAction(approved, action.id);
-        if (!aliveRef.current) return;
-        setStatus("speaking");
-        if (res.reply) await speak(res.reply);
-        if (!aliveRef.current) return;
-        startListening();
-      } catch (err) {
-        if (!aliveRef.current) return;
-        setError(err instanceof Error ? err.message : l("Нещо се обърка.", "Something went wrong."));
-        setStatus("error");
-      }
-    },
-    [pending, speak, startListening, l],
-  );
-
-  // --- setup / teardown -----------------------------------------------------
+  };
 
   useEffect(() => {
     aliveRef.current = true;
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        });
-        if (!aliveRef.current) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const { token, model } = await getRealtimeSession();
+        if (!aliveRef.current) return;
+
+        const pc = new RTCPeerConnection();
+        pcRef.current = pc;
+
+        const audioEl = new Audio();
+        audioEl.autoplay = true;
+        audioElRef.current = audioEl;
+
+        const Ctx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         const ctx = new Ctx();
         ctxRef.current = ctx;
         await ctx.resume().catch(() => {});
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024;
-        source.connect(analyser);
-        analyserRef.current = analyser;
-        startListening();
-      } catch {
-        setError(l("Нужен е достъп до микрофона.", "Microphone access is needed."));
-        setStatus("error");
+
+        pc.ontrack = (e) => {
+          const [stream] = e.streams;
+          audioEl.srcObject = stream;
+          audioEl.play().catch(() => {});
+          const src = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 512;
+          src.connect(analyser);
+          remoteAnalyserRef.current = analyser;
+        };
+
+        const mic = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        if (!aliveRef.current) {
+          mic.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        micRef.current = mic;
+        mic.getTracks().forEach((t) => pc.addTrack(t, mic));
+        const micSrc = ctx.createMediaStreamSource(mic);
+        const micAnalyser = ctx.createAnalyser();
+        micAnalyser.fftSize = 512;
+        micSrc.connect(micAnalyser);
+        micAnalyserRef.current = micAnalyser;
+
+        // Data channel is required by the Realtime WebRTC transport.
+        pc.createDataChannel("oai-events");
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        const sdpRes = await fetch(`${CALLS_URL}?model=${encodeURIComponent(model)}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/sdp" },
+          body: offer.sdp,
+        });
+        if (!sdpRes.ok) throw new Error(l("Връзката се провали.", "Connection failed."));
+        const answer = await sdpRes.text();
+        if (!aliveRef.current) return;
+        await pc.setRemoteDescription({ type: "answer", sdp: answer });
+
+        pc.onconnectionstatechange = () => {
+          if (!aliveRef.current) return;
+          if (pc.connectionState === "connected") {
+            setStatusOnce("listening");
+            lastActiveRef.current = performance.now();
+          } else if (["failed", "disconnected"].includes(pc.connectionState)) {
+            setError(l("Връзката прекъсна.", "The connection dropped."));
+            setStatusOnce("error");
+          }
+        };
+
+        lastActiveRef.current = performance.now();
+        rafRef.current = requestAnimationFrame(monitor);
+        idleRef.current = setInterval(() => {
+          if (performance.now() - lastActiveRef.current > INACTIVITY_MS) onCloseRef.current();
+        }, 5000);
+      } catch (err) {
+        if (!aliveRef.current) return;
+        setError(err instanceof Error ? err.message : l("Нещо се обърка.", "Something went wrong."));
+        setStatusOnce("error");
       }
     })();
+
     return () => {
       aliveRef.current = false;
       cancelAnimationFrame(rafRef.current);
-      recorderRef.current?.state !== "inactive" && recorderRef.current?.stop();
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      stopPlayback();
+      clearInterval(idleRef.current);
+      micRef.current?.getTracks().forEach((t) => t.stop());
+      pcRef.current?.getSenders().forEach((s) => s.track?.stop());
+      pcRef.current?.close();
+      if (audioElRef.current) audioElRef.current.srcObject = null;
       ctxRef.current?.close().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,66 +174,27 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
-    mutedRef.current = next;
-    if (next) {
-      cancelAnimationFrame(rafRef.current);
-      recorderRef.current?.state !== "inactive" && recorderRef.current?.stop();
-      setLevel(0);
-    } else if (status !== "speaking" && status !== "thinking") {
-      startListening();
-    }
+    micRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
   };
 
-  // Tap the orb: interrupt Alo, or end your turn now.
-  const onOrbTap = () => {
-    if (status === "speaking") {
-      stopPlayback();
-      startListening();
-    } else if (status === "listening" && spokeRef.current) {
-      stopRecording();
-    }
-  };
-
-  const statusText =
-    error
-      ? error
-      : status === "connecting"
-        ? l("Свързване…", "Connecting…")
-        : status === "listening"
-          ? muted ? l("На пауза", "Paused") : l("Слушам…", "Listening…")
-          : status === "thinking"
-            ? l("Мисля…", "Thinking…")
-            : status === "speaking"
-              ? l("Ало говори…", "Alo is speaking…")
-              : status === "confirm"
-                ? l("Потвърди действието", "Confirm the action")
-                : "";
+  const statusText = error
+    ? error
+    : status === "connecting"
+      ? l("Свързване…", "Connecting…")
+      : muted
+        ? l("Микрофонът е изключен", "Microphone off")
+        : status === "speaking"
+          ? l("Ало говори…", "Alo is speaking…")
+          : l("Слушам…", "Listening…");
 
   return (
     <div className="live-talk" role="group" aria-label={l("Говори с Ало", "Talk to Alo")}>
       <div
         className={`live-orb ${status}`}
-        style={{ transform: `scale(${1 + (status === "listening" ? level * 0.35 : 0)})` }}
-        onClick={onOrbTap}
-        role="button"
-        aria-label={l("Говори", "Speak")}
+        style={{ transform: `scale(${1 + level * 0.3})` }}
+        aria-hidden="true"
       />
-
       <p className="live-status">{statusText}</p>
-
-      {status === "confirm" && pending && (
-        <div className="live-confirm">
-          <p>{pending.summary}</p>
-          <div className="live-confirm-actions">
-            <button type="button" className="secondary" onClick={() => void resolvePending(false)}>
-              {l("Откажи", "Reject")}
-            </button>
-            <button type="button" className="primary" onClick={() => void resolvePending(true)}>
-              {l("Потвърди", "Approve")}
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="live-controls">
         <button
