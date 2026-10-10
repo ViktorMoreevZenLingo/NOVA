@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
 import { HistoryLegend, HistoryRow } from "@/components/history/HistoryRow";
@@ -15,6 +16,8 @@ interface HomeOverviewProps {
   onNavigate: (view: "history" | "integrations") => void;
   onOpenRecord: (id: string) => void;
   onOpenService: (id: ServiceId) => void;
+  /** NOVA Coach summary, shown under the chat. */
+  coach?: ReactNode;
 }
 
 const REC_ORDER: ServiceId[] = [
@@ -33,6 +36,7 @@ export function HomeOverview({
   onNavigate,
   onOpenRecord,
   onOpenService,
+  coach,
 }: HomeOverviewProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
@@ -53,6 +57,8 @@ export function HomeOverview({
       </p>
 
       <ChatWindow phoneE164={phoneE164} userName={userName} />
+
+      {coach}
 
       <section aria-labelledby="recent-title">
         <div className="home-section-title">

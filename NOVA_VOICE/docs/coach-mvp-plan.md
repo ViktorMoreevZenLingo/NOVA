@@ -1,210 +1,122 @@
-# NOVA Coach — MVP план (хакатон)
+# NOVA Coach: MVP plan (hackathon)
 
-## Идея
-AI по телефона за служителите, с два режима, които споделят една инфраструктура:
+Status: **implemented on branch `feat/coach-plan`** (backend, database, frontend, tests, Vapi setup and demo seed). What is verified and what still needs a live run is in the [README](../README.md#nova-coach--employee-voice).
 
-1. **Личен коуч.** Разговори за развитие, трудности и преживявания на работа. Стойността е за служителя. Компанията вижда само това, което той изрично одобри.
-2. **Глас на служителите.** Анонимни гласови анкети за ангажираност и кратки pulse проверки. AI анализира езика на отговорите (sentiment), а **мениджмънтът и HR** виждат агрегирани тенденции по екипи и отдели, индикатори за риск от напускане на ниво екип и препоръки за действия. Всяка роля вижда своя обхват (виж „Кой какво получава“).
+## Idea
+An AI that talks to employees by phone (or in the browser), with two modes on one infrastructure:
 
-**Посланието, което свързва двете:** служителят трябва да усеща, че е важен за компанията, а благосъстоянието, мотивацията и развитието му са от значение. Затова всяка обратна връзка завършва с видим резултат за него: „Казахте → направихме“, лично следващо обаждане, напредък, който самият той вижда.
+1. **Personal coach.** Conversations about growth, difficulties and experiences at work. The value is for the employee first. The company sees only what the employee explicitly approves.
+2. **Employee voice.** Anonymous voice engagement surveys and short pulse checks. The AI analyses the *language* of the answers (sentiment and themes), and **managers, leadership and HR** see aggregated trends by team and department, team-level attrition-risk indicators and suggested actions. Each role sees its own scope (see "Who gets what").
 
-## Кой какво получава
-| Роля | Стойност | Какво вижда |
+**The message that ties them together:** employees should feel that they matter to the company and that their wellbeing, motivation and growth are essential. Every piece of feedback therefore ends with a visible result for the employee: "You said, we did", a personal follow-up call, progress they can see themselves.
+
+**Demo scenario (one complete loop):**
+1. Pulse check-in (2 min): "How was your week? What got in your way?" → anonymous answer.
+2. Sales manager's dashboard: engagement dropping, theme "same tasks, no growth", suggestion "project rotation + growth 1:1s" → the manager creates an action.
+3. Coach conversation: "I want to grow but don't know the next step" → one small step + an approved request to the manager ("I'd like to take on a small project").
+4. Follow-up call from the AI: "Did you present it? How did your colleagues react?"
+5. Closing the loop: the employee sees "You said, we did" (the team started project rotation) and that their voice had an effect.
+6. Leadership dashboard: the next pulses show Sales recovering after the action. The effect of the decision is measured.
+
+**Success criterion:** the employee looks forward to the next conversation, and management and HR get a concrete action whose effect they can measure, not just a number.
+
+## Who gets what
+| Role | Value | What they see |
 |---|---|---|
-| **Служител** | Развитие, подкрепа, усещане, че гласът му има ефект | Своите цели, стъпки и споделяния; „Казахте → направихме“ за отдела си |
-| **Мениджър на екип** | Знае какво пречи на екипа му, преди да стане проблем; конкретни теми за 1:1; кой иска повече отговорности (само със съгласие) | Агрегати само за своя екип (k≥5), одобрените заявки на хората си, своите действия |
-| **Ръководство** (CEO, директори) | Картина на организацията: къде пада ангажираността, къде е рискът от напускане, дали промените (реорганизация, нова политика, обучение) действително помагат | Агрегати за цялата организация или своето направление, ефект от действията преди/след |
-| **HR** | Програми за развитие и задържане, кампании, проследяване на резултата | Агрегати за организацията, управление на кампаниите и въпросите |
+| **Employee** | Growth, support, a sense that their voice has an effect | Their own goals, steps and shares; "You said, we did" for their department |
+| **Team manager** | Knows what's in the team's way before it becomes a problem; concrete 1:1 topics; who wants more responsibility (only with consent) | Aggregates for their own department subtree (≥5 people), approved requests from their people, their actions |
+| **Leadership** (CEO, directors) | Where engagement drops, where attrition risk is, and whether changes (reorg, new policy, training) actually help | Aggregates for the whole org or their division, before/after effect of actions |
+| **HR** | Development and retention programmes, campaigns, measuring results | Aggregates for the org, managing campaigns |
 
-Мениджмънтът получава инструмент за управление, а не само отчет: всяка тенденция води до препоръка, всяка препоръка до действие с отговорник, а всяко действие се измерва в следващия pulse.
+Management gets a tool for acting, not just a report: every trend leads to a suggestion, every suggestion to an action with an owner, and every action is measured in the next pulse.
 
-**Демо сценарий (един завършен цикъл):**
-1. Pulse обаждане (2 мин): „Как се чувстваш в екипа тази седмица? Какво ти пречи?“ → анонимен отговор.
-2. Табло на мениджъра на „Продажби“: спад в ангажираността на екипа, тема „еднотипни задачи, няма развитие“, препоръка „проектна ротация + 1:1 за развитие“ → мениджърът създава действие.
-3. Коуч разговор: „Искам да се развивам, но не знам коя е следващата стъпка“ → малка стъпка + одобрена заявка до мениджъра („Искам да поема малък проект“).
-4. Последващо обаждане от AI: „Успя ли? Как реагираха колегите?“
-5. Затваряне на цикъла: служителят получава „Казахте → направихме“ (екипът стартира ротация по проекти) и вижда, че гласът му е имал ефект.
-6. Табло на ръководството: следващият pulse показва ръст в „Продажби“ след действието. Ефектът от решението е измерен.
+## Principles (non-negotiable)
+1. **Coach conversations are private by default.** Nothing reaches the company without explicit approval of the exact text (same model as exact-action approval).
+2. **Surveys are anonymous to the company.** Responses are stored without `user_id`, only with day granularity, and without free text. Management and HR only see groups backed by **at least 5 people**: the team has ≥5 members *and* at least one check-in in the period was answered by ≥5 people (each person answers a check-in once). Counting answers alone would let 4 people who answer weekly pass the floor; the tests cover this. Free text is reduced to themes from a closed list and discarded. Honest caveat: during the call the system knows who is calling (authentication), but that link is not stored with the answer. Only a separate "answered campaign X" record is kept, so we don't ask twice. The UI says "anonymous to your company", not "fully anonymous".
+3. **Coaching and surveys never mix.** Coach notes never enter management/HR analytics. Sentiment and risk come only from survey answers.
+4. **No individual attrition risk.** Attrition indicators exist only per team/department. An individual risk score would destroy trust and is profiling under GDPR.
+4a. **A development signal, not a performance rating.** The data is not used to rate individuals. The `manager_support` theme per team helps leadership support managers (training, load) but is not a KPI for bonuses or sanctions, and it only appears after ≥2 campaigns so nobody reacts to one-off noise.
+5. **Sentiment from text, never from voice.** Only the words of the transcript are analysed. Emotion recognition from voice (biometrics) at work is prohibited by the EU AI Act (Art. 5(1)(f), in force since 02/2025). No audio is stored; the text is discarded after extracting scores and themes.
+6. **The LLM never chooses a recipient.** The manager comes from `org_members.manager_user_id` (set by the org) or `coach_profiles.manager_email` (set by the employee in the app).
+7. **The company gets actions, not transcripts.**
+8. **Not therapy.** On signs of crisis the AI stops coaching, says so openly and points to professional help (112 in the EU, a crisis line, a doctor, a trusted person). It never diagnoses.
+9. **The employee controls their memory.** They see, edit and delete goals, steps and notes.
+10. Logs go through `_shared/log.ts` and never contain conversation content.
 
-**Критерий за успех:** служителят сам очаква следващия разговор, а мениджмънтът и HR имат конкретно действие и могат да измерят ефекта му, а не само число.
+> Legal note: AI used to evaluate or monitor employees falls into the EU AI Act high-risk category (Annex III, point 4). For the hackathon we mention it and show the safeguards (aggregates, ≥5 people, no biometrics, no individual risk). A real product needs legal review and a DPIA.
 
-## Принципи (непроменими)
-1. **Коуч разговорите са лични по подразбиране.** Нищо не стига до компанията без изрично одобрение на точно определения текст (същият модел като exact-action approval).
-2. **Анкетите са анонимни спрямо компанията.** Отговорът се записва без `user_id`. Мениджмънтът и HR виждат само агрегати за групи от **поне 5 души** (k-анонимност). При по-малка група данните се сливат с по-горното ниво или се скриват. Свободният текст се показва само като обобщени теми, никога дословно. Честно уточнение: по време на обаждането системата знае кой звъни (удостоверяване), но тази връзка не се записва в отговора. Пазим само отделен запис „отговорил в кампания X“, за да не питаме два пъти. Във FE пишем „анонимно за компанията“, а не „напълно анонимно“.
-3. **Коучингът и анкетите не се смесват.** Коуч бележките никога не влизат в анализите за мениджмънта и HR. Sentiment и риск се смятат само от анкетни отговори.
-4. **Без индивидуален риск от напускане.** Индикаторите за attrition risk са само на ниво екип/отдел (≥5 души). Индивидуален „risk score“ би унищожил доверието и е профилиране по GDPR.
-4a. **Сигнал за развитие, не оценка на представяне.** Данните не се използват за оценка на отделни служители. Темата `manager_support` по екипи помага на ръководството да подкрепи мениджърите (обучение, натоварване), но в MVP не е KPI за бонуси или санкции и се показва само след поне 2 кампании, за да не се реагира на единичен шум.
-5. **Sentiment само от текста, не от гласа.** Анализираме думите в транскрипта. Разпознаването на емоции от гласа (биометрия) на работното място е забранено по EU AI Act (чл. 5(1)(f), в сила от 02.2025). Аудио не пазим. Транскриптът се изтрива след извличане на оценки и теми.
-6. **Получателят не се избира от LLM.** Мениджърът е фиксиран в профила (`coach_profiles.manager_email`), записан от приложението.
-7. **Компанията получава действия, не стенограми.**
-8. **Не е терапия.** При сигнали за криза AI спира, казва го открито и насочва към професионална помощ. Не диагностицира.
-9. **Служителят управлява паметта си.** Вижда, редактира и изтрива цели, стъпки и бележки.
-10. Логовете минават през `_shared/log.ts` без съдържание от разговорите.
-
-> Правна бележка: AI за оценка или наблюдение на служители попада в high-risk категорията на EU AI Act (Annex III, т. 4). За хакатона е достатъчно да го споменем и да покажем защитите (агрегати, k≥5, без биометрия, без индивидуален риск). За реален продукт е нужна правна проверка и DPIA.
-
-## Какво преизползваме
-| Нужда | Съществуващо |
+## What we reused
+| Need | Existing |
 |---|---|
-| Телефон + разпознаване на служителя | Vapi + удостоверено съпоставяне по номер (`nova_user_id_by_phone`, `call_sessions`) |
-| Гласов разговор в браузъра (резервен вариант) | `realtime` / `realtime-tool` (Live talk) |
-| Отложени и масови обаждания | `alo_tasks` със `start_mode: "scheduled"` + `run_at` и worker-а |
-| Изходящо обаждане | Прототип `_shared/vapi-api.ts` на клона `archive/callback-approval` (`POST https://api.vapi.ai/call`) |
-| Одобрение на споделяне | Моделът в `_shared/approval.ts` + `store.transition` |
-| Изпращане до мениджъра | `notifyTask` (lease → send → mark) |
-| История за служителя | тригер към `activity` |
-| FE обвивка, навигация, i18n (bg/en) | `components/dashboard/Dashboard.tsx` (`DashView`), `lib/i18n.ts`, `l(bg, en)` |
+| Phone + identifying the employee | Vapi + authenticated caller-number matching (`nova_user_id_by_phone`, `authenticateCaller`, `call_sessions`) |
+| Browser voice (demo fallback, no phone needed) | `LiveTalk` (OpenAI Realtime over WebRTC), extended with optional session/tool props |
+| Outbound calls | Vapi client restored from the archived prototype on `archive/callback-approval` |
+| Share approval | Conditional transitions (`draft → approved`) bound to the call that read the draft back |
+| Email to the manager | Lease → send → mark, from the employee's own Gmail (Alo `tools.ts`) |
+| Cron | Same Vault secrets as the reconcile job (`project_url`, `cron_secret`) |
+| FE shell, navigation | `Dashboard.tsx` (`DashView`), the existing card/button styles |
 
-## Нови части
+## What was built
 
-### 1. Схема (нови миграции, + `db-contract.md`)
+### 1. Database: `supabase/migrations/20261010190000_coach_and_employee_voice.sql`
+- **Org and roles:** `orgs`, `departments` (tree), `org_members` (`employee | manager | leader | hr`, manager link). No browser access; the app reads its own membership via `coach_my_membership()`.
+- **Coach (private):** `coach_profiles` (manager, call hours, opt-outs), `coach_goals`, `coach_notes`, `coach_steps` (a due date schedules the follow-up via trigger; closing the step cancels it; follow-up columns have no browser grant), `coach_shares` (draft → approved/rejected → sent; the manager reads only approved ones and replies via `coach_share_respond`; `coach_team_requests()` adds the employee's name).
+- **Surveys (anonymous):** `survey_campaigns`, `survey_invites` (whether, never what), `survey_responses` (no `user_id`, no browser grant, closed theme lists enforced by CHECK), `action_items` ("You said, we did").
+- **Insights (aggregates only):** `insights_departments`, `insights_trend` (one point per check-in week), `insights_action_impact` (before/after), all with the people-based floor; `insights_launch_campaign` (managers: pulse for their own subtree only), `insights_close_campaign`, `insights_save_action` (managers: own team; org-wide needs leader/HR).
+- **Worker leases:** `coach_claim_followups`, `survey_claim_invites` (10-minute lease, `skip locked`); `survey_record_response` writes the answer and marks the invite in one transaction.
 
-**Организация и роли**
-```
-orgs             (id, name)
-departments      (id, org_id, name, parent_id?)
-org_members      (user_id PK → auth.users, org_id, department_id, manager_user_id?,
-                  role: employee|manager|leader|hr)
-```
-
-**Коуч (лично)**
-```
-coach_profiles   (user_id PK, manager_email, manager_name,
-                  followup_window jsonb, followups_enabled bool default true)
-coach_goals      (id, user_id, title, why, status: active|paused|done|dropped, ...)
-coach_notes      (id, user_id, goal_id?, kind: motivation|blocker|tension|insight, text, ...)
-coach_steps      (id, user_id, goal_id, text, due_at, status: open|done|partial|skipped,
-                  outcome?, reflection?, followup_task_id? → alo_tasks, ...)
-coach_shares     (id, user_id, goal_id?, text, status: draft|approved|sent|rejected,
-                  approved_via: call|app, created_at, sent_at)
-```
-
-**Анкети (анонимно)**
-```
-survey_campaigns (id, org_id, kind: engagement|pulse, title, questions jsonb,
-                  audience: department_ids[], starts_at, ends_at, status: draft|live|closed)
-survey_invites   (campaign_id, user_id, status: pending|called|answered|declined,
-                  PK(campaign_id, user_id))          -- само „дали“, без отговорите
-survey_responses (id, campaign_id, department_id, week,   -- БЕЗ user_id
-                  scores jsonb,                     -- {q1: 4, q2: 2, ...} 1–5
-                  sentiment numeric(-1..1), themes text[],
-                  attrition_signals text[],         -- напр. {"no_growth","overload"}
-                  created_at truncated to day)       -- без точно време, против свързване
-action_items     (id, org_id, department_id, campaign_id?, theme, text,
-                  owner_user_id, status: planned|in_progress|done, published bool)
-                                                    -- „Казахте → направихме“
-```
-
-**Агрегати (единственият достъп на мениджмънта и HR)**
-- `insights_engagement(scope, from, to)`: средни оценки, sentiment, брой отговори, response rate, тренд по седмици. **Връща ред само ако `count ≥ 5`.**
-- `insights_themes(scope, campaign)`: топ теми с честота (k≥5).
-- `insights_attrition_risk(scope)`: дял на отговорите със сигнали за напускане по отдел, тренд и основни причини, само при k≥5.
-- `insights_action_impact(action_id)`: метриките на свързаната тема в обхвата на действието преди и след него (k≥5 и в двата периода).
-- RPC функции със `security definer`. Обхватът (`scope`) се изчислява на сървъра от ролята, не идва от клиента:
-  - `manager`: собственият екип и поддървото на `departments` под него;
-  - `leader`: цялата организация или своето направление (`departments` поддърво);
-  - `hr`: цялата организация.
-- Ако мениджърът поиска поддепартамент с по-малко от 5 души, получава данните само слети на по-горното ниво.
-- Браузърът няма директен `select` върху `survey_responses`.
-- Кампании: `hr` и `leader` създават кампании за обхвата си. `manager` може да пусне pulse за своя екип само с въпроси от одобрената банка.
-
-**RLS**
-- Служителят чете и редактира само своите `coach_*`, вижда своите `survey_invites` и публикуваните `action_items` за своя отдел.
-- `coach_*` са недостъпни за HR, мениджъри и ръководство по никакъв път (освен изрично одобрените `coach_shares` до собствения мениджър).
-- Статусите (`coach_steps`, `coach_shares`, `survey_invites`, `action_items`) се сменят само с `store.transition(id, from, patch)`.
-- Изтриването на акаунт каскадира `coach_*` и `survey_invites`. `survey_responses` остават, защото не са свързани с човека.
-
-### 2. Vapi инструменти
-
-**`coach-tools`** (`handler.ts` + `index.ts`). `userId` идва само от удостоверения номер.
-
-| Инструмент | Какво прави |
-|---|---|
-| `coach_recall` | Активни цели, отворени стъпки, последните 5 бележки, както и „Казахте → направихме“ за отдела му. |
-| `coach_save_goal` / `coach_save_note` | Запис на цел / мотивация / пречка / напрежение. |
-| `coach_commit_step` | Една малка стъпка със срок + планиран follow-up. Идемпотентно по `toolCallId`. |
-| `coach_record_outcome` | Резултат и рефлексия (`open → done/partial/skipped`). |
-| `coach_propose_share` / `coach_decide_share` | Чернова → дословно прочитане → одобрение → `notifyTask`. |
-
-**`survey-tools`**
-
-| Инструмент | Какво прави |
-|---|---|
-| `survey_get_questions` | Активната кампания за обаждащия се. Маркира invite като `called`. |
-| `survey_submit` | Приема оценки + свободен текст. Сървърът (не Vapi LLM) извиква анализ (§3), записва анонимен `survey_responses`, invite → `answered`. Транскриптът се изхвърля. |
-| `survey_decline` | Invite → `declined`. Без повторни обаждания. |
-
-### 3. Sentiment и теми (`_shared/survey-analysis.ts`)
-- Вход: само текстовите отговори от анкетата. Изход по фиксирана JSON схема: `sentiment` (-1..1), `themes` (от затворен списък: `workload`, `growth`, `recognition`, `manager_support`, `team`, `clarity`, `pay`, `wellbeing`, `other`), `attrition_signals` (от затворен списък).
-- Затворените списъци пречат на изтичане на свободен текст и правят агрегацията стабилна.
-- Ангажираността е комбиниран индекс: средна оценка + sentiment. Така ловим разминаване от типа „оценка 4, но езикът е изтощен“. Това е стойността „отвъд числата“.
-- Препоръки за действия: отделна стъпка над **агрегатите** (не над отговорите), напр. „Продажби: 40% споменават еднотипни задачи → проектна ротация, 1:1 за развитие“. Генерира се при отваряне на таблото, кешира се за кампания.
-- Тестове: фиксирани примерни отговори → очаквани теми. Проверка, че изходът никога не съдържа имена или дословни цитати.
-
-### 4. Промптове (`NOVA_VOICE/vapi/`)
-- **`coach-assistant.json`** (български): recall → открит въпрос → конкретна ситуация → какво е опитано → **една** стъпка, формулирана от служителя → срок → обобщение → (ако е уместно) споделяне с ясно разделение „Това ще види мениджърът. Това остава между нас.“ Повече въпроси, по-малко съвети, кратки реплики. Граница при криза.
-- **`pulse-assistant.json`**: първо казва колко трае („2 минути, 3 въпроса“) и че е анонимно за компанията, после въпроси 1–5 + „Защо?“. Не задава уточняващи въпроси, които биха направили отговора идентифицируем (името на конкретен колега и т.н.). Завършва с благодарност и с какво компанията вече е направила по миналата обратна връзка.
-- **Усещането „важен си“ във всеки разговор:** AI помни името му и миналия контекст, благодари конкретно, казва какво ще се случи с отговора, а при следващия разговор казва какво се е случило.
-
-### 5. Обаждания (worker)
-- **Follow-up на коучинга:** задача `coach_followup` → проверка `followups_enabled`, прозорец, стъпката още е `open` → изходящ Vapi call (възстановяваме `vapi-api.ts`) с контекст на стъпката в `assistantOverrides.variableValues`.
-- **Pulse кампания:** при `status = live` worker-ът разпределя `survey_invites` в прозорците за обаждания (с ограничение на скоростта). 1 опит + 1 повторение, после SMS „Можеш да отговориш, когато ти е удобно: обади се на …“. Служителят може и сам да звънне.
-- Само към потвърдения номер на служителя. Без лично съдържание в URL и логове.
-- **За демото:** бутони „Симулирай: мина седмица“ и „Пусни pulse сега“ + seed с ~40 анонимни отговора в 3 отдела, за да има тенденции.
-
-### 6. Frontend (`NOVA_FE`, собственост на Nick, задължително координираме)
-Добавяме нови стойности в `DashView` (`components/dashboard/Dashboard.tsx`) и елементи в навигацията, видими според `org_members.role`. Всичко е двуезично чрез `l(bg, en)`. Новите API клиенти са в `lib/coach-api.ts`, `lib/survey-api.ts` и `lib/insights-api.ts` (по модела на `tasks-api.ts`).
-
-**За служителя (всички роли)**
-| Екран | Компонент | Съдържание |
+### 2. Edge Functions (each `handler.ts` + `index.ts`)
+| Function | Caller | What it does |
 |---|---|---|
-| Моят път | `components/coach/MyPath.tsx` | Цели → стъпки → резултати като хронология на напредъка. Редакция и изтриване на бележки. Бутон „Обади ми се сега“. |
-| Споделено с компанията | `components/coach/Shared.tsx` | Какво точно и кога е изпратено. Одобрение или отказ на чернови. Ясен блок „Остава лично“. |
-| Гласът ми | `components/survey/MyVoice.tsx` | Активна анкета (обади се / откажи), кампании, в които е участвал (без отговорите, защото не са свързани с него), и **„Казахте → направихме“** за отдела му. |
-| Начало | `components/home/HomeOverview.tsx` (разширение) | Карта „Следващият ти разговор: четвъртък“, „Твоята стъпка тази седмица“, последно действие на компанията по обратната връзка. Тук продуктът показва, че служителят е важен. |
-| Настройки | `components/dashboard/OptionsDialog.tsx` (разширение) | Мениджър, прозорец за обаждания, изключване на follow-up и анкетни обаждания. |
+| `coach-tools` | Vapi (coach + pulse assistants) | 10 tools: `coach_recall`, `coach_save_goal`, `coach_save_note`, `coach_commit_step`, `coach_record_outcome`, `coach_propose_share`, `coach_decide_share`, `survey_get_questions`, `survey_submit`, `survey_decline`. User = authenticated caller number. |
+| `coach` | Signed-in browser user | `live_session` (Realtime token with coach/pulse instructions + tools; coach context preloaded), `live_tool`, `decide_share`, `call_me`, `followup_now` (demo: "a week passed"), `recommendations` (from the caller's own aggregates, via their JWT) |
+| `coach-worker` | pg_cron (opt-in) | Places due follow-up and pulse calls inside each employee's call window; retries once, then gives up; respects opt-outs |
 
-**За мениджмънта и HR** (един набор компоненти в `components/insights/`; обхватът идва от ролята)
-| Екран | Компонент | Съдържание |
+Shared code: `supabase/functions/_shared/coach/` (`store`, `service`, `analysis`, `prompts`, `insights`, `delivery`, `outbound`, `wiring`).
+
+### 3. Analysis
+- `analysis.ts`: OpenAI JSON-schema classification with enums (sentiment, concerns, strengths, attrition signals); anything outside the closed lists is dropped. Keyword fallback (EN/BG) if the model is unavailable.
+- Engagement index = 70% scores + 30% language, so "4 out of 5, said in exhausted words" lands lower than a plain 4. The UI shows both ("Scores say / Words say").
+- Suggested actions (`insights.ts`): a rules playbook picks the top concern per team (≥30% share, ranked by share, drop and attrition), and the LLM only rewrites the wording. Inputs are aggregates only.
+
+### 4. Prompts (`_shared/coach/prompts.ts`, the single source)
+- **Coach** (English): recall → open question → concrete situation → what was tried → **one** small step phrased by the employee → due date → summary → sharing only if wanted, with an explicit "your manager sees only this sentence". More questions than advice, short turns, crisis boundary.
+- **Pulse:** says it takes 2 minutes and is anonymous, asks the questions one at a time with one "why?", avoids identifying follow-ups, reads back numbers only, thanks and tells what the company already changed.
+- `NOVA_VOICE/scripts/setup-coach-vapi.ts` creates/updates both Vapi assistants and their tools from this file (also run by the **Setup Vapi** workflow).
+
+### 5. Frontend (`NOVA_FE`)
+| View | Who | Contents |
 |---|---|---|
-| Моят екип (`manager`) | `components/insights/TeamPulse.tsx` | Индекс и тренд на екипа, топ 3 теми, предложени теми за 1:1 (без имена), одобрени заявки на хората му, неговите действия. Въпрос в заглавието: „Какво мога да направя тази седмица?“ |
-| Организация (`leader`, `hr`) | `components/insights/OrgOverview.tsx` | KPI плочки (индекс, response rate, sentiment, риск), тренд по седмици, heatmap отдели × теми, топ рискове. |
-| Ефект от решенията (`leader`, `hr`) | `components/insights/ActionImpact.tsx` | Действия и промени с преди/след по свързаната тема: дали обучението, реорганизацията или новата политика действително са помогнали. |
-| Отдел | `components/insights/DepartmentDetail.tsx` | Тренд, топ теми, разминаване „оценка срещу език“, индикатор за риск от напускане (ниво екип) с причини. |
-| Препоръки и действия | `components/insights/Actions.tsx` | AI препоръки → „Създай действие“ → собственик, статус → „Публикувай на служителите“ (захранва „Казахте → направихме“). |
-| Кампании | `components/insights/Campaigns.tsx` | Създаване на engagement/pulse кампания: въпроси, аудитория, период, старт. |
-| Таланти (само със съгласие) | `components/insights/TalentRequests.tsx` | Одобрените `coach_shares` за екипа на мениджъра, напр. „Иска да поеме малък проект“, със статус на реакцията. |
+| Home card | everyone | "Your step this week" + next check-in, "Your voice is wanted" / latest "You said, we did" |
+| **My growth** | everyone | Talk in browser / Call me, next step (record outcome, demo "a week passed"), progress timeline, goals, shared with your company (approve/discard drafts, manager replies, "Stays private"), what NOVA remembers (delete), coach settings |
+| **My voice** | org members | Open check-in (answer in browser / call me), "You said, we did", how anonymity works |
+| **My team** | managers | KPI tiles, weekly trend, "Beyond the scores", top concerns, 1:1 questions, suggested actions, actions with before/after effect, requests from the team (reply: seen / will act / done), launch pulse |
+| **Insights** | leadership, HR | Department filter, KPI tiles, trend, concerns, heatmap departments × themes with risk, suggested actions, actions and effect, campaigns |
 
-- Групите под 5 души се показват като „Недостатъчно отговори за анонимност“, никога като празно или нулево.
-- Графиките следват общ стил: светла/тъмна тема, без библиотека, ако не е нужна (SVG). Ако добавяме библиотека, съгласуваме с Nick.
-- `npm run typecheck` + `npm run build` (static export за Firebase Hosting) трябва да минават.
+The app now defaults to English. Groups below the floor show "Fewer than 5 people answered. Hidden.", never zero.
 
-## Етапи
-| # | Етап | Резултат / проверка |
-|---|---|---|
-| 0 | Миграции (орг/роли, коуч, анкети, агрегатни RPC) + `db-contract.md` | `supabase db reset`. RLS тестове: служител A не вижда B; HR/мениджър/leader не виждат `coach_*`; мениджър получава само своя обхват; агрегат с 4 отговора връща празно, с 5 връща ред; `survey_responses` недостъпна от браузъра. |
-| 1 | `coach-tools` + `survey-tools` + `survey-analysis` с unit тестове | `deno task test/check/lint`; идемпотентност; share не се изпраща без одобрение; анализът връща само затворени списъци. |
-| 2 | Промптове coach + pulse | По 3 ръчни прогона на сценарий; бележки къде моделът съветва вместо да пита. |
-| 3 | Изходящи обаждания (follow-up + pulse) | Мок тест, после **реално** обаждане до тестов номер → статус в README. |
-| 4 | FE служител: Начало, Моят път, Споделено, Гласът ми | typecheck + build; ръчен прогон на сценария. |
-| 5 | FE мениджмънт/HR: Моят екип, Организация, Отдел, Действия, Ефект, Кампании + seed данни | Таблата показват тенденции от seed; k<5 се скрива; мениджър не вижда чужд екип; leader вижда само своето направление. |
-| 6 | Затваряне на цикъла: публикувано действие → служителят го вижда и AI го споменава в следващия разговор | Сценарий от край до край на живо. |
-| 7 | Демо репетиция | 2 пълни прогона; резервен вариант през Live talk. |
+## Verification done
+- `deno task test`: 75 unit tests (16 new for coach: tool auth, idempotency, consent sharing bound to the call, delivery lease, anonymous submit, analysis, call windows, worker retries/opt-outs, browser API).
+- `deno task test:db`: 8 PGlite tests (RLS, people-based floor, scopes, manager_support rule, campaigns/actions rules, leases, trend, impact).
+- `tests/integration/coach_flow.test.ts` against local Supabase (PostgREST + RLS + RPCs).
+- Local stack: migration applied, functions served, API exercised over HTTP, seed run, all four screens checked in a real browser.
+- `npm run typecheck` and `npm run build` (static export) pass.
 
-Минимум за сцената: 0, 1, 2, 4 и 5 + демо бутоните. Етап 3 (реални изходящи обаждания) е силен ефект, но има резервен вариант. Етап 6 е това, което показва „важен си“, затова е приоритет преди полиране.
+## Still open / not verified live
+- **Real outbound Vapi calls** (follow-up and pulse) and the deployed coach/pulse assistants: code and mocks only. Fallback for the demo: "Talk in browser".
+- **OpenAI classification and recommendation wording** live: verified with the keyword fallback and playbook only.
+- **Email to the manager** from Gmail: mocked; the in-app delivery works without it.
+- Deployment to the shared project happens when this branch is merged into `main` (CI applies the migration). The cron worker is enabled only by running `supabase/scripts/enable_coach_worker.sql`.
 
-## Рискове
-- **Изходящите обаждания не са проверени на живо.** Резервен вариант: SMS + служителят звъни сам.
-- **Доверие и анонимност.** Ако журито или служителите усетят наблюдение, идеята пада. Затова: k≥5, без дословни цитати, без индивидуален риск, екран „Остава лично“ и честна формулировка на анонимността.
-- **Малки отдели.** При реални малки екипи k≥5 скрива много. В seed данните използваме отдели от поне 8 души.
-- **Правни.** EU AI Act (забрана за емоции от глас на работното място; high-risk за решения относно служители), GDPR профилиране. Смекчаване: принципи 2–5.
-- **Качество на sentiment анализа на български.** Тестов набор от примерни отговори; затворени теми вместо свободна класификация.
-- **Качество на коучинга по телефона:** латентност, дълги реплики. Кратки реплики, ръчни прогони.
-- **FE е на друг човек.** Разбираме се с Nick за `DashView`, роли и стил преди етап 4.
+## Risks
+- **Outbound calls not verified live.** Fallback: browser session, or the employee calls in.
+- **Trust and anonymity.** If the jury or employees sense surveillance, the idea fails. Hence the people-based floor, no verbatim quotes, no individual risk, the "Stays private" box and the honest wording.
+- **Small departments.** The floor hides them (Marketing in the seed shows this on purpose).
+- **Legal.** EU AI Act (no emotion recognition from voice at work; high-risk for employment decisions), GDPR profiling. Mitigated by principles 2–5.
+- **Coaching quality by phone:** latency, long turns. Short turns in the prompt, manual test calls.
+- **FE ownership.** `NOVA_FE` belongs to Nick and Viktor: the changes are additive (new `components/coach/`, `app/coach.css`, `lib/coach-api.ts`) plus small edits to `AloApp`, `Dashboard`, `HomeOverview`, `LiveTalk`, `Icon`, `layout` and the default language. Review with them before merging.
 
-## Отворени въпроси
-1. Мениджърът получава ли истински имейл за `coach_shares`, или е достатъчен екранът „Таланти“?
-2. Индексът на ангажираност: собствен (оценка + sentiment) или стандартен модел (eNPS, Gallup Q12 подобни въпроси)? Предложение: eNPS въпрос + 3 собствени, защото е разпознаваемо за HR журито.
-3. Език на демото: български или английски?
-4. Кои роли показваме в демото (мениджър + ръководство, или и HR) и колко отдела/служители да има в seed данните?
-5. Ефектът от действията: достатъчно ли е преди/след, или ръководството ще иска сравнение с контролни екипи? За MVP предлагам преди/след с ясна бележка, че е корелация.
+## Open questions
+1. Engagement index: own index (scores + language) or a standard model? Current choice: pulse = 3 questions; engagement survey = eNPS + 3 scale questions + 1 open.
+2. Should action impact stay before/after (a correlation, labelled as such) or compare with control teams?
+3. Who plays which role in the demo? The seed needs four separate NOVA accounts (employee, manager, leader, optional HR).

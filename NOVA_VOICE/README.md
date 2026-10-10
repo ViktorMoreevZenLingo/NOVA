@@ -18,6 +18,64 @@ Latency findings and next steps: [Voice latency plan](../docs/VoiceLatencyPlan.m
 
 Full contract, permissions, recovery rules and deployment steps: [ManusIntegration](../docs/ManusIntegration.md).
 
+## NOVA Coach + employee voice
+
+A personal AI coach for employees by phone or browser, plus anonymous voice check-ins whose aggregates (≥5 people) go to managers, leadership and HR. Plan, principles and design: [docs/coach-mvp-plan.md](docs/coach-mvp-plan.md). Schema contract: [docs/db-contract.md](docs/db-contract.md#nova-coach--employee-voice).
+
+```
+employee ─phone─▶ Vapi "NOVA Coach"/"NOVA Pulse" ─tool-calls─▶ coach-tools ─┐
+employee ─browser─▶ coach (live_session/live_tool, OpenAI Realtime) ────────┤─▶ coach_* (private) / survey_responses (anonymous)
+pg_cron ─▶ coach-worker ─▶ Vapi POST /call (follow-ups, pulse) ──────────────┘
+manager / leader / HR ─browser─▶ insights_* RPCs (aggregates, ≥5 people) + coach.recommendations
+```
+
+| Piece | Where |
+|---|---|
+| Migration | `supabase/migrations/20261010190000_coach_and_employee_voice.sql` |
+| Functions | `coach-tools` (Vapi secret), `coach` (signed-in user), `coach-worker` (cron secret); shared code in `supabase/functions/_shared/coach/` |
+| Prompts + tool schemas (single source) | `supabase/functions/_shared/coach/prompts.ts` |
+| Vapi assistants | `vapi/{coach,pulse}-assistant.json` (model/voice) + `scripts/setup-coach-vapi.ts` |
+| Demo data | `scripts/seed-coach-demo.ts` |
+| Cron (opt-in) | `supabase/scripts/enable_coach_worker.sql` |
+| Frontend | `NOVA_FE/components/coach/`, `NOVA_FE/lib/coach-api.ts`, `NOVA_FE/app/coach.css` |
+| Tests | `tests/coach.test.ts`, `tests/db/coach_db_test.ts` (`deno task test:db`), `tests/integration/coach_flow.test.ts` |
+
+**Secrets / variables** (all optional; without the Vapi ones phone calls are reported as "not configured" and the browser session still works):
+
+| Name | Kind | Used for |
+|---|---|---|
+| `VAPI_API_KEY` | secret | outbound follow-up / pulse calls (already used by Setup Vapi) |
+| `VAPI_PHONE_NUMBER_ID` | variable | the number outbound calls come from |
+| `VAPI_COACH_ASSISTANT_ID`, `VAPI_PULSE_ASSISTANT_ID` | variables | printed by `setup-coach-vapi.ts` |
+| `VAPI_COACH_PHONE_NUMBER_ID` | variable | optional: a dedicated inbound number for the coach |
+| `OPENAI_ANALYSIS_MODEL` | variable | survey classification and suggestion wording (default `gpt-4o-mini`; uses `OPENAI_API_KEY`) |
+
+**Setup**
+1. Merge to `main`: CI applies the migration, runs `deno task test:db`, sets the secrets above and deploys the three functions.
+2. Run **Actions → Setup Vapi**; copy the printed assistant ids into the `VAPI_COACH_ASSISTANT_ID` / `VAPI_PULSE_ASSISTANT_ID` variables and redeploy.
+3. Seed the demo org (four existing NOVA accounts, one per role):
+   ```bash
+   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... DEMO_EMPLOYEE_PHONE=+3598... DEMO_MANAGER_PHONE=+3598... \
+   DEMO_LEADER_PHONE=+3598... DEMO_HR_PHONE=+3598... DEMO_COACH_HISTORY=1 \
+     deno run --allow-env --allow-net NOVA_VOICE/scripts/seed-coach-demo.ts
+   ```
+4. Only when real calls are wanted: run `supabase/scripts/enable_coach_worker.sql` in the SQL editor (stop with `select cron.unschedule('nova-coach-worker')`).
+
+**Demo runbook (≈4 min):** employee → *My voice* → "Answer in browser" (pulse) → *My growth* → "Talk in browser": goal, one step, "share with my manager?" → approve → manager → *My team*: trend dip, top concern "Growth", suggestion → create + publish action; the request appears under "Requests from your team" → reply "Will act" → employee: *My growth* shows the reply, *My voice* shows "You said, we did" → "Demo: a week passed" (phone) → leader → *Insights*: heatmap, Marketing hidden (<5 people), action effect before → after.
+
+| Check (10 October 2026) | Result |
+|---|---|
+| Unit tests (coach tools, consent sharing, anonymity, analysis, call windows, worker, browser API) | ✅ 16 new, 75 total passing |
+| Postgres rules in PGlite (RLS, people-based ≥5 floor, scopes, leases, trend, impact) | ✅ 8 passing (`deno task test:db`) |
+| Real Postgres via local Supabase (PostgREST, RLS, RPCs, store + tools) | ✅ `tests/integration/coach_flow.test.ts` |
+| Functions served locally; `coach` + `coach-tools` exercised over HTTP; seed run | ✅ |
+| FE: typecheck, static build, all coach screens in a browser with seeded data | ✅ |
+| Live OpenAI classification / suggestion wording | ⚠️ not run live; keyword fallback and playbook verified |
+| Browser voice session (OpenAI Realtime) with coach/pulse tools | ⚠️ not run live (needs `OPENAI_API_KEY`) |
+| Outbound Vapi follow-up / pulse calls, deployed coach/pulse assistants | ❌ mocks only |
+| Manager email from the employee's Gmail | ❌ mocks only; in-app delivery works |
+| Deployed to the shared project | ❌ not yet (branch `feat/coach-plan`) |
+
 ## Delegated runtime verification — 10 October 2026
 
 | Check | Result |
@@ -55,7 +113,7 @@ Legacy `agent_tasks`, webhook and reconcile remain available to finish/review wo
 - **One schema, one migration history** in `supabase/migrations`. The DB contract (who owns which table) is in [docs/db-contract.md](docs/db-contract.md).
 - **The phone assistant reuses NOVA AI's Gmail code** (`providers.ts`/`tools.ts`) instead of duplicating it.
 - Plan and history: [docs/implementation-plan.md](docs/implementation-plan.md).
-- Proposed next track (plan only, not implemented): [NOVA Coach MVP](docs/coach-mvp-plan.md), a phone coach for employees with consent-based sharing to their manager, plus anonymous voice engagement/pulse surveys, text sentiment and aggregated insights for managers, leadership and HR (k≥5).
+- NOVA Coach + employee voice (branch `feat/coach-plan`): [plan](docs/coach-mvp-plan.md) and [section above](#nova-coach--employee-voice).
 
 ## Legacy status (before delegated runtime rollout)
 

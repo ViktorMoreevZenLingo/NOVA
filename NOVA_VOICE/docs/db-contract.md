@@ -85,3 +85,23 @@ New voice requests use `alo_tasks`, not `agent_tasks`. The adapter preserves cal
 - Account deletion cascades task/step/event/delivery rows. Call links require the same account.
 
 All result/clarification/approval/cancellation stays in Alo. The frontend does not send users to Manus. See [the full API and rollout contract](../../docs/ManusIntegration.md).
+
+## NOVA Coach + employee voice
+
+Migration `20261010190000_coach_and_employee_voice.sql` (phone assistant owns all of it). Plan: [coach-mvp-plan.md](coach-mvp-plan.md).
+
+| Table / function | Browser (signed-in user) | Written by |
+|---|---|---|
+| `orgs`, `departments`, `org_members` (role `employee`/`manager`/`leader`/`hr`, `manager_user_id`) | none (own membership via `coach_my_membership()`) | service role / seed script |
+| `coach_profiles` (manager name/email, call hours, opt-outs) | read/insert/update own | the app |
+| `coach_goals`, `coach_notes` | own rows: read, insert, update (text/status columns), delete | the app, `coach-tools`, `coach` |
+| `coach_steps` | own rows; insert `goal_id,text,due_at`; update `text,due_at,status,outcome,reflection`; **no** access to `followup_*` | trigger `coach_steps_schedule` (due date → follow-up), `coach-worker` |
+| `coach_shares` | owner reads all of theirs; the recipient manager reads `approved`/`sent` only; reject via `coach_share_reject(id)`; approve via the `coach` function; manager replies via `coach_share_respond(id, status, note)`; `coach_team_requests()` adds the employee name | `coach-tools`, `coach` |
+| `survey_campaigns` | invited employees, and managers/leaders/HR of the org | `insights_launch_campaign`, `insights_close_campaign` |
+| `survey_invites` (whether, never what) | own rows | worker, `coach-tools` |
+| `survey_responses` (no `user_id`, `response_day` only, closed theme lists) | **none** | `survey_record_response` (service role, atomic with the invite) |
+| `action_items` ("You said, we did") | in-scope managers/leaders/HR; published ones for employees of that department chain | `insights_save_action` |
+| `insights_departments(days)`, `insights_trend(dept, weeks)`, `insights_action_impact(days)` | execute; scope from `insights_scope()` (manager: own department subtree; leader: org or own division; HR: org) | — |
+| `coach_claim_followups`, `survey_claim_invites`, `survey_record_response`, `survey_default_questions` | no execute | service role |
+
+**Anonymity floor:** any aggregate is returned only if the group has ≥5 members **and** at least one check-in in the period was answered by ≥5 people (`insights_min_group()`); otherwise metrics are `null` and `suppressed = true`. `manager_support` appears per department only after 2+ campaigns. Account deletion cascades `coach_*` and invites; anonymous responses stay.

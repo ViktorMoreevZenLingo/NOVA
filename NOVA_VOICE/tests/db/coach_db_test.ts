@@ -116,7 +116,11 @@ Deno.test("coach: only approved shares reach the manager; the employee sees the 
     (await rows<{ ok: boolean }>(db, "select coach_share_respond($1, 'planned', 'Let us talk Thursday') ok", [share.id]))[0].ok,
     true,
   );
+  const [req] = await rows<{ employee_name: string; text: string }>(db, "select * from coach_team_requests()");
+  assertEquals(req.text, "I would like to take on a small project");
+  assertEquals(req.employee_name, "A team member");
   await as(db, ENG_MANAGER);
+  assertEquals((await rows(db, "select * from coach_team_requests()")).length, 0);
   assertEquals((await rows(db, "select * from coach_shares")).length, 0, "another manager never sees it");
   await as(db, a);
   const [mine] = await rows<{ manager_status: string; manager_note: string }>(db, "select manager_status, manager_note from coach_shares");
@@ -174,6 +178,29 @@ Deno.test("surveys: responses are unreadable from the browser; aggregates need 5
   await as(db, SALES_PEOPLE[1]);
   assertEquals((await rows(db, "select * from insights_departments()")).length, 0, "employees get no aggregates");
   await assertRejects(() => db.query("select * from insights_trend($1)", [SALES]), Error, "not in scope");
+});
+
+Deno.test("surveys: the floor counts people, not answers (3 people answering weekly stay hidden)", async () => {
+  const db = await coachDatabase();
+  for (let week = 0; week < 3; week++) {
+    await as(db, HR);
+    const [{ cid }] = await rows<{ cid: string }>(db, "select insights_launch_campaign('pulse', $1, array[$2]::uuid[]) cid", [
+      `W${week}`,
+      ENG,
+    ]);
+    for (const u of ENG_PEOPLE) assert(await answer(db, cid, u, "{workload}"));
+  }
+  await as(db, HR);
+  const [eng] = await rows<{ responses: number; suppressed: boolean; concerns: unknown }>(
+    db,
+    "select responses, suppressed, concerns from insights_departments() where department_id = $1",
+    [ENG],
+  );
+  assertEquals(eng.responses, 9, "9 answers…");
+  assertEquals(eng.suppressed, true, "…from only 3 people");
+  assertEquals(eng.concerns, null);
+  const trend = await rows<{ suppressed: boolean }>(db, "select * from insights_trend($1)", [ENG]);
+  assert(trend.every((t) => t.suppressed));
 });
 
 Deno.test("surveys: manager_support appears only after two campaigns", async () => {
@@ -276,7 +303,7 @@ Deno.test("insights: weekly trend and before/after impact of an action", async (
   assertEquals(Number(impact.after_theme_share), 0.2);
 
   const trend = await rows<{ responses: number; suppressed: boolean }>(db, "select * from insights_trend($1, 12)", [SALES]);
-  assertEquals(trend.map((t) => t.responses), [5, 5]);
+  assertEquals(trend.map((t) => t.responses), [10], "one point per check-in, by its start week");
   assert(trend.every((t) => !t.suppressed));
   await as(db, ENG_MANAGER);
   assertEquals((await rows(db, "select * from insights_action_impact()")).length, 0, "other managers don't see Sales actions");

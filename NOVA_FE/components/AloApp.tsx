@@ -29,6 +29,11 @@ import {
   changeConnection,
 } from "@/lib/account-api";
 import { getSupabase } from "@/lib/supabase";
+import { loadMembership, type Membership } from "@/lib/coach-api";
+import { CoachHomeCard } from "@/components/coach/CoachHomeCard";
+import { MyGrowth } from "@/components/coach/MyGrowth";
+import { MyVoice } from "@/components/coach/MyVoice";
+import { Insights } from "@/components/coach/Insights";
 
 type View = "login" | "otp" | "profile-setup" | DashView;
 type Modal = "options" | "edit" | "delete" | { service: ServiceId } | null;
@@ -48,6 +53,7 @@ export function AloApp() {
   const [selected, setSelected] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [membership, setMembership] = useState<Membership | null>(null);
   const accountGeneration = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -61,6 +67,21 @@ export function AloApp() {
   );
 
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+  const notify = useCallback((message: string) => {
+    setToast(message);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  // NOVA Coach org role (employee / manager / leader / hr); null when not in an org.
+  useEffect(() => {
+    if (!phone) {
+      setMembership(null);
+      return;
+    }
+    loadMembership().then(setMembership).catch(() => setMembership(null));
+  }, [phone]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -287,6 +308,7 @@ export function AloApp() {
       <Dashboard
         view={view}
         firstName={firstName}
+        role={membership?.role ?? null}
         breadcrumbTitle={breadcrumbTitle}
         onNavigate={(v) => navigate(v)}
         onBackHistory={() => setSelected(null)}
@@ -305,8 +327,13 @@ export function AloApp() {
               window.scrollTo(0, 0);
             }}
             onOpenService={(id) => setModal({ service: id })}
+            coach={<CoachHomeCard membership={membership} onOpen={(v) => navigate(v)} />}
           />
         )}
+        {view === "growth" && <MyGrowth membership={membership} notify={notify} />}
+        {view === "voice" && <MyVoice membership={membership} notify={notify} />}
+        {view === "team" && membership && <Insights scope="team" membership={membership} notify={notify} />}
+        {view === "insights" && membership && <Insights scope="org" membership={membership} notify={notify} />}
         {view === "history" && (
           <History
             onTaskUpdated={() => { void refreshAccount().catch(() => setToast(l("Неуспешно обновяване.", "Could not refresh History."))); }}

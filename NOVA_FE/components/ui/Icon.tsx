@@ -35,6 +35,10 @@ const PATHS: Record<string, string> = {
     '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M16 9a3 3 0 0 1 0 6m3-9a7 7 0 0 1 0 12"/>',
   volumeOff: '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6m0-6 6 6"/>',
   audiolines: '<path d="M3 10v4m4.5-8v12m4.5-15v18m4.5-12v6M21 9v6"/>',
+  growth: '<path d="M4 19h16"/><path d="m5 15 5-5 4 3 5-6"/><path d="M15 7h4v4"/>',
+  voice: '<path d="M21 11a8 8 0 0 1-8 8H7l-4 3V11a9 9 0 0 1 18 0Z"/><path d="M12 14s-3-1.8-3-3.6A1.6 1.6 0 0 1 12 9.6a1.6 1.6 0 0 1 3 .8c0 1.8-3 3.6-3 3.6Z"/>',
+  team: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a6.5 6.5 0 0 1 13 0v1"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7m2.5 8.5v-1a6.5 6.5 0 0 0-3-5.5"/>',
+  insights: '<path d="M4 20V10m5.5 10V4m5.5 16v-7m5 7V8"/>',
 };
 
 export type IconName = keyof typeof PATHS;

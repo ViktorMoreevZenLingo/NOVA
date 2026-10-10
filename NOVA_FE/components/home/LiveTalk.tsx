@@ -23,11 +23,24 @@ const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const INACTIVITY_MS = 90_000; // auto-end an idle session to avoid wasted cost
 const ACTIVE_LEVEL = 0.02;
 
+interface LiveTalkProps {
+  onClose: () => void;
+  /** Session + tool endpoints; defaults to the Live talk assistant. NOVA Coach passes its own. */
+  getSession?: () => Promise<{ token: string; model: string }>;
+  runTool?: (name: string, args: unknown, callId: string) => Promise<string>;
+  /** Save turns to the shared chat (default). Coach and pulse sessions keep no transcript. */
+  persist?: boolean;
+  /** Spoken first, as soon as the connection opens. */
+  greeting?: string;
+  /** Who is speaking, for the status line. */
+  speaker?: string;
+}
+
 // OpenAI Realtime (gpt-realtime-mini) over WebRTC: the browser streams the mic
 // and plays the model's speech directly; server-side turn detection handles
 // listen/respond. We drive the orb/status from audio levels (robust to event
 // name changes) and auto-close on inactivity.
-export function LiveTalk({ onClose }: { onClose: () => void }) {
+export function LiveTalk({ onClose, getSession, runTool, persist = true, greeting, speaker }: LiveTalkProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
 
@@ -56,7 +69,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
   // appends don't race the agent lock.
   const saveTurn = (role: "user" | "alo", text: string) => {
     const clean = text.trim();
-    if (!clean) return;
+    if (!clean || !persist) return;
     debug("save turn", role, clean);
     appendQueueRef.current = appendQueueRef.current
       .then(() => appendChat([{ role, text: clean }]))
@@ -119,7 +132,9 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
       } catch {
         args = {};
       }
-      const result = await execRealtimeTool(call.name || "", args);
+      const result = runTool
+        ? await runTool(call.name || "", args, call.call_id || "")
+        : await execRealtimeTool(call.name || "", args);
       dcRef.current?.send(
         JSON.stringify({
           type: "conversation.item.create",
@@ -170,7 +185,7 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
     let cancelled = false;
     (async () => {
       try {
-        const { token, model } = await getRealtimeSession(lang);
+        const { token, model } = await (getSession ? getSession() : getRealtimeSession(lang));
         if (cancelled) return;
 
         const pc = new RTCPeerConnection();
@@ -216,7 +231,12 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
         // Data channel carries events — incl. the model's tool (function) calls.
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
-        dc.onopen = () => debug("datachannel open");
+        dc.onopen = () => {
+          debug("datachannel open");
+          if (greeting) {
+            dc.send(JSON.stringify({ type: "response.create", response: { instructions: `Say exactly this, warmly: "${greeting}"` } }));
+          }
+        };
         dc.onclose = () => debug("datachannel closed");
         dc.onerror = (e) => debug("datachannel error", e);
         dc.onmessage = (e) => handleEvent(e.data);
@@ -284,7 +304,9 @@ export function LiveTalk({ onClose }: { onClose: () => void }) {
       : muted
         ? l("Микрофонът е изключен", "Microphone off")
         : status === "speaking"
-          ? l("Ало говори…", "Alo is speaking…")
+          ? speaker
+            ? l(`${speaker} говори…`, `${speaker} is speaking…`)
+            : l("Ало говори…", "Alo is speaking…")
           : l("Слушам…", "Listening…");
 
   return (

@@ -6,11 +6,15 @@ import { Brand } from "@/components/ui/Brand";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-export type DashView = "dashboard" | "history" | "integrations";
+export type DashView = "dashboard" | "history" | "integrations" | "growth" | "voice" | "team" | "insights";
+
+const COACH_TITLES: Partial<Record<DashView, string>> = { growth: "My growth", voice: "My voice", team: "My team", insights: "Insights" };
 
 interface DashboardProps {
   view: DashView;
   firstName: string;
+  /** Org role from NOVA Coach; decides whether My voice / My team / Insights are shown. */
+  role?: string | null;
   breadcrumbTitle?: string | null;
   onNavigate: (view: DashView) => void;
   onBackHistory: () => void;
@@ -21,6 +25,7 @@ interface DashboardProps {
 export function Dashboard({
   view,
   firstName,
+  role,
   breadcrumbTitle,
   onNavigate,
   onBackHistory,
@@ -34,6 +39,10 @@ export function Dashboard({
     { id: "dashboard", icon: "home", label: l("Начало", "Home") },
     { id: "history", icon: "history", label: l("История", "History") },
     { id: "integrations", icon: "link", label: l("Интеграции", "Integrations") },
+    { id: "growth", icon: "growth", label: "My growth" },
+    ...(role ? [{ id: "voice" as const, icon: "voice", label: "My voice" }] : []),
+    ...(role === "manager" ? [{ id: "team" as const, icon: "team", label: "My team" }] : []),
+    ...(role === "leader" || role === "hr" ? [{ id: "insights" as const, icon: "insights", label: "Insights" }] : []),
   ];
 
   const greeting =
@@ -41,11 +50,11 @@ export function Dashboard({
       ? `${l("Здравей", "Hello")}${firstName ? `, ${firstName}` : ""}`
       : view === "history"
         ? l("История", "History")
-        : l("Интеграции", "Integrations");
+        : COACH_TITLES[view] ?? l("Интеграции", "Integrations");
 
   const hasBreadcrumb = view === "history" && !!breadcrumbTitle;
   const contentClass =
-    view === "history" ? "history-content" : view === "dashboard" ? "home-content" : "";
+    view === "history" ? "history-content" : view === "dashboard" ? "home-content" : view in COACH_TITLES ? "home-content coach-content" : "";
 
   // Back button: disabled on home, returns to the history index when viewing a
   // record, otherwise returns to home.

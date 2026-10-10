@@ -83,7 +83,7 @@ export function playbookRecommendations(rows: DepartmentInsight[], max = 5): Rec
     const p = PLAYBOOK[c.theme!];
     const why = [
       `${Math.round(c.share * 100)}% of answers raise ${c.theme!.replace("_", " ")}`,
-      c.drop > 0 ? `engagement down ${c.drop.toFixed(0)} points` : "",
+      c.drop >= 3 ? `engagement down ${c.drop.toFixed(0)} points` : "",
       (c.r.attrition_share ?? 0) >= 0.25 ? `${Math.round((c.r.attrition_share ?? 0) * 100)}% show attrition signals` : "",
     ].filter(Boolean).join(", ");
     out.push({ department_id: c.r.department_id, department: c.r.name, theme: c.theme!, title: p.title, detail: p.detail, why });

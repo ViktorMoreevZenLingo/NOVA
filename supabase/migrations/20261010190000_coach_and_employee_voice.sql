@@ -244,6 +244,19 @@ begin
   return found;
 end $$;
 
+/** Approved requests addressed to the caller, with the employee's name (they chose to share it). */
+create function public.coach_team_requests()
+returns table(id uuid, text text, status text, manager_status text, manager_note text, created_at timestamptz, employee_name text)
+language sql stable security definer set search_path = public, pg_temp as $$
+  select s.id, s.text, s.status, s.manager_status, s.manager_note, s.created_at,
+         coalesce(nullif(p.name, ''), m.display_name, 'A team member')
+    from coach_shares s
+    left join org_members m on m.user_id = s.user_id
+    left join profiles p on p.id = s.user_id
+   where s.recipient_user_id = (select auth.uid()) and s.status in ('approved','sent')
+   order by s.created_at desc
+$$;
+
 /** The owner rejects a draft from the app (approval goes through the coach function, which delivers it). */
 create function public.coach_share_reject(p_id uuid) returns boolean
 language plpgsql security definer set search_path = public, pg_temp as $$
@@ -389,7 +402,12 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------- insights (aggregates only)
-/** Per department in scope plus a scope-wide row (department_id null). Metrics are null when suppressed. */
+/**
+ * Per department in scope plus a scope-wide row (department_id null). A group is shown only when it
+ * has >= 5 members AND some check-in in the window got >= 5 answers (one answer per person per
+ * check-in, so that is >= 5 distinct people). Counting answers alone would let 4 people who answer
+ * weekly pass the floor. Metrics are null when suppressed.
+ */
 create function public.insights_departments(p_days int default 28)
 returns table(department_id uuid, name text, parent_id uuid, members int, responses int, suppressed boolean,
               engagement numeric, score_index numeric, sentiment numeric, enps int, attrition_share numeric,
@@ -417,6 +435,18 @@ language sql stable security definer set search_path = public, pg_temp as $$
            avg(engagement) filter (where not cur) prev_eng
       from base b group by grouping sets ((b.department_id), ())
   ),
+  -- Largest single check-in per group and period = a lower bound on distinct respondents.
+  peaks as (
+    select x.department_id, x.is_total, max(x.c) filter (where x.cur) peak, max(x.c) filter (where not x.cur) prev_peak
+      from (select b.department_id, grouping(b.department_id) = 1 is_total, b.campaign_id, b.cur, count(*) c
+              from base b group by grouping sets ((b.department_id, b.campaign_id, b.cur), (b.campaign_id, b.cur))) x
+     group by x.department_id, x.is_total
+  ),
+  headcount as (
+    select m.department_id, grouping(m.department_id) = 1 is_total, count(*) n
+      from org_members m where m.department_id in (select department_id from scope)
+     group by grouping sets ((m.department_id), ())
+  ),
   themes as (
     select t.department_id, grouping(t.department_id) = 1 is_total, t.kind, t.theme, count(*) c
       from (select b.department_id, 'concern' kind, x theme from base b, unnest(b.concerns) x where b.cur
@@ -440,90 +470,121 @@ language sql stable security definer set search_path = public, pg_temp as $$
   lines as (
     select d.id department_id, d.name, d.parent_id, false is_total from departments d where d.id in (select department_id from scope)
     union all select null, 'All', null, true where exists (select 1 from scope)
+  ),
+  joined as (
+    select rw.department_id, rw.name, rw.parent_id, rw.is_total, a.n, a.eng, a.si, a.sent, a.enps, a.attr, a.prev_eng,
+           coalesce(hc.n, 0) members_n, inv.total inv_total, inv.answered inv_answered,
+           coalesce(a.n, 0) >= (select k from k) and coalesce(hc.n, 0) >= (select k from k)
+             and coalesce(pk.peak, 0) >= (select k from k) ok,
+           coalesce(a.prev_n, 0) >= (select k from k) and coalesce(hc.n, 0) >= (select k from k)
+             and coalesce(pk.prev_peak, 0) >= (select k from k) prev_ok
+      from lines rw
+      left join agg a on a.is_total = rw.is_total and a.department_id is not distinct from rw.department_id
+      left join peaks pk on pk.is_total = rw.is_total and pk.department_id is not distinct from rw.department_id
+      left join headcount hc on hc.is_total = rw.is_total and hc.department_id is not distinct from rw.department_id
+      left join invites inv on (inv.department_id is null) = rw.is_total and inv.department_id is not distinct from rw.department_id
   )
-  select rw.department_id, rw.name, rw.parent_id,
-         (select count(*)::int from org_members m
-           where (rw.is_total and m.department_id in (select department_id from scope)) or m.department_id = rw.department_id),
-         coalesce(a.n, 0)::int,
-         coalesce(a.n, 0) < (select k from k),
-         case when a.n >= (select k from k) then round(a.eng, 1) end,
-         case when a.n >= (select k from k) then round(a.si, 1) end,
-         case when a.n >= (select k from k) then round(a.sent, 2) end,
-         case when a.n >= (select k from k) then a.enps end,
-         case when a.n >= (select k from k) then round(a.attr, 2) end,
-         case when a.n >= (select k from k) and a.prev_n >= (select k from k) then round(a.prev_eng, 1) end,
-         case when inv.total >= (select k from k) then round(inv.answered::numeric / inv.total, 2) end,
-         case when a.n >= (select k from k) then coalesce((
-           select jsonb_object_agg(t.theme, round(t.c::numeric / a.n, 2)) from themes t
-            where t.kind = 'concern' and t.is_total = rw.is_total and t.department_id is not distinct from rw.department_id
-              and (t.theme <> 'manager_support' or rw.is_total or coalesce(
-                    (select h.campaigns from history h where h.department_id = rw.department_id), 0) >= 2)), '{}') end,
-         case when a.n >= (select k from k) then coalesce((
-           select jsonb_object_agg(t.theme, round(t.c::numeric / a.n, 2)) from themes t
-            where t.kind = 'strength' and t.is_total = rw.is_total and t.department_id is not distinct from rw.department_id), '{}') end
-    from lines rw
-    left join agg a on a.is_total = rw.is_total and a.department_id is not distinct from rw.department_id
-    left join invites inv on (inv.department_id is null) = rw.is_total and inv.department_id is not distinct from rw.department_id
-   order by rw.is_total desc, rw.name
+  select j.department_id, j.name, j.parent_id, j.members_n::int, coalesce(j.n, 0)::int, not j.ok,
+         case when j.ok then round(j.eng, 1) end,
+         case when j.ok then round(j.si, 1) end,
+         case when j.ok then round(j.sent, 2) end,
+         case when j.ok then j.enps end,
+         case when j.ok then round(j.attr, 2) end,
+         case when j.ok and j.prev_ok then round(j.prev_eng, 1) end,
+         case when j.ok and j.inv_total >= (select k from k) then round(j.inv_answered::numeric / j.inv_total, 2) end,
+         case when j.ok then coalesce((
+           select jsonb_object_agg(t.theme, round(t.c::numeric / j.n, 2)) from themes t
+            where t.kind = 'concern' and t.is_total = j.is_total and t.department_id is not distinct from j.department_id
+              and (t.theme <> 'manager_support' or j.is_total or coalesce(
+                    (select h.campaigns from history h where h.department_id = j.department_id), 0) >= 2)), '{}') end,
+         case when j.ok then coalesce((
+           select jsonb_object_agg(t.theme, round(t.c::numeric / j.n, 2)) from themes t
+            where t.kind = 'strength' and t.is_total = j.is_total and t.department_id is not distinct from j.department_id), '{}') end
+    from joined j
+   order by j.is_total desc, j.name
 $$;
 
-/** Weekly trend for one department in scope, or the whole scope. */
+/** Weekly trend (by check-in start week) for one department in scope, or the whole scope. Same people-based floor as insights_departments. */
 create function public.insights_trend(p_department uuid default null, p_weeks int default 12)
 returns table(week date, responses int, suppressed boolean, engagement numeric, score_index numeric, sentiment numeric, attrition_share numeric)
 language plpgsql stable security definer set search_path = public, pg_temp as $$
-declare k int := insights_min_group();
+declare k int := insights_min_group(); headcount int;
 begin
   if p_department is not null and p_department not in (select department_id from insights_scope()) then
     raise exception 'department not in scope';
   end if;
+  select count(*) into headcount from org_members m
+   where m.department_id in (select department_id from insights_scope())
+     and (p_department is null or m.department_id = p_department);
   return query
-  with w as (
-    select date_trunc('week', r.response_day)::date wk, count(*) n, avg(r.engagement) eng, avg(r.score_index) si,
-           avg(r.sentiment) sent, avg((cardinality(r.attrition_signals) > 0)::int) attr
-      from survey_responses r
-     where r.department_id in (select department_id from insights_scope())
-       and (p_department is null or r.department_id = p_department)
-       and r.response_day > current_date - 7 * greatest(1, least(coalesce(p_weeks, 12), 52))
-     group by 1
+  -- One point per check-in week (by campaign start), so a check-in answered over a weekend stays one point.
+  with r as (
+    select date_trunc('week', c.starts_at)::date wk, x.* from survey_responses x join survey_campaigns c on c.id = x.campaign_id
+     where x.department_id in (select department_id from insights_scope())
+       and (p_department is null or x.department_id = p_department)
+       and x.response_day > current_date - 7 * greatest(1, least(coalesce(p_weeks, 12), 52))
+  ), peak as (
+    select c.wk, max(c.n) p from (select r.wk, r.campaign_id, count(*) n from r group by 1, 2) c group by 1
+  ), w as (
+    select r.wk, count(*) n, avg(r.engagement) eng, avg(r.score_index) si, avg(r.sentiment) sent,
+           avg((cardinality(r.attrition_signals) > 0)::int) attr
+      from r group by 1
   )
-  select wk, n::int, n < k,
-         case when n >= k then round(eng, 1) end, case when n >= k then round(si, 1) end,
-         case when n >= k then round(sent, 2) end, case when n >= k then round(attr, 2) end
-    from w order by wk;
+  select w.wk, w.n::int, not (w.n >= k and pk.p >= k and headcount >= k),
+         case when w.n >= k and pk.p >= k and headcount >= k then round(w.eng, 1) end,
+         case when w.n >= k and pk.p >= k and headcount >= k then round(w.si, 1) end,
+         case when w.n >= k and pk.p >= k and headcount >= k then round(w.sent, 2) end,
+         case when w.n >= k and pk.p >= k and headcount >= k then round(w.attr, 2) end
+    from w join peak pk on pk.wk = w.wk order by w.wk;
 end $$;
 
-/** Before/after for each action in scope: engagement and the action's theme share (k >= 5 on each side). */
+/** Before/after for each action in scope: engagement and the action's theme share, with the people-based floor on each side. */
 create function public.insights_action_impact(p_days int default 28)
 returns table(action_id uuid, before_responses int, after_responses int, before_engagement numeric, after_engagement numeric,
               before_theme_share numeric, after_theme_share numeric)
 language sql stable security definer set search_path = public, pg_temp as $$
   with scope as (select department_id from insights_scope()),
+  k as (select insights_min_group() k),
   acts as (
     select a.* from action_items a
      where a.department_id in (select department_id from scope)
-        or (a.department_id is null and exists (select 1 from org_members m where m.user_id = (select auth.uid())
-                                                  and m.org_id = a.org_id and m.role in ('leader','hr')))
+        or (a.department_id is null and coach_my_role(a.org_id) in ('leader','hr'))
   ),
   s as (
-    select a.id, r.response_day >= a.created_at::date is_after, r.engagement, (a.theme = any(r.concerns))::int has_theme
+    select a.id, r.campaign_id, r.response_day >= a.created_at::date is_after, r.engagement, (a.theme = any(r.concerns))::int has_theme
       from acts a join survey_responses r on r.org_id = a.org_id
        and r.department_id in (select department_id from scope)
        and (a.department_id is null or r.department_id = a.department_id)
        and r.response_day between a.created_at::date - greatest(1, least(coalesce(p_days, 28), 180))
                               and a.created_at::date + greatest(1, least(coalesce(p_days, 28), 180))
   ),
+  peaks as (
+    select id, max(n) filter (where not is_after) bp, max(n) filter (where is_after) ap
+      from (select id, campaign_id, is_after, count(*) n from s group by 1, 2, 3) c group by id
+  ),
+  headcount as (
+    select a.id, (select count(*) from org_members m where m.department_id in (select department_id from scope)
+                    and (a.department_id is null or m.department_id = a.department_id)) n
+      from acts a
+  ),
   g as (
     select id, count(*) filter (where not is_after) bn, count(*) filter (where is_after) an,
            avg(engagement) filter (where not is_after) be, avg(engagement) filter (where is_after) ae,
            avg(has_theme) filter (where not is_after) bt, avg(has_theme) filter (where is_after) att
       from s group by id
+  ),
+  j as (
+    select a.id, a.theme, g.bn, g.an, g.be, g.ae, g.bt, g.att,
+           coalesce(g.bn, 0) >= (select k from k) and coalesce(p.bp, 0) >= (select k from k) and h.n >= (select k from k) b_ok,
+           coalesce(g.an, 0) >= (select k from k) and coalesce(p.ap, 0) >= (select k from k) and h.n >= (select k from k) a_ok
+      from acts a left join g on g.id = a.id left join peaks p on p.id = a.id join headcount h on h.id = a.id
   )
-  select a.id, coalesce(g.bn, 0)::int, coalesce(g.an, 0)::int,
-         case when g.bn >= insights_min_group() then round(g.be, 1) end,
-         case when g.an >= insights_min_group() then round(g.ae, 1) end,
-         case when g.bn >= insights_min_group() and a.theme is not null then round(g.bt, 2) end,
-         case when g.an >= insights_min_group() and a.theme is not null then round(g.att, 2) end
-    from acts a left join g on g.id = a.id
+  select j.id, coalesce(j.bn, 0)::int, coalesce(j.an, 0)::int,
+         case when j.b_ok then round(j.be, 1) end,
+         case when j.a_ok then round(j.ae, 1) end,
+         case when j.b_ok and j.theme is not null then round(j.bt, 2) end,
+         case when j.a_ok and j.theme is not null then round(j.att, 2) end
+    from j
 $$;
 
 /** Launches a campaign for the caller's scope and invites the audience. Managers: pulse for their own subtree only. */
@@ -618,7 +679,7 @@ $$;
 
 -- ---------------------------------------------------------------- function grants
 revoke all on function public.insights_scope(), public.coach_my_departments(), public.coach_my_membership(), public.coach_my_role(uuid),
-  public.coach_share_respond(uuid, text, text), public.coach_share_reject(uuid),
+  public.coach_share_respond(uuid, text, text), public.coach_share_reject(uuid), public.coach_team_requests(),
   public.survey_default_questions(text),
   public.survey_record_response(uuid, uuid, jsonb, numeric, smallint, numeric, numeric, text[], text[], text[]),
   public.insights_departments(int), public.insights_trend(uuid, int), public.insights_action_impact(int),
@@ -627,7 +688,7 @@ revoke all on function public.insights_scope(), public.coach_my_departments(), p
   public.coach_claim_followups(int, uuid), public.survey_claim_invites(int)
   from public, anon, authenticated;
 grant execute on function public.insights_scope(), public.coach_my_departments(), public.coach_my_membership(), public.coach_my_role(uuid),
-  public.coach_share_respond(uuid, text, text), public.coach_share_reject(uuid),
+  public.coach_share_respond(uuid, text, text), public.coach_share_reject(uuid), public.coach_team_requests(),
   public.insights_departments(int), public.insights_trend(uuid, int), public.insights_action_impact(int),
   public.insights_launch_campaign(text, text, uuid[], int), public.insights_close_campaign(uuid),
   public.insights_save_action(uuid, uuid, uuid, text, text, text, text, boolean)

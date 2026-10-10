@@ -157,5 +157,5 @@ const en: Dictionary = {
 
 export const dictionaries: Record<Lang, Dictionary> = { bg, en };
 
-export const DEFAULT_LANG: Lang = "bg";
+export const DEFAULT_LANG: Lang = "en";
 export const LANG_STORAGE_KEY = "alo.lang";
