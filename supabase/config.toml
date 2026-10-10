@@ -176,7 +176,7 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
-enable_anonymous_sign_ins = false
+enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
 # Passwords shorter than this value will be rejected as weak. Minimum 6, recommended 8 or more.
@@ -256,8 +256,8 @@ otp_expiry = 3600
 # content_path = "./supabase/templates/password_changed_notification.html"
 
 [auth.sms]
-# Allow/disallow new user signups via SMS to your project.
-enable_signup = true
+# Phone verification is paused during the prototype.
+enable_signup = false
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = true
 # Template for sending OTP to users
@@ -266,7 +266,7 @@ template = "Your code is {{ .Code }}"
 max_frequency = "60s"
 
 [auth.hook.send_sms]
-enabled = true
+enabled = false
 uri = "http://host.docker.internal:54321/functions/v1/send-sms"
 secrets = "env(SEND_SMS_HOOK_SECRET)"
 

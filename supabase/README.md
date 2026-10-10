@@ -39,7 +39,16 @@ expiring, single-use state and PKCE verifier from an authenticated initiation.
 
 ## Provider setup
 
-**Phone Auth:** Zadarma delivers Supabase-generated OTPs through the `send-sms`
+**Current signup:** phone verification and the SMS hook are disabled. The frontend
+creates a Supabase anonymous user with an unverified contact number in metadata.
+Its session persists in the browser; profile, integrations, and history are scoped
+to its user ID by the existing RLS policies. A number is never used to look up or
+authorize an account. Reloads retain the account; signing out, clearing browser
+data, or switching devices loses access until verified account recovery is added.
+The server validates the live session for every privileged action, accepting
+anonymous users as well as existing verified phone users.
+
+**Paused SMS implementation:** Zadarma delivers Supabase-generated OTPs through the `send-sms`
 Edge Function. Deploy it with `supabase functions deploy send-sms --use-api`.
 Set `ZADARMA_API_KEY`, `ZADARMA_API_SECRET`, and `SEND_SMS_HOOK_SECRET` as server
 secrets. Configure the Send SMS Auth Hook at

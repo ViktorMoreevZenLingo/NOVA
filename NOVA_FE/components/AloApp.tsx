@@ -20,8 +20,7 @@ import type { ServiceId } from "@/lib/services";
 import type { HistoryRecord } from "@/lib/history-data";
 import {
   loadAccount,
-  requestOtp,
-  verifyOtp,
+  startAccount,
   updateProfile,
   signOut,
   deleteAccount,
@@ -211,18 +210,12 @@ export function AloApp() {
     return (
       <>
         <Auth
-          view={view}
           mode={mode}
           setMode={setMode}
           phone={phone}
           setPhone={setPhone}
           onPhoneSubmit={async (number) => {
-            await requestOtp(number, mode === "signup");
-            navigate("otp");
-          }}
-          onBack={() => navigate("login")}
-          onVerified={async (token) => {
-            await verifyOtp(phone, token);
+            await startAccount(number);
             await refreshAccount();
           }}
         />
