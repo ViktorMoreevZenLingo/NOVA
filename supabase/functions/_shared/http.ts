@@ -10,12 +10,14 @@ export function admin() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
+// Requests are authenticated by a per-user bearer token + apikey (no cookies),
+// so reflecting any origin is safe and lets both the hosted site and local dev
+// call the functions.
 export const cors = () => ({
-  "Access-Control-Allow-Origin": env("APP_URL"),
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, apikey, content-type, x-client-info",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Vary": "Origin",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 });
 export function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: cors() });
