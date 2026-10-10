@@ -33,7 +33,7 @@
         },
         "days_ahead": {
           "type": "number",
-          "description": "calendar: how many days ahead to look (default 14)."
+          "description": "calendar: rolling days from now (default 7), only when the caller asks for a rolling period. For next week or specific dates use from/to."
         },
         "to": {
           "type": "string",
@@ -94,6 +94,14 @@
             ]
           },
           "description": "Only channels explicitly requested. Email means the connected Gmail account itself. History is always included."
+        },
+        "from": {
+          "type": "string",
+          "description": "calendar: first local date, YYYY-MM-DD. Next week means next Monday through Sunday in Europe/Sofia."
+        },
+        "to_date": {
+          "type": "string",
+          "description": "calendar: last local date, YYYY-MM-DD, inclusive. Use to_date, not the email-recipient to field."
         }
       },
       "required": [

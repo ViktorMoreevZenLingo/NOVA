@@ -19,6 +19,7 @@ export type State = {
   consumed_event?: string;
   required_tools?: string[];
   direct?: boolean;
+  initial_read?: { tool: string; args: Args };
 };
 export type Task = {
   id: string;

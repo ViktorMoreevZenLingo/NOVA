@@ -1,4 +1,5 @@
 import { HttpError } from "../http.ts";
+import { queryLimit } from "../query-limits.ts";
 import type { Args, Decision, Grant } from "./contracts.ts";
 export const SERVICES: Record<string, string> = {
   list_recent_emails: "gmail",
@@ -74,7 +75,7 @@ export function validateArgs(tool: string, value: unknown): Args {
   }
   for (const [k, v] of Object.entries(a)) {
     if (["max", "hours", "days_ahead"].includes(k)) {
-      const cap = k === "hours" ? 720 : k === "days_ahead" ? 365 : 25;
+      const cap = queryLimit(tool, k);
       if (!Number.isInteger(v) || Number(v) < 1 || Number(v) > cap) {
         throw new HttpError(400, "Invalid query limit.");
       }
@@ -212,6 +213,15 @@ export function validateSubmission(input: unknown, now = Date.now()) {
   ) {
     throw new HttpError(400, "Invalid required actions.");
   }
+  let initial_read;
+  if (d.initial_read !== undefined) {
+    const read = object(d.initial_read);
+    const tool = text(read.tool, 80);
+    if (WRITES.has(tool)) {
+      throw new HttpError(400, "Initial context must be a read.");
+    }
+    initial_read = { tool, args: validateArgs(tool, read.args) };
+  }
   let prepared_action;
   if (d.prepared_action !== undefined) {
     const action = object(d.prepared_action);
@@ -223,6 +233,7 @@ export function validateSubmission(input: unknown, now = Date.now()) {
   }
   return {
     ...(prepared_action ? { prepared_action } : {}),
+    ...(initial_read ? { initial_read } : {}),
     ...(required.length ? { required_tools: required } : {}),
     request_id: text(d.request_id, 160),
     instruction: text(d.instruction),

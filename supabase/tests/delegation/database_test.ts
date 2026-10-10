@@ -43,6 +43,14 @@ export async function database() {
       ),
     ),
   );
+  await db.exec(
+    await Deno.readTextFile(
+      new URL(
+        "../../migrations/20261010122000_task_initial_context.sql",
+        import.meta.url,
+      ),
+    ),
+  );
   return db;
 }
 export function submission(overrides: Record<string, unknown> = {}) {
@@ -66,9 +74,16 @@ export async function submit(db: PGlite, user = A, data = submission()) {
 Deno.test("database: isolation, after-call race, idempotency, schedule, leases and cancellation", async () => {
   const db = await database();
   try {
-    const data = submission({ required_tools: ["send_email"] });
+    const data = submission({
+      required_tools: ["send_email"],
+      initial_read: {
+        tool: "list_calendar_events",
+        args: { from: "2026-10-12", to: "2026-10-18", max: 25 },
+      },
+    });
     const first = await submit(db, A, data);
     assertEquals(first.state.required_tools, ["send_email"]);
+    assertEquals(first.state.initial_read.tool, "list_calendar_events");
     assertEquals((await submit(db, A, data)).id, first.id);
     await assertRejects(() =>
       submit(db, A, { ...data, request_hash: "changed" })
