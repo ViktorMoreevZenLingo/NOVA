@@ -1,95 +1,50 @@
-# Ало (Alo) — frontend
+# Alo — Supabase branch
 
-Frontend for the **Ало** voice assistant. Next.js (App Router) + TypeScript,
-used as a pure frontend: all backend logic lives in a separate Spring Boot
-service. There are **no Next.js API routes or server actions** here — the browser
-calls relative `/api/*` paths that are proxied to the backend.
+The React frontend in `NOVA_FE` uses Supabase Auth, Postgres and Edge Functions.
+`NOVA_BE` is retained as a reference; this branch no longer calls Spring.
+`Design` remains the original visual prototype.
 
-This is a hackathon build: **functionality only, no design**. Markup is plain
-and semantic; styling is intentionally left to browser defaults so the real
-design can be applied later. All logic lives in hooks and modules under `lib/`
-and `hooks/`, not in JSX.
+## Run
 
-## Structure
-
-```
-app/
-  layout.tsx          # wraps everything in the i18n provider
-  page.tsx            # "/"      login / registration
-  home/page.tsx       # "/home"  connected services
-components/
-  LanguageSwitcher.tsx
-  auth/AuthForm.tsx
-  home/HomeView.tsx, Sidebar.tsx, ProfileRow.tsx, ServiceRow.tsx
-hooks/
-  useAuthForm.ts      # login/register form logic
-  useHome.ts          # /home data + actions
-lib/
-  api.ts              # all API calls (real + mock), typed
-  i18n.ts             # BG/EN dictionary
-  i18n-context.tsx    # language context + localStorage persistence
-  phone.ts            # Bulgarian phone validation/normalization
-```
-
-## Install
-
-```bash
-npm install
-```
-
-## Run — mock mode (no backend)
-
-`NEXT_PUBLIC_MOCK=1` makes `lib/api.ts` use an in-memory mock persisted in
-`localStorage`, so the full flow works before the backend exists:
-
-- any 9-digit number can register;
-- login returns 404 for unknown numbers;
-- **Свържи** marks a Google service connected immediately (no real OAuth).
-
-```bash
-cp .env.example .env.local   # already contains NEXT_PUBLIC_MOCK=1
+```sh
+npm ci
+cp .env.example .env.local
+# Add the project's publishable key (never a service-role key).
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. Authentication requires Supabase Phone Auth with a
+configured SMS provider. There is no fixed code or fallback simulated login.
+For development, use Supabase's configured test phone/OTP pairs rather than
+sending real SMS. Existing browser-only profiles are not silently uploaded.
 
-To reset mock data, clear the site's `localStorage` (key `alo.mock.v1`).
+## Backend deployment
 
-## Run — against the backend on :8080
+See `../supabase/README.md` for migration, secrets, provider callbacks and tests.
+The frontend uses `lib/account-api.ts` for auth/profile/history/connections and
+`lib/agent-api.ts` for assistant requests. Secrets stay in Edge Functions.
 
-Make sure `NEXT_PUBLIC_MOCK` is **not** `1` (edit or remove `.env.local`), then:
+The client restores sessions and loads only rows permitted by RLS. Profiles
+(including small avatar data URLs) persist in Postgres. Connections are set by
+verified provider callbacks. History has no fabricated records: it reads the
+`activity` table. A trusted telephony worker can write call/SMS transcripts to
+that table; Vapi webhooks are not part of this migration.
 
-```bash
-npm run dev
+Google services use separate incremental consent flows. Outlook uses Microsoft
+consent. Places uses Alo's server API key and does not require Google user OAuth.
+The assistant supports Google email/calendar/contacts, read-only Outlook, and
+Places searches. Email sends/calendar creation require explicit approval tied
+to a server-stored action ID. Ambiguous external-write failures are not retried.
+
+## Checks
+
+```sh
+npm run typecheck
+npm run build
+npm audit
 ```
 
-`next.config.mjs` rewrites `/api/*` → `http://localhost:8080/api/*`, so start
-the Spring Boot backend on port 8080 first. Session is cookie-based; requests
-are sent with `credentials: "include"`.
-
-## Run behind ngrok
-
-```bash
-npm run dev
-ngrok http 3000
-```
-
-`allowedDevOrigins` in `next.config.mjs` already lists common ngrok wildcard
-hosts. If your tunnel host is rejected, add it explicitly, e.g.:
-
-```js
-allowedDevOrigins: ["your-subdomain.ngrok-free.app"],
-```
-
-The browser still calls `/api/*` on the same origin, so Google OAuth redirects
-back to `/home?connected=…` work through the tunnel as long as the backend's
-redirect URIs point at the tunnel URL.
-
-## Notes
-
-- UI language: Bulgarian by default, BG/EN switcher (top-right on `/home`).
-  Choice is stored in `localStorage` (`alo.lang`).
-- Phone input shows a fixed `BG +359` prefix; the rest is validated to 9 digits
-  (a leading `0` is dropped) and sent as `+359XXXXXXXXX`.
-- No SMS verification; the backend sets a session cookie on success.
-```
+Next 15's webpack module concatenation hits `matchModuleReference` JSON parsing
+with the current Supabase ESM build; concatenation is disabled in
+`next.config.mjs`. Tree shaking remains enabled. PostCSS is pinned by an override
+to its patched version without changing the Next framework version.

@@ -10,15 +10,25 @@ interface EditProfileDialogProps {
   profile: Profile;
   phone: string;
   onClose: () => void;
-  onSave: (profile: Profile) => void;
+  onSave: (profile: Profile) => Promise<void>;
 }
 
-export function EditProfileDialog({ profile, phone, onClose, onSave }: EditProfileDialogProps) {
+export function EditProfileDialog({
+  profile,
+  phone,
+  onClose,
+  onSave,
+}: EditProfileDialogProps) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   return (
     <Modal title={l("Профил", "Profile")} onClose={onClose}>
-      <ProfileForm profile={profile} submitLabel={l("Запази", "Save")} phone={formatPhone(phone)} onSave={onSave} />
+      <ProfileForm
+        profile={profile}
+        submitLabel={l("Запази", "Save")}
+        phone={formatPhone(phone)}
+        onSave={onSave}
+      />
     </Modal>
   );
 }
