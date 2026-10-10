@@ -11,8 +11,12 @@ import {
 // - JSON body { text, lang }           → audio/mpeg (TTS)
 // - raw audio body (?lang=bg|en)       → { text }   (STT)
 const STT_MODEL = Deno.env.get("OPENAI_STT_MODEL") || "whisper-1";
-const TTS_MODEL = Deno.env.get("OPENAI_TTS_MODEL") || "tts-1";
-const TTS_VOICE = Deno.env.get("OPENAI_TTS_VOICE") || "alloy";
+const TTS_MODEL = Deno.env.get("OPENAI_TTS_MODEL") || "gpt-4o-mini-tts";
+const TTS_VOICE = Deno.env.get("OPENAI_TTS_VOICE") || "coral";
+const TTS_INSTRUCTIONS = Deno.env.get("OPENAI_TTS_INSTRUCTIONS") ||
+  "Speak in a warm, friendly and natural conversational tone, like a helpful " +
+    "personal phone assistant. Clear pronunciation, calm and pleasant pace. " +
+    "Match the language of the text (Bulgarian or English).";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors() });
@@ -38,6 +42,10 @@ Deno.serve(async (req) => {
           voice: TTS_VOICE,
           input: text,
           response_format: "mp3",
+          // Steerable style; supported by gpt-4o(-mini)-tts, ignored otherwise.
+          ...(TTS_MODEL.startsWith("gpt-4o") && TTS_INSTRUCTIONS
+            ? { instructions: TTS_INSTRUCTIONS }
+            : {}),
         }),
         signal: AbortSignal.timeout(30000),
       });
