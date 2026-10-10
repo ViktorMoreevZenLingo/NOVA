@@ -1,0 +1,26 @@
+# NOVA / Alo — notes for Claude Code
+
+- Monorepo:
+  - `NOVA_FE/` is the Alo web app (Next.js; Nick/Viktor).
+  - `supabase/` is the shared Supabase backend.
+  - `Design/` is the visual prototype.
+  - `NOVA_BE/` is the legacy Spring reference.
+  - `NOVA_VOICE/` is the phone assistant (Vapi → Manus), our part: tests, scripts, Vapi configs, docs. Its Edge Functions live in `supabase/functions` because Supabase deploys from there.
+- Plan: `NOVA_VOICE/docs/implementation-plan.md`.
+- **Keep `NOVA_VOICE/README.md` up to date** with every meaningful change (functions, secrets, migrations, setup steps, the "mocked vs verified" table). The root `README.md` is a short folder index.
+- Ownership:
+  - **Alo (Nick):** `supabase/functions/{integrations,agent,account-delete}`, `_shared/{http,providers,tools}.ts`, `supabase/README.md`, `supabase/tests/`, `NOVA_FE/`. Don't edit or reformat these unless asked. Reuse them: Gmail access goes through `providers.ts`/`tools.ts`.
+  - **Phone assistant:** everything else under `supabase/functions`, plus `NOVA_VOICE/` and `.github/`.
+  - **Schema:**
+    - One migration history in `supabase/migrations`, applied by `supabase db push` in CI. Always add a new migration, never edit an applied one.
+    - Update `NOVA_VOICE/docs/db-contract.md` with every schema change.
+    - Alo owns `profiles`, `connections`, `activity`, `provider_tokens`, `oauth_states`, `agent_state`. We own `agent_tasks`, `call_sessions` and the `nova_*`/notification functions.
+- Patterns:
+  - Each of our functions has `handler.ts` (pure, dependency-injected, tested) and `index.ts` (wires env + real clients).
+  - DB status changes go through `store.transition(id, fromStatuses, patch)`. Never update a status unconditionally.
+  - User-visible history comes from the `agent_tasks` → `activity` trigger. Email only goes out via `notifyTask` (lease → send → mark).
+  - Callers are identified by their confirmed `auth.users.phone` plus PIN. Never send anything to recipients chosen by the LLM.
+  - Vapi responses are always HTTP 200 `{results:[{toolCallId, result|error}]}`.
+  - Logs go through `_shared/log.ts`. Never log PINs, secrets, prompts or results.
+- Verify from `NOVA_VOICE/`: `deno task test`, `deno task check`, `deno task lint`. Then `supabase start` (from the repo root) and run `deno task test:integration` plus both `NOVA_VOICE/tests/sql/rls.sql` and `supabase/tests/rls.sql`.
+- Before calling something "verified" against Manus/Vapi/Gmail, run it for real and update the status table in `NOVA_VOICE/README.md`.

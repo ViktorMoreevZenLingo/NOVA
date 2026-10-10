@@ -1,0 +1,36 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "decide_action",
+    "description": "Approve or cancel an action waiting for the caller's approval (a dictated email/event, or a reply draft). Call it WITHOUT decision to get the exact text to read back to the caller (PIN and verification question are asked first if needed). After reading it back word for word, call it again with decision approve only if the caller clearly says yes, or reject.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approve",
+            "reject"
+          ],
+          "description": "Only after reading the action back on this call."
+        },
+        "pin": {
+          "type": "string",
+          "description": "The caller's 6-digit PIN, digits only, if not given yet on this call."
+        },
+        "verification_answer": {
+          "type": "string",
+          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
+        }
+      }
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "timeoutSeconds": 30,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
+  }
+}
