@@ -459,3 +459,11 @@ verify_jwt = false
 
 [functions.account-session]
 verify_jwt = false
+
+# NOVA Coach + employee voice: Vapi secret, signed-in user, or cron secret.
+[functions.coach-tools]
+verify_jwt = false
+[functions.coach]
+verify_jwt = false
+[functions.coach-worker]
+verify_jwt = false

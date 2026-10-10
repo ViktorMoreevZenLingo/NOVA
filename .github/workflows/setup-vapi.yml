@@ -22,3 +22,10 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           VAPI_PHONE_NUMBER_ID: ${{ vars.VAPI_PHONE_NUMBER_ID }}
         run: deno run --allow-env --allow-read --allow-net=api.vapi.ai NOVA_VOICE/scripts/setup-vapi.ts
+      - name: Create or update the NOVA Coach and NOVA Pulse assistants
+        env:
+          VAPI_API_KEY: ${{ secrets.VAPI_API_KEY }}
+          VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          VAPI_COACH_PHONE_NUMBER_ID: ${{ vars.VAPI_COACH_PHONE_NUMBER_ID }}
+        run: deno run --allow-env --allow-read --allow-net=api.vapi.ai NOVA_VOICE/scripts/setup-coach-vapi.ts

@@ -28,6 +28,10 @@ jobs:
         working-directory: NOVA_VOICE
         run: deno task test
 
+      - name: Database tests (coach + employee voice, PGlite)
+        working-directory: NOVA_VOICE
+        run: deno task test:db
+
       - name: Unit tests (delegated tasks)
         run: deno test --allow-read --allow-env --allow-sys --config supabase/functions/deno.json supabase/tests/delegation
 
@@ -62,6 +66,12 @@ jobs:
           MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          # NOVA Coach outbound calls (optional: without them the worker leaves calls scheduled)
+          VAPI_API_KEY: ${{ secrets.VAPI_API_KEY }}
+          VAPI_PHONE_NUMBER_ID: ${{ vars.VAPI_PHONE_NUMBER_ID }}
+          VAPI_COACH_ASSISTANT_ID: ${{ vars.VAPI_COACH_ASSISTANT_ID }}
+          VAPI_PULSE_ASSISTANT_ID: ${{ vars.VAPI_PULSE_ASSISTANT_ID }}
+          OPENAI_ANALYSIS_MODEL: ${{ vars.OPENAI_ANALYSIS_MODEL }}
         run: |
           set -euo pipefail
           project_url="https://${PROJECT_REF}.supabase.co"
@@ -76,7 +86,8 @@ jobs:
             echo "CRON_SECRET=${cron_secret}"
             for name in MANUS_API_KEY VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE \
                         APP_URL OPENAI_API_KEY OPENAI_MODEL APP_TIMEZONE GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET \
-                        MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET GOOGLE_PLACES_API_KEY; do
+                        MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET GOOGLE_PLACES_API_KEY \
+                        VAPI_API_KEY VAPI_PHONE_NUMBER_ID VAPI_COACH_ASSISTANT_ID VAPI_PULSE_ASSISTANT_ID OPENAI_ANALYSIS_MODEL; do
               value="${!name:-}"
               if [ -n "$value" ]; then echo "${name}=${value}"; else echo "::notice::${name} not in GitHub; keeping the value in Supabase (if any)" >&2; fi
             done
@@ -107,7 +118,7 @@ jobs:
         run: |
           # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
           base="https://${PROJECT_REF}.supabase.co/functions/v1"
-          for fn in voice-tools create-task get-task-status reconcile manus-webhook voice-approve agent integrations account-delete; do
+          for fn in voice-tools create-task get-task-status reconcile manus-webhook voice-approve agent integrations account-delete coach coach-tools coach-worker; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
             echo "$fn -> $code"
           done

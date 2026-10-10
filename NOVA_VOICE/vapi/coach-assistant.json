@@ -1,0 +1,13 @@
+{
+  "name": "NOVA Coach",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-4o",
+    "temperature": 0.5,
+    "tools": [{ "type": "endCall" }]
+  },
+  "transcriber": { "provider": "deepgram", "model": "nova-2", "language": "en" },
+  "voice": { "provider": "openai", "voiceId": "alloy" },
+  "maxDurationSeconds": 1200,
+  "endCallMessage": "Thank you. Talk soon."
+}
