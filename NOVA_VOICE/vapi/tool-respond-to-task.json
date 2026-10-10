@@ -1,0 +1,30 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "respond_to_task",
+    "description": "Answer a clarification for a saved task. This never authorizes a new recipient or action.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "answer"
+      ]
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "timeoutSeconds": 30,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
+  }
+}

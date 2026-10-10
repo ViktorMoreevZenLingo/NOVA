@@ -3,7 +3,7 @@
   "async": false,
   "function": {
     "name": "create_task",
-    "description": "Delegate a task to the cloud agent. Reads (research, email summaries, calendar) run after the call. Anything that sends or changes data (reply_email, send_email, create_calendar_event) needs the caller's verification question and their explicit approval after you read it back; nothing is sent before that. Results appear in the Alo app's History.",
+    "description": "Save a delegated cloud task: now, after this call ends, or once at an explicit date/time. Services are connected in Alo. Writes need exact-action approval. Results are in History; request email/callback/SMS only if the caller asks.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -15,7 +15,11 @@
             "calendar",
             "reply_email",
             "send_email",
-            "create_calendar_event"
+            "create_calendar_event",
+            "contacts",
+            "places",
+            "outlook",
+            "task"
           ],
           "description": "research: web/general questions. summarize_emails: read the caller's own Gmail. calendar: questions about their schedule. reply_email: AI drafts a reply to one of their emails (sent only after approval). send_email: an email the caller dictates. create_calendar_event: a new event. Gmail/Calendar must be connected in the Alo app."
         },
@@ -62,13 +66,34 @@
           },
           "description": "create_calendar_event: optional guest email addresses."
         },
-        "pin": {
+        "start_mode": {
           "type": "string",
-          "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
+          "enum": [
+            "now",
+            "after_call",
+            "scheduled"
+          ],
+          "description": "now by default; after_call only when caller wants execution after hang-up; scheduled is one-off."
         },
-        "verification_answer": {
+        "run_at": {
           "type": "string",
-          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
+          "description": "Required for scheduled. ISO timestamp with explicit UTC offset; ask to clarify ambiguous dates and DST times."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA timezone, default Europe/Sofia."
+        },
+        "delivery_channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "email",
+              "callback",
+              "sms"
+            ]
+          },
+          "description": "Only channels explicitly requested. Email means the connected Gmail account itself. History is always included."
         }
       },
       "required": [

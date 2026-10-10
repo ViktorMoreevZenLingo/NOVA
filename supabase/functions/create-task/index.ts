@@ -1,3 +1,4 @@
+import { voiceDelegationHandler } from "../_shared/delegation/voice.ts";
 import { buildCalendarPrompt } from "../_shared/email/calendar.ts";
 import { buildGmailPrompt } from "../_shared/email/prompt.ts";
 import { buildReplyPrompt } from "../_shared/email/reply.ts";
@@ -20,8 +21,19 @@ const handler = createTaskHandler(
   },
   {
     vapiSecret: requireEnv("VAPI_TOOL_SECRET"),
-    caller: { pin: requireEnv("TEST_USER_PIN"), webCallPhone: optionalEnv("DEMO_WEBCALL_PHONE") },
+    caller: {
+      mode: "phone",
+    },
   },
 );
 
-Deno.serve(handler);
+Deno.serve(voiceDelegationHandler({
+  additionalVapiSecret: optionalEnv("VAPI_DELEGATION_SECRET"),
+  vapiSecret: requireEnv("VAPI_TOOL_SECRET"),
+  taskSecret: requireEnv("VAPI_TASK_SERVICE_SECRET"),
+  caller: {
+    mode: "phone",
+  },
+  store: createTaskStore(),
+  legacy: handler,
+}));

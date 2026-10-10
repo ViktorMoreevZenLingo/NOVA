@@ -67,7 +67,7 @@ Deno.test("create-task: validates intent and instruction", async () => {
 Deno.test("create-task: unknown caller number is refused", async () => {
   const { handler, store } = setup();
   const [r] = await results(await handler(vapiRequest([call(validArgs)], { number: "+15559999999" })));
-  assertMatch(r.error!, /not registered/);
+  assertMatch(r.error!, /not linked/);
   assertEquals(store.tasks.length, 0);
 });
 

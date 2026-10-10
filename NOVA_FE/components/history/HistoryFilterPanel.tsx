@@ -112,7 +112,7 @@ export function HistoryFilterPanel({ filters, setFilters, resultCount }: { filte
         <FilterSelect label={l("Подреди", "Sort")} value={filters.sortOrder} onChange={sortOrder => set({ sortOrder })} choices={[
           ["newest", l("Най-нови", "Newest first")], ["oldest", l("Най-стари", "Oldest first")], ["az", l("Заглавие: А–Я", "Title: A–Z")], ["za", l("Заглавие: Я–А", "Title: Z–A")], ["shortest", l("Най-кратки", "Shortest first")], ["longest", l("Най-дълги", "Longest first")], ["status", l("Първо в процес", "In Progress first")],
         ]} />
-        <FilterSelect label={l("Статус", "Status")} value={filters.statusFilter} onChange={statusFilter => set({ statusFilter })} choices={[["all", l("Всички", "All")], ["complete", l("Завършено", "Complete")], ["progress", l("В процес", "In Progress")]]} />
+        <FilterSelect label={l("Статус", "Status")} value={filters.statusFilter} onChange={statusFilter => set({ statusFilter })} choices={[["all", l("Всички", "All")], ["complete", l("Завършено", "Complete")], ["progress", l("В процес", "In Progress")], ["scheduled", l("Насрочена", "Scheduled")], ["waiting_call", l("След разговора", "Waiting for call end")], ["needs_input", l("Нужен е отговор", "Needs input")], ["failed", l("Неуспешна", "Failed")], ["cancelled", l("Отменена", "Cancelled")]]} />
         <FilterSelect label={l("Продължителност", "Duration")} value={filters.durationFilter} onChange={durationFilter => set({ durationFilter })} choices={[["all", l("Всички", "Any duration")], ["short", l("Под 1 мин", "Under 1 min")], ["medium", l("1–5 мин", "1–5 min")], ["long", l("5+ мин", "5+ min")], ["none", l("Без продължителност", "No duration")]]} />
       </div>
     </div>

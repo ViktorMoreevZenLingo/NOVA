@@ -35,6 +35,7 @@ export async function tokenRequest(
   const p = provider(service);
   const response = await fetch(p.token, {
     method: "POST",
+    signal: AbortSignal.timeout(15000),
     body: new URLSearchParams({
       client_id: p.client,
       client_secret: p.secret,

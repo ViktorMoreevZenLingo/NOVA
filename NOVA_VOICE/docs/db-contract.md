@@ -64,3 +64,18 @@ Show `voice_settings.verification_question`. The answer itself is never readable
 await supabase.rpc("nova_set_my_verification", { p_question: "First pet's name?", p_answer: "Rex" });
 ```
 `standard` (default): PIN on every call; the question only for sending/changing things. `secure`: the question on every call. See the layer table in the [README](../README.md#security-levels-and-access-layers).
+
+
+## Current delegated task queue
+
+New voice requests use `alo_tasks`, not `agent_tasks`. The adapter preserves caller authentication, then resolves ownership from the verified `call_sessions` row. `alo_task_submit`, `alo_call_ended`, lease/step RPCs and `alo_task_command` are service-only. Browser operations use the `tasks` Edge Function with a verified Supabase session.
+
+- `alo_tasks`: start condition, UTC schedule + original timezone, grants, bounded execution state, result, cancellation and lease. Browser SELECT is owner-scoped.
+- `alo_task_steps` / `alo_task_events`: durable execution receipts and webhook dedupe; service-only.
+- `alo_task_deliveries`: per-task/channel unique delivery state and leases; owner-scoped browser SELECT. Failed delivery never reruns execution.
+- `call_sessions.ended_at`: idempotent after-call release.
+- `call_sessions.review_alo_task_id` / `review_alo_revision`: exact-action voice approval, separate from the legacy review pointer.
+- `alo_tasks` mirror into `activity` with the same ID, accurate status, and `detail.engine = "manus"`; this marker enables the new History controls.
+- Account deletion cascades task/step/event/delivery rows. Call links require the same account.
+
+All result/clarification/approval/cancellation stays in Alo. The frontend does not send users to Manus. See [the full API and rollout contract](../../docs/ManusIntegration.md).

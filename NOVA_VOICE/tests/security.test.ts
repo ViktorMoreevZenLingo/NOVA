@@ -108,7 +108,7 @@ Deno.test("web call: the client-supplied customer number is ignored (no caller-I
     number: USER_PHONE,
     callType: "webCall",
   });
-  assertMatch(r.error!, /not registered/);
+  assertMatch(r.error!, /not linked/);
   assertEquals(store.tasks.length, 0);
 });
 

@@ -1,7 +1,5 @@
-// Caller authentication for voice calls. Caller ID alone is not trusted:
-// the caller's number selects the account (its SMS-verified phone in Alo),
-// and a spoken PIN proves identity.
-// Once verified, the rest of the call doesn't need the PIN again.
+// Phone mode uses caller metadata from the authenticated Vapi webhook. Model-supplied
+// numbers/user IDs cannot choose an account. Legacy PIN mode remains for old deployments.
 import { safeEqual } from "./crypto.ts";
 import type { Profile, TaskStore } from "./db.ts";
 import type { VapiToolRequest } from "./vapi.ts";
@@ -12,13 +10,14 @@ export const MAX_HOURLY_PIN_FAILURES = 10;
 
 export type CallerConfig = {
   /** MVP: one PIN for the demo user. Later: hashed per-profile PIN. */
-  pin: string;
+  pin?: string;
+  mode?: "phone" | "pin";
   /** Optional: phone to assume for Vapi dashboard web calls (no caller number). */
   webCallPhone?: string;
 };
 
 export type CallerAuth =
-  | { ok: true; profile: Profile }
+  | { ok: true; profile: Profile; method?: "phone" | "pin" }
   | { ok: false; reason: "unknown_caller" | "pin_required" | "pin_incorrect" | "locked" };
 
 export async function authenticateCaller(
@@ -27,6 +26,16 @@ export async function authenticateCaller(
   req: VapiToolRequest,
   pin: string | undefined,
 ): Promise<CallerAuth> {
+  if (config.mode === "phone") {
+    // Browser-call numbers are client supplied, not telephone caller ID.
+    const phone = req.callType === "webCall" ? undefined : req.customerNumber;
+    const profile = phone ? await store.findProfileByPhone(phone) : null;
+    if (!profile) return { ok: false, reason: "unknown_caller" };
+    const session = await store.getCallSession(req.callId);
+    if (session?.user_id && session.user_id !== profile.user_id) return { ok: false, reason: "unknown_caller" };
+    if (!session?.verified_at) await store.markCallVerified(req.callId, profile.user_id);
+    return { ok: true, profile, method: "phone" };
+  }
   const session = await store.getCallSession(req.callId);
   if (session && session.pin_failures >= MAX_PIN_FAILURES) return { ok: false, reason: "locked" };
   if (session?.verified_at && session.user_id) {
@@ -41,7 +50,7 @@ export async function authenticateCaller(
   if ((await store.recentPinFailures(profile.user_id)) >= MAX_HOURLY_PIN_FAILURES) return { ok: false, reason: "locked" };
 
   if (!pin) return { ok: false, reason: "pin_required" };
-  if (!(await safeEqual(pin.replace(/\D/g, ""), config.pin))) {
+  if (!config.pin || !(await safeEqual(pin.replace(/\D/g, ""), config.pin))) {
     const failures = await store.recordPinFailure(req.callId, profile.user_id);
     return { ok: false, reason: failures >= MAX_PIN_FAILURES ? "locked" : "pin_incorrect" };
   }
@@ -52,7 +61,8 @@ export async function authenticateCaller(
 
 /** What the assistant should say/do for each auth failure. */
 export const AUTH_ERROR_MESSAGES: Record<Exclude<CallerAuth, { ok: true }>["reason"], string> = {
-  unknown_caller: "This phone number is not registered. Tell the caller to sign up in the Alo app with this number first.",
+  unknown_caller:
+    "This calling number is not linked to one unambiguous Alo account. Ask the caller to check the number on their existing web profile. Do not ask for a PIN, security answer, or a different number to impersonate.",
   pin_required: "Ask the caller for their 6-digit PIN, then call this tool again with the `pin` argument.",
   pin_incorrect: "The PIN was incorrect. Ask the caller to repeat their PIN.",
   locked: "Too many incorrect PIN attempts. Tell the caller you can't continue on this call.",
