@@ -1,6 +1,17 @@
+# Node / Next.js (NOVA_FE, Design)
+dist/
+node_modules/
+.next/
+out/
+.playwright-cli/
+
+# Secrets
 .env
-.env.*
+.env*
 !.env.example
 supabase/functions/.env
+supabase/functions/.env.local
+
+# Tooling
 .omc/
 .DS_Store
