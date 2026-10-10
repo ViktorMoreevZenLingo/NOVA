@@ -55,6 +55,7 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
     ["callback", l("Изходящи", "Out")],
     ["task", l("Задача", "Task")],
     ["sms", l("СМС", "SMS")],
+    ["chat", l("Чатове", "Chats")],
   ];
 
   // Sliding highlight for the active type tab.
