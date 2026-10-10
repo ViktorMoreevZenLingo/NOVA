@@ -48,6 +48,20 @@ data, or switching devices loses access until verified account recovery is added
 The server validates the live session for every privileged action, accepting
 anonymous users as well as existing verified phone users.
 
+### Shared deployment baseline — 10 October 2026
+
+Use the latest `main` as the baseline for app/backend work. Before deploying from
+another branch, merge `main` so an older `_shared/http.ts` does not restore the
+phone-verification requirement. Deploying a function bundles its shared helpers;
+updating a helper locally does not update already deployed functions.
+
+The live `integrations`, `agent`, and `account-delete` functions were redeployed
+with anonymous-session support. Live smoke checks confirmed that Contacts, Gmail,
+and Calendar return Google consent URLs for a new anonymous account, invalid
+sessions receive HTTP 401, and account deletion succeeds. Completing Google
+consent still requires the user's Google account. SMS verification remains
+disabled, and OpenAI has not been configured as part of this work.
+
 **Paused SMS implementation:** Zadarma delivers Supabase-generated OTPs through the `send-sms`
 Edge Function. Deploy it with `supabase functions deploy send-sms --use-api`.
 Set `ZADARMA_API_KEY`, `ZADARMA_API_SECRET`, and `SEND_SMS_HOOK_SECRET` as server
