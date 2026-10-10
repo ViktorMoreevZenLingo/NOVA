@@ -162,7 +162,10 @@ Deno.serve(async (req) => {
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
-      prompt: "consent",
+      // select_account forces Google's account chooser so a different email can
+      // be connected even when one is already signed in. Outlook keeps plain
+      // consent to avoid Microsoft's stricter prompt-combination rules.
+      prompt: service === "outlook" ? "consent" : "select_account consent",
       ...(service === "outlook" ? {} : { access_type: "offline" }),
     }).toString();
     return json({ url: consent.toString() });
