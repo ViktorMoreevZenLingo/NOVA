@@ -1,0 +1,3 @@
+- generic [active]:
+  - status "Зареждане…" [ref=f5e1]
+  - alert [ref=f5e3]

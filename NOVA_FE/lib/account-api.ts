@@ -55,7 +55,17 @@ export async function startAccount(phone: string, mode: "login" | "signup" = "lo
     restored = Promise.resolve();
     return;
   }
-  if (mode !== "signup") throw new Error("Отвори личния си линк за вход на този браузър. Нов потребител? Избери Регистрация.");
+  if (mode !== "signup") {
+    // Phone-only login: the number identifies the account and the server issues
+    // a session for it. No device key or personal link required.
+    try {
+      await acceptSession(await invoke<AccountSession>("account-session", { action: "phone", phone: full }));
+    } catch {
+      throw new Error("Няма акаунт с този номер. Нов потребител? Избери Регистрация.");
+    }
+    restored = Promise.resolve();
+    return;
+  }
   const { error } = await sb.auth.signInAnonymously({ options: { data: { contact_phone: full } } });
   if (error) throw new Error("Регистрацията не е завършена. Ако вече имаш акаунт с този номер, използвай личния си линк за вход.");
   await acceptSession(await invoke<AccountSession>("account-session", { action: "resume" }));

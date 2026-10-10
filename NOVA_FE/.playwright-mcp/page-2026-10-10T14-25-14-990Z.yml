@@ -1,0 +1,64 @@
+- generic [active] [ref=f4e1]:
+  - alert [ref=f4e41]
+  - generic [ref=f4e98]:
+    - complementary [ref=f4e99]:
+      - generic [ref=f4e100]: NOVA AI
+      - navigation "Основна навигация" [ref=f4e109]:
+        - button "Начало" [ref=f4e110] [cursor=pointer]
+        - button "История" [ref=f4e115] [cursor=pointer]
+        - button "Интеграции" [ref=f4e120] [cursor=pointer]
+      - button "Опции" [ref=f4e125] [cursor=pointer]
+    - generic [ref=f4e130]:
+      - banner [ref=f4e131]:
+        - generic [ref=f4e132]:
+          - button "Назад" [disabled] [ref=f4e133]
+          - heading "Здравей, Test" [level=1] [ref=f4e136]
+        - button "Език" [ref=f4e138] [cursor=pointer]:
+          - generic [ref=f4e142]: BG
+      - main [ref=f4e145]:
+        - generic [ref=f4e146]:
+          - paragraph [ref=f4e147]: Тук виждаш какво е свършил NOVA AI и какво предстои. Свържи услугите си, за да му дадеш повече възможности да ти помага.
+          - region "Разговор с NOVA AI" [ref=f4e148]:
+            - generic [ref=f4e149]:
+              - heading "Говори с NOVA AI" [level=2] [ref=f4e150]
+              - generic [ref=f4e151]:
+                - button "На живо" [ref=f4e152] [cursor=pointer]
+                - button "NOVA AI да говори" [ref=f4e156] [cursor=pointer]
+            - log [ref=f4e160]:
+              - generic [ref=f4e161]:
+                - paragraph [ref=f4e162]: "Попитай NOVA AI нещо — например:"
+                - generic [ref=f4e163]:
+                  - button "Какво имам в календара утре?" [ref=f4e164] [cursor=pointer]
+                  - button "Прочети последните ми имейли" [ref=f4e165] [cursor=pointer]
+                  - button "Намери телефона на Иван" [ref=f4e166] [cursor=pointer]
+            - generic [ref=f4e167]:
+              - textbox "Съобщение до NOVA AI" [ref=f4e168]:
+                - /placeholder: Напиши съобщение…
+              - button "Говори" [ref=f4e169] [cursor=pointer]
+              - button "Изпрати" [disabled] [ref=f4e173] [cursor=pointer]
+          - region [ref=f4e176]:
+            - generic [ref=f4e177]:
+              - heading "Последна активност" [level=2] [ref=f4e178]
+              - button "Виж всички" [ref=f4e179] [cursor=pointer]
+            - generic [ref=f4e182]:
+              - generic [ref=f4e183]:
+                - generic [ref=f4e184]: Заглавие
+                - generic [ref=f4e185]: Статус
+              - paragraph [ref=f4e186]: Все още няма активност.
+          - region [ref=f4e187]:
+            - generic [ref=f4e188]:
+              - heading "Свържи с NOVA AI" [level=2] [ref=f4e189]
+              - button "Интеграции" [ref=f4e190] [cursor=pointer]
+            - generic [ref=f4e193]:
+              - button "Google Contacts Намирай хората си по име. Свържи" [ref=f4e194] [cursor=pointer]:
+                - generic [ref=f4e196]:
+                  - strong [ref=f4e197]: Google Contacts
+                  - generic [ref=f4e198]: Намирай хората си по име.
+                - generic [ref=f4e199]: Свържи
+              - button "Gmail Преглеждай писма и подготвяй отговори. Свържи" [ref=f4e202] [cursor=pointer]:
+                - generic [ref=f4e204]:
+                  - strong [ref=f4e205]: Gmail
+                  - generic [ref=f4e206]: Преглеждай писма и подготвяй отговори.
+                - generic [ref=f4e207]: Свържи
+      - contentinfo [ref=f4e210]: © 2026 NOVA AI
+  - status

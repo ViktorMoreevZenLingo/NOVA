@@ -1,0 +1,37 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e49]:
+    - main [ref=f4e50]:
+      - generic [ref=f4e51]: NOVA AI
+      - generic [ref=f4e60]:
+        - heading "За теб" [level=1] [ref=f4e61]
+        - paragraph [ref=f4e62]: Можеш да промениш всичко по-късно.
+        - generic [ref=f4e63]:
+          - generic [ref=f4e65]:
+            - generic [aria-hidden] [ref=f4e67]: А
+            - generic [ref=f4e69] [cursor=pointer]:
+              - generic: Добависнимка
+              - button "Добави снимка" [ref=f4e70]
+          - generic [ref=f4e71]:
+            - generic [ref=f4e72]: Твоят профил
+            - strong [ref=f4e73]: +359 889 100 200
+          - generic [ref=f4e74]:
+            - generic [ref=f4e75]: Име
+            - textbox "Име" [ref=f4e76]
+          - generic [ref=f4e77]:
+            - generic [ref=f4e78]: Какво да знае NOVA AI за теб
+            - textbox "Какво да знае NOVA AI за теб" [ref=f4e79]:
+              - /placeholder: Предпочитания, навици или нещо важно за теб
+          - group [ref=f4e80]:
+            - generic "Добави контекст от своя AI асистент" [ref=f4e81] [cursor=pointer]
+          - button "Продължи" [ref=f4e82] [cursor=pointer]
+    - complementary [ref=f4e85]:
+      - img "Жена, която разговаря по телефона, седнала на стълби" [ref=f4e86]
+      - paragraph [ref=f4e87]:
+        - text: Because
+        - emphasis [ref=f4e88]: talking
+        - text: is just easier..
+    - contentinfo [ref=f4e89]: © 2026 NOVA AI
+    - button "Език" [ref=f4e91] [cursor=pointer]:
+      - generic [ref=f4e95]: BG
+  - status
+  - alert [ref=f4e41]

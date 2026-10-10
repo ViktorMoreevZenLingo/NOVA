@@ -1,0 +1,30 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e2]:
+    - main [ref=f10e3]:
+      - generic [ref=f10e4]: NOVA AI
+      - generic [ref=f10e13]:
+        - group "Вход или регистрация" [ref=f10e14]:
+          - button "Вход" [pressed] [ref=f10e15] [cursor=pointer]
+          - button "Регистрация" [ref=f10e16] [cursor=pointer]
+        - heading "Вход в NOVA AI" [level=1] [ref=f10e17]
+        - generic [ref=f10e18]:
+          - generic [ref=f10e19]: Мобилен номер
+          - generic [ref=f10e20]:
+            - generic [ref=f10e21]:
+              - text: BG
+              - generic [ref=f10e22]: "+359"
+            - textbox "Мобилен номер" [ref=f10e23]:
+              - /placeholder: 888 123 456
+          - alert [ref=f10e24]
+          - button "Продължи" [ref=f10e25] [cursor=pointer]
+    - complementary [ref=f10e28]:
+      - img "Жена, която разговаря по телефона, седнала на стълби" [ref=f10e29]
+      - paragraph [ref=f10e30]:
+        - text: Because
+        - emphasis [ref=f10e31]: talking
+        - text: is just easier..
+    - contentinfo [ref=f10e32]: © 2026 NOVA AI
+    - button "Език" [ref=f10e34] [cursor=pointer]:
+      - generic [ref=f10e38]: BG
+  - status
+  - alert [ref=f10e41]

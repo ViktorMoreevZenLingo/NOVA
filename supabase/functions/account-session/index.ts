@@ -52,6 +52,21 @@ Deno.serve(async (req) => {
       if (!userId) {
         throw new HttpError(401, "Линкът вече е използван или е изтекъл.");
       }
+    } else if (body.action === "phone") {
+      // Phone-only login: by the owner's choice the number alone identifies and
+      // authorizes the account (no device key or link required).
+      if (
+        typeof body.phone !== "string" || !/^\+359[89][0-9]{8}$/.test(body.phone)
+      ) {
+        throw new HttpError(400, "Въведи валиден български мобилен номер.");
+      }
+      stage = "phone_login";
+      userId =
+        checked(await db.rpc("nova_user_id_by_phone", { p_phone: body.phone }))
+          .data;
+      if (!userId) {
+        throw new HttpError(404, "Няма акаунт с този номер. Избери Регистрация.");
+      }
     } else {
       const token = req.headers.get("Authorization")?.replace(/^Bearer /i, "");
       const { data, error } = await db.auth.getUser(token || "");
