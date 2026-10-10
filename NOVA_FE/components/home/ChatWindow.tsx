@@ -166,6 +166,15 @@ export function ChatWindow({
     }
   };
 
+  const playMessage = async (text: string) => {
+    setError(null);
+    try {
+      await voice.play(text);
+    } catch (err) {
+      setError(describeError(err));
+    }
+  };
+
   const suggestions = [
     l("Какво имам в календара утре?", "What’s on my calendar tomorrow?"),
     l("Прочети последните ми имейли", "Read my latest emails"),
@@ -229,6 +238,16 @@ export function ChatWindow({
                 <p className="chat-bubble">{renderMessage(m.text)}</p>
                 <span className="chat-caption">
                   {m.role === "user" ? l("Ти", "You") : l("Ало", "Alo")}
+                  {m.role === "alo" && (
+                    <button
+                      type="button"
+                      className="chat-play"
+                      aria-label={l("Чуй", "Play aloud")}
+                      onClick={() => void playMessage(m.text)}
+                    >
+                      <Icon name="volume" />
+                    </button>
+                  )}
                 </span>
               </div>
             ))}

@@ -3302,3 +3302,33 @@ html:has(.history-index), body:has(.history-index) {
 @media (prefers-reduced-motion: reduce) {
   .chat-mic.recording { animation: none; }
 }
+
+/* Per-message "play aloud" button in the chat caption. */
+.chat-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-play {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #85858a;
+  vertical-align: middle;
+}
+.chat-play:hover {
+  background: #e9e9eb;
+  color: #007aff;
+}
+.outgoing .chat-play {
+  display: none;
+}
+.chat-play .icon {
+  width: 13px;
+  height: 13px;
+}

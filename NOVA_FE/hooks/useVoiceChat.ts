@@ -6,6 +6,13 @@ import { synthesizeSpeech, transcribeAudio } from "@/lib/voice-api";
 
 const TTS_KEY = "alo.tts";
 
+function toPlainText(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .trim();
+}
+
 // Browser mic recording + OpenAI STT/TTS playback for the chat.
 export function useVoiceChat(lang: Lang) {
   const [supported, setSupported] = useState(false);
@@ -18,6 +25,7 @@ export function useVoiceChat(lang: Lang) {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
 
   useEffect(() => {
     setSupported(
@@ -32,9 +40,19 @@ export function useVoiceChat(lang: Lang) {
     }
   }, []);
 
+  const getAudio = () => {
+    if (!audioRef.current && typeof Audio !== "undefined") {
+      audioRef.current = new Audio();
+    }
+    return audioRef.current;
+  };
+
   const stopAudio = useCallback(() => {
     audioRef.current?.pause();
-    audioRef.current = null;
+    if (urlRef.current) {
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
+    }
     setSpeaking(false);
   }, []);
 
@@ -46,13 +64,58 @@ export function useVoiceChat(lang: Lang) {
       } catch {
         /* ignore */
       }
-      if (!value) stopAudio();
+      if (value) {
+        // Unlock playback inside this click so later auto-speak isn't blocked.
+        const a = getAudio();
+        a?.play().then(() => a.pause()).catch(() => {});
+      } else {
+        stopAudio();
+      }
     },
     [stopAudio],
   );
 
+  // Fetch TTS and play it. Throws on failure so direct-click callers can report.
+  const play = useCallback(
+    async (text: string) => {
+      const plain = toPlainText(text);
+      if (!plain) return;
+      const blob = await synthesizeSpeech(plain.slice(0, 4000), lang);
+      const a = getAudio();
+      if (!a) return;
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      const url = URL.createObjectURL(blob);
+      urlRef.current = url;
+      a.src = url;
+      a.onended = () => setSpeaking(false);
+      setSpeaking(true);
+      try {
+        await a.play();
+      } catch (err) {
+        setSpeaking(false);
+        throw err;
+      }
+    },
+    [lang],
+  );
+
+  // Auto-speak after a reply when enabled; best-effort (never surfaces errors).
+  const speak = useCallback(
+    async (text: string) => {
+      if (!ttsEnabled) return;
+      try {
+        await play(text);
+      } catch {
+        /* best effort; the per-message speaker button is the reliable path */
+      }
+    },
+    [ttsEnabled, play],
+  );
+
   const startRecording = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
     streamRef.current = stream;
     const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
@@ -64,7 +127,6 @@ export function useVoiceChat(lang: Lang) {
     setRecording(true);
   }, []);
 
-  // Stop recording and return the recorded audio (or null if empty).
   const stopRecording = useCallback(async (): Promise<Blob | null> => {
     const recorder = recorderRef.current;
     if (!recorder || recorder.state === "inactive") {
@@ -94,36 +156,6 @@ export function useVoiceChat(lang: Lang) {
     [lang],
   );
 
-  const speak = useCallback(
-    async (text: string) => {
-      if (!ttsEnabled) return;
-      // Don't read Markdown link syntax / raw URLs aloud.
-      const plain = text
-        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, "$1")
-        .replace(/https?:\/\/\S+/g, "")
-        .trim();
-      if (!plain) return;
-      try {
-        const blob = await synthesizeSpeech(plain.slice(0, 4000), lang);
-        const url = URL.createObjectURL(blob);
-        stopAudio();
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        const cleanup = () => {
-          setSpeaking(false);
-          URL.revokeObjectURL(url);
-        };
-        audio.onended = cleanup;
-        audio.onerror = cleanup;
-        setSpeaking(true);
-        await audio.play();
-      } catch {
-        setSpeaking(false);
-      }
-    },
-    [ttsEnabled, lang, stopAudio],
-  );
-
   useEffect(
     () => () => {
       if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -131,6 +163,7 @@ export function useVoiceChat(lang: Lang) {
       }
       streamRef.current?.getTracks().forEach((t) => t.stop());
       audioRef.current?.pause();
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     },
     [],
   );
@@ -146,6 +179,7 @@ export function useVoiceChat(lang: Lang) {
     stopRecording,
     transcribe,
     speak,
+    play,
     stopAudio,
   };
 }
