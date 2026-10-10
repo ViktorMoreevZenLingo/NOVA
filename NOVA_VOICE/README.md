@@ -48,14 +48,14 @@ Alo app (NOVA_FE, Next.js) ─▶ Supabase Auth (phone OTP) · profiles · conne
 | Result email from own Gmail to self (`_shared/email/notify.ts`) | ⚠️ same as above |
 | Vapi assistant + phone number | ⚠️ config in `vapi/`, not yet created in Vapi |
 | End-to-end phone call | ❌ not yet |
-| Security levels: risk policy, PIN/lockout, Secure callbacks (L3), approval by phone and app (L4), reply drafts, double-send protection | ✅ 23 unit tests (`tests/security.test.ts`, `tests/approval_phone.test.ts`) + SQL checks; Vapi outbound calls and real Gmail sending not yet exercised |
+| Security levels: risk policy, PIN/lockout, verification question (L3, bcrypt), read-back approval by voice or app (L4), reply drafts, double-send protection | ✅ 22 unit tests (`tests/security.test.ts`) + SQL checks; real Gmail sending not yet exercised |
 | In-app Approve/Reject + Standard/Secure switch | ⚠️ optional for the MVP (phone approval works without the app); **frontend work**, API in [docs/db-contract.md](docs/db-contract.md#for-the-frontend) |
 
 ### Next steps
 1. Add the `TEST_USER_PIN` GitHub secret, then re-run the deploy.
 2. Sign up in the Alo app with the demo phone number and connect Gmail under Integrations.
 3. Run the first real task: curl `create-task` with `tests/fixtures/vapi-create-task.json`, after putting the demo phone and PIN into the fixture. Check that the row goes `submitted → completed`, History updates, and the email arrives.
-4. Create the Vapi tools, assistant and phone number from `vapi/`, and add `VAPI_API_KEY` / `VAPI_ASSISTANT_ID` / `VAPI_PHONE_NUMBER_ID`, which are needed for confirmation calls. Then make a real call.
+4. Create the Vapi tools, assistant and phone number from `vapi/`, set a verification question for the demo user (SQL above), then make a real call.
 5. Frontend (optional for the MVP): Approve/Reject (+ edit) on History items waiting for approval, plus the Standard/Secure and "approve by phone" settings.
 6. Open a PR `feat/vapi-manus` → `main`. After merging, deploy only through CI from `main`.
 
@@ -91,33 +91,30 @@ send_email / create_calendar_event:          awaiting_approval ─────�
 
 Every phone request is **assessed for risk**. The risk decides which **verification layers** it needs, and the user's own setting is a floor on top of that. Every decision is recorded on the task (`risk_level`, `layers`).
 
-| Layer | Proves | How |
+| Layer | Proves | How (all within the call; no internet, no outbound calls) |
 |---|---|---|
-| **L1** caller ID | the call comes from the account's number | caller's number = the **SMS-verified** phone of an Alo account |
+| **L1** caller ID | the call comes from the account's number | caller's number = the account's phone. **Prototype:** while SMS verification is paused in Alo, a self-declared `contact_phone` also counts (newest account wins). An SMS-verified phone always wins. |
 | **L2** PIN | the caller knows the secret | 6-digit PIN on **every** call (3 wrong = call locked, 10/hour = account locked) |
-| **L3** callback | the caller holds the real line | Alo hangs up and **calls the registered number back** (Vapi outbound); requests continue on that call |
-| **L4** approval | the account owner wants *this exact* action | **by phone (default, no internet needed):** Alo calls the registered number, reads the action aloud, and the owner says the **PIN** + "approve" (or "cancel"). **Or in the Alo app** when online (approve, edit or reject). Whichever comes first wins. |
+| **L3** verification question | a second, personal secret | the agent asks the user's **own question** (set in the app). The answer is stored as a bcrypt hash and compared case/space-insensitively. 3 wrong answers lock it for the call. |
+| **L4** approval | the owner wants *this exact* action | Alo **reads the action back word for word** on the call, and only an explicit "yes" sends it (`decide_action`). Texts too long to hear in full (>1,500 chars) are approved in the app. **Or in the Alo app** when online (approve, edit or reject). |
 
 | Risk (automatic) | Requests | Standard | Secure |
 |---|---|---|---|
 | **low** | research (no personal data) | L1 + L2 | L1 + L2 + L3 |
 | **medium** | summarize emails (Gmail search on the caller's words), calendar questions, task status | L1 + L2 | L1 + L2 + L3 |
-| **high** | reply to an email, send an email, create an event | L1 + L2 + **L4** | L1 + L2 + L3 + **L4** |
+| **high** | reply to an email, send an email, create an event | L1 + L2 + **L3** + **L4** | L1 + L2 + **L3** + **L4** |
 
-- **The level is chosen in the Alo app.** It's stored in `voice_settings.security_level` (`standard` by default, or `secure`). A Secure account gets a callback on every call.
-- **Approval by phone can be turned off** with `voice_settings.approve_by_call` (default on). With it off, approval happens in the app only.
-- **When the confirmation call comes:**
-  - for something dictated on a call: right after you hang up (Vapi end-of-call report → `vapi-events`);
-  - for a reply draft: as soon as it's ready;
-  - if missed: reconcile retries, at most 3 calls, 15 minutes apart. You can also call Alo and say *"approve my pending email"* to get the call sooner.
-- **Approving by phone always needs the PIN on that call.** The call proves you have the line (we dial the registered number), the PIN proves you know the secret, and the read-back proves the intent.
-- **Nothing that sends or changes data runs without L4.** The voice side only prepares the action. Its content is validated: one recipient, no header injection, times must carry a timezone. A reply's recipient and subject come from the original email's headers, never from the AI.
-- **Approval is consumed before the action runs**, and a provider error is never retried automatically, so an action can't run twice. This follows the same rule as Alo's chat agent.
-- **Callbacks need `VAPI_API_KEY`, `VAPI_ASSISTANT_ID` and `VAPI_PHONE_NUMBER_ID`.** If they're missing or Vapi fails, requests that need L3 are **refused**, never let through. There is one callback per inbound call, and it always goes to the number registered in Auth, never to the number the call came from.
+- **The level is chosen in the Alo app.** It's stored in `voice_settings.security_level` (`standard` by default, or `secure`). Secure asks the verification question on every call, once per call.
+- **No question set → high-risk requests are refused**, never let through. Set the question with `nova_set_my_verification(question, answer)` from the app. For a demo, an admin can run SQL: `select nova_set_verification('<user id>', 'First pet''s name?', 'Rex');`.
+- **Dictated email or event:** within the same call. Question → read-back → "Shall I send it?" → yes → sent.
+- **Reply draft:** ready a few minutes after the call. Call again and say *"approve my pending email"*. Then PIN → question → read-back → yes → sent. A decision only ever applies to what was read back **on that call**.
+- **Nothing that sends or changes data runs without L3 + L4.** The voice side only prepares the action. Its content is validated: one recipient, no header injection, times must carry a timezone. A reply's recipient and subject come from the original email's headers, never from the AI.
+- **Approval is consumed before the action runs** (status `sending`), and a provider error is never retried automatically, so an action can't run twice. Unapproved actions expire after 24h.
+- Outbound callbacks were prototyped and set aside for the MVP. They're kept on the local branch `archive/callback-approval`.
 
 ## Security
 
-- **Vapi → create-task / get-task-status:** a Vapi *Bearer Token* credential, compared in constant time.
+- **Vapi → our tools:** an `x-vapi-secret` header or a Vapi *Bearer Token* credential, compared in constant time.
 - **Caller identity:**
   - The caller's number has to match an Alo account's **SMS-verified** phone (`auth.users.phone`, via `nova_user_id_by_phone`). Caller ID alone isn't trusted, so the caller must also say a **6-digit PIN** (`TEST_USER_PIN`, one shared PIN for the MVP).
   - Lockout: 3 wrong PINs lock the call, and 10 wrong PINs per user per hour lock that user across all calls.
@@ -170,7 +167,6 @@ Deploys are done by [`.github/workflows/deploy.yml`](../.github/workflows/deploy
 | `MANUS_API_KEY` | phone assistant | manus.im → Settings → Developers |
 | `VAPI_TOOL_SECRET` | phone assistant | random string (`openssl rand -hex 32`); the same value goes into the Vapi Bearer credential |
 | `TEST_USER_PIN` | phone assistant | 6 digits of your choice |
-| `VAPI_API_KEY` | phone assistant (confirmation calls + Secure callbacks) | Vapi dashboard → API Keys → **Private** key |
 | `OPENAI_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `GOOGLE_PLACES_API_KEY` | Alo app | see [supabase/README.md](../supabase/README.md) |
 
 **Repository variables:**
@@ -178,8 +174,6 @@ Deploys are done by [`.github/workflows/deploy.yml`](../.github/workflows/deploy
 - `OPENAI_MODEL`
 - `APP_TIMEZONE`
 - `DEMO_WEBCALL_PHONE`
-- `VAPI_ASSISTANT_ID` (the Alo assistant used for callbacks)
-- `VAPI_PHONE_NUMBER_ID` (the Vapi number callbacks are made from)
 
 `CRON_SECRET` and `MANUS_WEBHOOK_URL` are generated by the workflow. Any secret that isn't in GitHub is **left as it is** in Supabase, so values Nick set by hand keep working.
 
@@ -191,10 +185,9 @@ MANUS_API_KEY=... MANUS_WEBHOOK_URL=https://vlimtocbrxxnzobhkcoy.supabase.co/fun
 ```
 
 ### 4. Vapi
-1. Create the three tools from `vapi/tool-create-task.json`, `vapi/tool-get-task-status.json` and `vapi/tool-decide-action.json`, replacing `<project-ref>` and `<vapi-bearer-credential-id>`.
-2. Create the assistant from `vapi/assistant.json` and set its `toolIds`. The assistant's `server` URL (`vapi-events`, same Bearer credential) receives the end-of-call report that triggers confirmation calls.
+1. Create the three tools from `vapi/tool-create-task.json`, `vapi/tool-get-task-status.json` and `vapi/tool-decide-action.json`, replacing `<project-ref>` and `<VAPI_TOOL_SECRET>`. Tools authenticate with an `x-vapi-secret` header; a Vapi Bearer credential works too.
+2. Create the assistant from `vapi/assistant.json` and set its `toolIds`.
 3. Attach the assistant to the phone number.
-4. Set `VAPI_API_KEY` (secret), and `VAPI_ASSISTANT_ID` and `VAPI_PHONE_NUMBER_ID` (variables). These are needed for **all outbound calls**: confirmation calls and Secure callbacks.
 
 ## Development
 
@@ -220,12 +213,16 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=
 5. A few minutes later, the Manus webhook completes it. History (reload) shows it as done with the summary, and the same summary arrives in your Gmail inbox from yourself.
 
 **MVP flow: read → draft → approve → send (no internet needed)**
-1. Call and say: *"Reply to Ivan's last email, tell him I'll be there at 5."* Alo asks for the PIN and says it will call you back with the draft. Hang up.
+0. Once: set your verification question in the app (or with the admin SQL above).
+1. Call and say: *"Reply to Ivan's last email, tell him I'll be there at 5."* Alo asks for the PIN, then your verification question. Hang up.
 2. Manus reads that email (found with a Gmail search in your own inbox) and drafts the reply. The recipient is always the original sender.
-3. **Alo calls you back** and reads it: *"…a reply to ivan@example.com, subject 'Re: Meeting'. It says: … To send it, tell me your PIN and say approve."*
-4. Say the PIN and "approve". It's sent from your Gmail, and History shows **Sent**. Saying "cancel" sends nothing.
-5. When you're online you can do step 4 in the app instead, and edit the text first.
-4. **Secure mode:** in the app, set the voice security level to Secure. The next call ends after the PIN with *"I'll call you back"*, and Alo calls your registered number. Repeat the request on that call.
+3. A few minutes later, call again: *"Approve my pending email."* PIN → question → Alo reads it back: *"A reply to ivan@example.com, subject 'Re: Meeting'. The text reads, quote: … End quote. Shall I send it?"*
+4. Say "yes". It's sent from your Gmail, and History shows **Sent**. "No" sends nothing.
+5. When you're online you can approve, edit or reject it in the app instead.
+
+**Dictated email (one call):** *"Send an email to ivan@example.com, subject Late, say I'm 10 minutes late."* PIN → question → read-back → "yes" → sent.
+
+**Secure mode:** in the app, set the voice security level to Secure. Every call then asks the verification question (once per call), even for research.
 
 ## Known limitations / open decisions
 - Manus webhook retry semantics aren't documented. Reconcile is the safety net.
@@ -235,7 +232,7 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=
 - Vapi calls themselves (transcript, duration) aren't recorded in History yet. The next step is Vapi's end-of-call report → `activity` with `type = 'call'`.
 - The PIN is one shared secret for the MVP. Next step: a per-user PIN, set in the Alo profile and stored hashed.
 - Replies go out as a new email with `Re: <subject>` to the original sender. They aren't threaded into the Gmail conversation, because Alo's `send_email` has no `threadId`.
-- Approvals don't expire yet. Next step: auto-reject after 24h.
 - To change a draft by phone, cancel it and ask again. Editing the text is only possible in the app.
 - Prompt injection: email and calendar text goes to Manus as data, with strict instructions to answer only from that data. A Manus agent can still browse, so a malicious email could in theory make it fetch a URL. Profile notes are never included next to that data, and **nothing is sent without L4**.
-- Callbacks start the conversation fresh: the caller repeats the request on the callback.
+- **Prototype caller ID:** an unverified `contact_phone` counts as L1 while SMS verification is paused. Remove that branch in `nova_user_id_by_phone` when verification is back.
+- No notification when a reply draft is ready, except History. The caller checks with "approve my pending email" or get_task_status.

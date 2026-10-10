@@ -10,7 +10,28 @@ values
   ('22222222-2222-4222-8222-222222222222', '359888000002', now(), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
   ('33333333-3333-4333-8333-333333333333', '359888000003', null,  '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
 
--- Caller lookup: Vapi's "+359..." format matches; unconfirmed phones never match.
+-- Alo's current signup: anonymous users with an unverified contact_phone in metadata
+-- (PROTOTYPE: trusted for caller lookup; newest account wins; a verified phone always wins).
+insert into auth.users (id, raw_user_meta_data, is_anonymous, created_at, instance_id, aud, role)
+values
+  ('44444444-4444-4444-8444-444444444444', '{"contact_phone":"+359888000004"}', true, now() - interval '1 day',
+   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated'),
+  ('55555555-5555-4555-8555-555555555555', '{"contact_phone":"+359888000004"}', true, now(),
+   '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
+do $$ begin
+  assert public.nova_user_id_by_phone('+359888000004') = '55555555-5555-4555-8555-555555555555', 'newest signup with that number';
+  assert public.nova_user_id_by_phone('') is null, 'empty number never matches';
+end $$;
+
+-- A self-declared contact_phone can never take over an SMS-verified number.
+insert into auth.users (id, raw_user_meta_data, is_anonymous, created_at, instance_id, aud, role)
+values ('66666666-6666-4666-8666-666666666666', '{"contact_phone":"+359888000001"}', true, now() + interval '1 hour',
+        '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated');
+do $$ begin
+  assert public.nova_user_id_by_phone('+359888000001') = '11111111-1111-4111-8111-111111111111', 'verified phone wins';
+end $$;
+
+-- Caller lookup: Vapi's "+359..." format matches; an unconfirmed AUTH phone (no signup number) never matches.
 do $$ begin
   assert public.nova_user_id_by_phone('+359888000001') = '11111111-1111-4111-8111-111111111111', 'phone lookup';
   assert public.nova_user_id_by_phone('+359 888 000 002') = '22222222-2222-4222-8222-222222222222', 'phone lookup (spaces)';
@@ -88,8 +109,24 @@ do $$ begin
   exception when insufficient_privilege or unique_violation then null;
   end;
   begin
-    perform public.nova_user_phone('22222222-2222-4222-8222-222222222222');
-    raise exception 'nova_user_phone should be denied';
+    perform public.nova_check_verification('11111111-1111-4111-8111-111111111111', 'x');
+    raise exception 'nova_check_verification should be denied';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.nova_set_verification('22222222-2222-4222-8222-222222222222', 'Hijack question?', 'x1');
+    raise exception 'setting another user''s question should be denied';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+-- A sets its own verification question; the answer hash is never readable.
+select public.nova_set_my_verification('First pet''s name?', '  Rex ');
+do $$ begin
+  assert (select verification_question from public.voice_settings) = 'First pet''s name?', 'own question visible';
+  begin
+    perform verification_answer_hash from public.voice_settings;
+    raise exception 'the answer hash must not be readable';
   exception when insufficient_privilege then null;
   end;
 end $$;
@@ -97,8 +134,11 @@ reset role;
 do $$ begin
   assert (select security_level from public.voice_settings where user_id = '22222222-2222-4222-8222-222222222222') = 'secure',
     'B''s setting untouched';
-  assert public.nova_user_phone('11111111-1111-4111-8111-111111111111') = '+359888000001', 'E.164 phone for callbacks';
-  assert public.nova_user_phone('33333333-3333-4333-8333-333333333333') is null, 'no callback to unconfirmed phone';
+  assert public.nova_check_verification('11111111-1111-4111-8111-111111111111', 'REX'), 'answer check (normalized)';
+  assert not public.nova_check_verification('11111111-1111-4111-8111-111111111111', 'max'), 'wrong answer';
+  assert not public.nova_check_verification('22222222-2222-4222-8222-222222222222', 'x1'), 'no question → never verified';
+  assert (select verification_answer_hash like '$2a$%' from public.voice_settings where user_id = '11111111-1111-4111-8111-111111111111'),
+    'stored as bcrypt';
 end $$;
 
 -- Approval tasks are mirrored as "needs input" with the draft in the History detail.
@@ -109,17 +149,11 @@ do $$ begin
             from public.activity a join public.agent_tasks t using (id) where t.prompt = 'Reply to Ivan'), 'approval mirrored';
 end $$;
 
--- Confirmation calls: at most 3, spaced; only while awaiting approval.
-do $$
-declare t uuid := (select id from public.agent_tasks where prompt = 'Reply to Ivan');
-begin
-  assert (select count(*) from public.nova_claim_approval_call(t)) = 1, 'first confirmation call';
-  assert (select count(*) from public.nova_claim_approval_call(t)) = 0, 'spaced 15 minutes';
-  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 1, 'caller-requested sooner';
-  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 1, 'third attempt';
-  assert (select count(*) from public.nova_claim_approval_call(t, interval '0 minutes')) = 0, 'max 3 attempts';
-  update public.agent_tasks set status = 'sending' where id = t;
-  assert (select a.status = 'in_progress' from public.activity a where a.id = t), 'sending shows as in progress';
+-- An approved action in flight shows as in progress.
+update public.agent_tasks set status = 'sending' where prompt = 'Reply to Ivan';
+do $$ begin
+  assert (select a.status = 'in_progress' from public.activity a join public.agent_tasks t using (id) where t.prompt = 'Reply to Ivan'),
+    'sending shows as in progress';
 end $$;
 
 -- Anonymous users see nothing.

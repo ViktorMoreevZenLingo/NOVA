@@ -20,3 +20,9 @@ export async function hasBearer(req: Request, secret: string): Promise<boolean> 
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match ? await safeEqual(match[1].trim(), secret) : false;
 }
+
+/** Vapi requests: `x-vapi-secret: <secret>` (set via server.headers) or `Authorization: Bearer <secret>` (credential). */
+export async function hasVapiSecret(req: Request, secret: string): Promise<boolean> {
+  const header = req.headers.get("x-vapi-secret");
+  return header ? await safeEqual(header.trim(), secret) : await hasBearer(req, secret);
+}

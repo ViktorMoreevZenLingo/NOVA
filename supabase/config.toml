@@ -447,6 +447,3 @@ verify_jwt = false
 # Called by the Alo app; verifies the user session itself (like Alo's functions).
 [functions.voice-approve]
 verify_jwt = false
-# Vapi server messages (end-of-call report); Vapi bearer secret.
-[functions.vapi-events]
-verify_jwt = false

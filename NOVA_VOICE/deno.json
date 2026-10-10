@@ -3,8 +3,8 @@
     "test": "deno test --config deno.json --allow-env tests/*.test.ts",
     "test:integration": "deno test --config deno.json --allow-env --allow-net=127.0.0.1 tests/integration/",
     "check": "deno check --config deno.json ../supabase/functions/*/index.ts scripts/*.ts tests/*.ts tests/integration/*.ts",
-    "lint": "deno lint --config deno.json ../supabase/functions/_shared/{access,approval,approval-call,caller,contracts,crypto,db,env,log,manus,policy,tasks,vapi,vapi-api}.ts ../supabase/functions/_shared/email ../supabase/functions/{create-task,get-task-status,manus-webhook,reconcile,vapi-events,voice-approve} scripts tests",
-    "fmt": "deno fmt --config deno.json ../supabase/functions/_shared/{access,approval,approval-call,caller,contracts,crypto,db,env,log,manus,policy,tasks,vapi,vapi-api}.ts ../supabase/functions/_shared/email ../supabase/functions/{create-task,get-task-status,manus-webhook,reconcile,vapi-events,voice-approve} scripts tests"
+    "lint": "deno lint --config deno.json ../supabase/functions/_shared/{access,approval,caller,contracts,crypto,db,env,log,manus,policy,readback,tasks,vapi}.ts ../supabase/functions/_shared/email ../supabase/functions/{create-task,get-task-status,manus-webhook,reconcile,voice-approve} scripts tests",
+    "fmt": "deno fmt --config deno.json ../supabase/functions/_shared/{access,approval,caller,contracts,crypto,db,env,log,manus,policy,readback,tasks,vapi}.ts ../supabase/functions/_shared/email ../supabase/functions/{create-task,get-task-status,manus-webhook,reconcile,voice-approve} scripts tests"
   },
   "fmt": {
     "lineWidth": 140

@@ -3,7 +3,7 @@
   "async": false,
   "function": {
     "name": "create_task",
-    "description": "Delegate a task to the cloud agent. Reads (research, email summaries, calendar) run after the call; anything that sends or changes data (reply_email, send_email, create_calendar_event) is only prepared and waits for the caller's approval in the Alo app. The result appears in the app's History.",
+    "description": "Delegate a task to the cloud agent. Reads (research, email summaries, calendar) run after the call. Anything that sends or changes data (reply_email, send_email, create_calendar_event) needs the caller's verification question and their explicit approval after you read it back; nothing is sent before that. Results appear in the Alo app's History.",
     "parameters": {
       "type": "object",
       "properties": {
@@ -65,6 +65,10 @@
         "pin": {
           "type": "string",
           "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
+        },
+        "verification_answer": {
+          "type": "string",
+          "description": "The caller's answer to their personal verification question, only after the tool asked for it. Never suggest or repeat the answer."
         }
       },
       "required": [
@@ -75,8 +79,10 @@
   },
   "server": {
     "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
-    "credentialId": "<vapi-bearer-credential-id>",
-    "timeoutSeconds": 30
+    "timeoutSeconds": 30,
+    "headers": {
+      "x-vapi-secret": "<VAPI_TOOL_SECRET>"
+    }
   },
   "messages": [
     {

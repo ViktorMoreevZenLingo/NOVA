@@ -9,7 +9,7 @@ import type { ExecuteGoogleAction } from "./contracts.ts";
 import type { AgentTask, TaskStore } from "./db.ts";
 import { prepareAction } from "./email/actions.ts";
 import { errorText, log } from "./log.ts";
-import { MAX_SPOKEN_BODY } from "./approval-call.ts";
+import { MAX_SPOKEN_BODY } from "./readback.ts";
 
 /** Well inside reconcile's 3-minute "stuck sending" window. */
 const EXECUTE_TIMEOUT_MS = 45_000;

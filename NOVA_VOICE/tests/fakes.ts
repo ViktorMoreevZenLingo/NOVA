@@ -3,7 +3,6 @@
 import type { ExecuteGoogleAction, TaskResult } from "../../supabase/functions/_shared/contracts.ts";
 import type { AgentTask, CallSession, NewTask, Profile, TaskStore } from "../../supabase/functions/_shared/db.ts";
 import type { SecurityLevel } from "../../supabase/functions/_shared/policy.ts";
-import type { VapiApi } from "../../supabase/functions/_shared/vapi-api.ts";
 import type { ManusClient, ManusTask } from "../../supabase/functions/_shared/manus.ts";
 import type { TaskDeps } from "../../supabase/functions/_shared/tasks.ts";
 
@@ -36,10 +35,9 @@ export class FakeStore implements TaskStore {
         user_id: null,
         pin_failures: 0,
         verified_at: null,
-        via_callback: false,
-        callback_call_id: null,
-        purpose: "inbound",
-        approval_task_id: null,
+        question_verified_at: null,
+        question_failures: 0,
+        review_task_id: null,
       };
     this.sessions.set(callId, { ...s, user_id: userId, verified_at: new Date().toISOString() });
     return Promise.resolve();
@@ -51,69 +49,45 @@ export class FakeStore implements TaskStore {
         user_id: userId,
         pin_failures: 0,
         verified_at: null,
-        via_callback: false,
-        callback_call_id: null,
-        purpose: "inbound",
-        approval_task_id: null,
+        question_verified_at: null,
+        question_failures: 0,
+        review_task_id: null,
       };
     s.pin_failures += 1;
     this.sessions.set(callId, s);
     return Promise.resolve(s.pin_failures);
   }
   securityLevels = new Map<string, SecurityLevel>();
-  approveByCall = new Map<string, boolean>();
+  /** userId → [question, answer] (the real DB stores a bcrypt hash; compared normalized). */
+  verification = new Map<string, [string, string]>([[USER_ID, ["What was your first pet's name?", "rex"]]]);
   getVoiceSettings(userId: string) {
     return Promise.resolve({
       securityLevel: this.securityLevels.get(userId) ?? "standard",
-      approveByCall: this.approveByCall.get(userId) ?? true,
+      verificationQuestion: this.verification.get(userId)?.[0] ?? null,
     });
   }
-  claimApprovalCall(taskId: string, minGapMinutes = 15) {
-    const t = this.tasks.find((x) => x.id === taskId);
-    const gapOk = !t?.approval_call_at || Date.parse(t.approval_call_at) < Date.now() - minGapMinutes * 60_000;
-    if (!t || t.status !== "awaiting_approval" || t.approval_call_attempts >= 3 || !gapOk) return Promise.resolve(null);
-    Object.assign(t, { approval_call_at: new Date().toISOString(), approval_call_attempts: t.approval_call_attempts + 1 });
-    return Promise.resolve({ ...t });
+  checkVerification(userId: string, answer: string) {
+    const norm = (v: string) => v.trim().replace(/\s+/g, " ").toLowerCase();
+    const expected = this.verification.get(userId)?.[1];
+    return Promise.resolve(expected !== undefined && norm(answer) === norm(expected));
+  }
+  recordQuestionFailure(callId: string) {
+    const s = this.sessions.get(callId)!;
+    s.question_failures += 1;
+    return Promise.resolve(s.question_failures);
+  }
+  markQuestionVerified(callId: string) {
+    this.sessions.get(callId)!.question_verified_at = new Date().toISOString();
+    return Promise.resolve();
+  }
+  setReviewTask(callId: string, taskId: string | null) {
+    const s = this.sessions.get(callId);
+    if (s) s.review_task_id = taskId;
+    return Promise.resolve();
   }
   latestAwaitingApproval(userId: string) {
     const t = this.tasks.filter((x) => x.user_id === userId && x.status === "awaiting_approval").at(-1);
     return Promise.resolve(t ? { ...t } : null);
-  }
-  awaitingApprovalForCall(callId: string) {
-    return Promise.resolve(this.tasks.filter((x) => x.vapi_call_id === callId && x.status === "awaiting_approval").map((t) => ({ ...t })));
-  }
-  userPhone(userId: string) {
-    for (const [phone, id] of this.phones) if (id === userId) return Promise.resolve(phone);
-    return Promise.resolve(null);
-  }
-  claimCallback(inboundCallId: string) {
-    const s = this.sessions.get(inboundCallId);
-    if (!s || s.callback_call_id) return Promise.resolve(false);
-    s.callback_call_id = "starting";
-    return Promise.resolve(true);
-  }
-  setCallback(inboundCallId: string, outboundCallId: string | null) {
-    const s = this.sessions.get(inboundCallId);
-    if (s) s.callback_call_id = outboundCallId;
-    return Promise.resolve();
-  }
-  createCallbackSession(
-    outboundCallId: string,
-    userId: string,
-    opts: { purpose: "secure_callback" | "approval"; approvalTaskId?: string },
-  ) {
-    const existing = this.sessions.get(outboundCallId);
-    this.sessions.set(outboundCallId, {
-      vapi_call_id: outboundCallId,
-      pin_failures: existing?.pin_failures ?? 0,
-      callback_call_id: null,
-      verified_at: opts.purpose === "secure_callback" ? new Date().toISOString() : existing?.verified_at ?? null,
-      user_id: userId,
-      via_callback: true,
-      purpose: opts.purpose,
-      approval_task_id: opts.approvalTaskId ?? null,
-    });
-    return Promise.resolve();
   }
   recentPinFailures(userId: string) {
     let total = 0;
@@ -132,8 +106,6 @@ export class FakeStore implements TaskStore {
       layers: [],
       approved_at: null,
       approved_via: null,
-      approval_call_at: null,
-      approval_call_attempts: 0,
       status: "pending",
       manus_task_id: null,
       manus_task_url: null,
@@ -259,16 +231,6 @@ export class FakeManus implements ManusClient {
   }
 }
 
-export class FakeVapiApi implements VapiApi {
-  calls: { phone: string; firstMessage: string; metadata: Record<string, string> }[] = [];
-  fail = false;
-  startCall(params: { phone: string; firstMessage: string; metadata: Record<string, string> }) {
-    if (this.fail) return Promise.reject(new Error("vapi down"));
-    this.calls.push(params);
-    return Promise.resolve(`callback-${this.calls.length}`);
-  }
-}
-
 export class FakeEmail {
   sent: { userId: string; result: TaskResult }[] = [];
   fail = false;
@@ -283,16 +245,14 @@ export function makeDeps() {
   const store = new FakeStore();
   const manus = new FakeManus();
   const email = new FakeEmail();
-  const vapiApi = new FakeVapiApi();
   const executed: { userId: string; intent: string; params: Record<string, unknown> }[] = [];
-  const deps: TaskDeps & { vapiApi: VapiApi | null; executeAction: ExecuteGoogleAction } = {
+  const deps: TaskDeps & { executeAction: ExecuteGoogleAction } = {
     executeAction: (userId, intent, params) => {
       executed.push({ userId, intent, params });
       return Promise.resolve({ id: "sent" });
     },
     store,
     manus,
-    vapiApi,
     buildCalendarPrompt: (instruction, userId) => Promise.resolve({ content: `CAL(${userId}): ${instruction}`, connectors: [] }),
     buildReplyPrompt: (instruction, userId, params) =>
       Promise.resolve({
@@ -304,7 +264,7 @@ export function makeDeps() {
     buildGmailPrompt: (instruction, userId) => Promise.resolve({ content: `GMAIL(${userId}): ${instruction}`, connectors: [] }),
     sendResultEmail: email.send,
   };
-  return { store, manus, email, vapiApi, executed, deps };
+  return { store, manus, email, executed, deps };
 }
 
 export function vapiRequest(

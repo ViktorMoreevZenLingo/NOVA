@@ -13,8 +13,6 @@ import type { AgentTask, NewTask, TaskStore } from "./db.ts";
 import { errorText, log } from "./log.ts";
 import type { ManusClient } from "./manus.ts";
 import { prepareAction } from "./email/actions.ts";
-import { requestApprovalCall } from "./approval-call.ts";
-import type { VapiApi } from "./vapi-api.ts";
 
 export const MAX_SUBMIT_ATTEMPTS = 3;
 // Above the sum of the inner timeouts (token refresh, Gmail profile, Gmail send), so a
@@ -33,8 +31,6 @@ export type TaskDeps = {
   buildCalendarPrompt: BuildCalendarPrompt;
   buildReplyPrompt: BuildReplyPrompt;
   sendResultEmail: SendResultEmail;
-  /** For confirmation calls (approval by phone); null/absent = approve in the app only. */
-  vapiApi?: VapiApi | null;
 };
 
 /** What we send to Manus, plus anything to remember on the task row. */
@@ -160,10 +156,8 @@ async function draftReady(deps: TaskDeps, task: AgentTask, outcome: StopOutcome,
     last_event_at: now,
     manus_task_url: outcome.taskUrl ?? task.manus_task_url,
   });
-  if (updated) {
-    log.info("task.draft_ready", { taskId: task.id });
-    await requestApprovalCall(deps, updated); // L4 by phone; the app works too
-  }
+  // L4: the owner calls Alo ("approve my pending email") or opens the app.
+  if (updated) log.info("task.draft_ready", { taskId: task.id });
 }
 
 /**

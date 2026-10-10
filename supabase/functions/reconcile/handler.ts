@@ -3,7 +3,6 @@
 import { hasBearer } from "../_shared/crypto.ts";
 import type { AgentTask } from "../_shared/db.ts";
 import { errorText, log } from "../_shared/log.ts";
-import { requestApprovalCall } from "../_shared/approval-call.ts";
 import { applyManusStop, failTask, MAX_SUBMIT_ATTEMPTS, notifyTask, submitTask, type TaskDeps } from "../_shared/tasks.ts";
 
 export type ReconcileConfig = { cronSecret: string; staleAfterMs?: number };
@@ -55,8 +54,7 @@ async function reconcileTask(deps: TaskDeps, task: AgentTask): Promise<string> {
         });
         return "approval_expired";
       }
-      // Confirmation call not answered / not placed yet: retry (max 3, 15 min apart).
-      return (await requestApprovalCall(deps, task)) ? "approval_call" : "awaiting_approval";
+      return "awaiting_approval";
 
     case "sending":
       // The approved send crashed mid-way (it times out in seconds). Never resend

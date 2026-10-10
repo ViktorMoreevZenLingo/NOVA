@@ -43,8 +43,7 @@ Deno.test({
         return { ...r, taskId: `${prefix}-${r.taskId}` };
       };
 
-      const deps: TaskDeps & { vapiApi: null; executeAction: () => Promise<unknown> } = {
-        vapiApi: null,
+      const deps: TaskDeps & { executeAction: () => Promise<unknown> } = {
         executeAction: () => Promise.reject(new Error("not used")),
         buildCalendarPrompt: (i) => Promise.resolve({ content: i, connectors: [] }),
         buildReplyPrompt: () => Promise.reject(new Error("not used")),

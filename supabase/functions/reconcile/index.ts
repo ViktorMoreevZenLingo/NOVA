@@ -5,7 +5,6 @@ import { sendResultEmail } from "../_shared/email/notify.ts";
 import { createTaskStore } from "../_shared/db.ts";
 import { requireEnv } from "../_shared/env.ts";
 import { createManusClient } from "../_shared/manus.ts";
-import { vapiApiFromEnv } from "../_shared/vapi-api.ts";
 import { reconcileHandler } from "./handler.ts";
 
 Deno.serve(reconcileHandler(
@@ -16,7 +15,6 @@ Deno.serve(reconcileHandler(
     buildCalendarPrompt,
     buildReplyPrompt,
     sendResultEmail,
-    vapiApi: vapiApiFromEnv(),
   },
   { cronSecret: requireEnv("CRON_SECRET") },
 ));

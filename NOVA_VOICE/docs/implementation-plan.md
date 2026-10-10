@@ -204,3 +204,9 @@ The plan above predates the team's Alo app. What changed after merging Nick's Su
   - only the structured draft is ever sent;
   - a web call's customer number is ignored;
   - callback sessions are upserted.
+- **MVP decision: no outbound calls.**
+  - L3 is the user's **verification question**, asked by the agent in the call (bcrypt-hashed answer, 3 tries).
+  - L4 is the **word-for-word read-back + explicit "yes"** on the call (`decide_action`), or the app.
+  - Reply drafts are approved on a later call: "approve my pending email".
+  - The callback prototype is kept on the local branch `archive/callback-approval`.
+- **Prototype caller ID:** while Alo's SMS verification is paused, `user_metadata.contact_phone` also identifies callers (newest account wins; an SMS-verified phone always wins).

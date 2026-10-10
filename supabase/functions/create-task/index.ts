@@ -5,7 +5,6 @@ import { sendResultEmail } from "../_shared/email/notify.ts";
 import { createTaskStore } from "../_shared/db.ts";
 import { optionalEnv, requireEnv } from "../_shared/env.ts";
 import { createManusClient } from "../_shared/manus.ts";
-import { vapiApiFromEnv } from "../_shared/vapi-api.ts";
 import { executeGoogleAction } from "../_shared/email/actions.ts";
 import { createTaskHandler } from "./handler.ts";
 
@@ -17,7 +16,6 @@ const handler = createTaskHandler(
     buildCalendarPrompt,
     buildReplyPrompt,
     sendResultEmail,
-    vapiApi: vapiApiFromEnv(),
     executeAction: executeGoogleAction,
   },
   {

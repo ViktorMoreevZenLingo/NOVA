@@ -1,4 +1,4 @@
-import { hasBearer } from "./crypto.ts";
+import { hasVapiSecret } from "./crypto.ts";
 import { errorText, log } from "./log.ts";
 
 // Vapi "tool-calls" server message parsing and response formatting.
@@ -43,7 +43,7 @@ export function parseToolRequest(body: any): VapiToolRequest | null {
     // deno-lint-ignore no-explicit-any
     .map((tc: any) => ({ id: tc.id, name: tc.function.name, args: parseArgs(tc.function.arguments) }));
 
-  const metadata = message.call?.metadata;
+  const metadata = message.call?.assistantOverrides?.metadata ?? message.call?.metadata;
   return {
     callId,
     callType: message.call?.type ?? null,
@@ -77,7 +77,7 @@ export function vapiToolEndpoint(
 ): (req: Request) => Promise<Response> {
   return async (req) => {
     if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-    if (!(await hasBearer(req, secret))) return new Response("Unauthorized", { status: 401 });
+    if (!(await hasVapiSecret(req, secret))) return new Response("Unauthorized", { status: 401 });
 
     const parsed = parseToolRequest(await req.json().catch(() => null));
     if (!parsed) return new Response("Bad request", { status: 400 });
