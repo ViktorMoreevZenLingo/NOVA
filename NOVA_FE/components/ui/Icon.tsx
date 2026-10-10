@@ -30,6 +30,10 @@ const PATHS: Record<string, string> = {
   play: '<path d="m9 5 10 7-10 7V5Z"/>',
   sliders:
     '<path d="M4 7h6m4 0h6M4 17h10m4 0h2"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="17" r="2"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  volume:
+    '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M16 9a3 3 0 0 1 0 6m3-9a7 7 0 0 1 0 12"/>',
+  volumeOff: '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6m0-6 6 6"/>',
 };
 
 export type IconName = keyof typeof PATHS;

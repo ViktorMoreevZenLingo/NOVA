@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
+import { useVoiceChat } from "@/hooks/useVoiceChat";
 import {
   confirmAction,
   loadChat,
@@ -49,6 +50,7 @@ export function ChatWindow({
 }) {
   const { lang } = useI18n();
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
+  const voice = useVoiceChat(lang);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -99,8 +101,10 @@ export function ChatWindow({
     try {
       const res = await sendChat(message);
       setPending(res.pending);
-      if (!res.pending && res.reply)
+      if (!res.pending && res.reply) {
         setMessages((m) => [...m, { role: "alo", text: res.reply }]);
+        void voice.speak(res.reply);
+      }
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -115,8 +119,10 @@ export function ChatWindow({
     try {
       const res = await confirmAction(approved, pending!.id);
       setPending(res.pending);
-      if (res.reply)
+      if (res.reply) {
         setMessages((m) => [...m, { role: "alo", text: res.reply }]);
+        void voice.speak(res.reply);
+      }
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -139,6 +145,27 @@ export function ChatWindow({
     }
   };
 
+  const onMic = async () => {
+    if (busy || voice.transcribing) return;
+    if (voice.recording) {
+      const audio = await voice.stopRecording();
+      if (!audio) return;
+      try {
+        const text = await voice.transcribe(audio);
+        if (text.trim()) await send(text);
+      } catch (err) {
+        setError(describeError(err));
+      }
+    } else {
+      setError(null);
+      try {
+        await voice.startRecording();
+      } catch {
+        setError(l("Нужен е достъп до микрофона.", "Microphone access is needed."));
+      }
+    }
+  };
+
   const suggestions = [
     l("Какво имам в календара утре?", "What’s on my calendar tomorrow?"),
     l("Прочети последните ми имейли", "Read my latest emails"),
@@ -152,11 +179,22 @@ export function ChatWindow({
     >
       <div className="chat-window-header">
         <h2>{l("Говори с Ало", "Talk to Alo")}</h2>
-        {(messages.length > 0 || pending) && (
-          <button type="button" className="text-button" onClick={reset}>
-            {l("Изчисти", "Clear")}
+        <div className="chat-header-actions">
+          <button
+            type="button"
+            className={`chat-tts${voice.ttsEnabled ? " on" : ""}`}
+            aria-pressed={voice.ttsEnabled}
+            title={voice.ttsEnabled ? l("Изключи гласа", "Turn voice off") : l("Ало да говори", "Let Alo speak")}
+            onClick={() => voice.setTtsEnabled(!voice.ttsEnabled)}
+          >
+            <Icon name={voice.ttsEnabled ? "volume" : "volumeOff"} />
           </button>
-        )}
+          {(messages.length > 0 || pending) && (
+            <button type="button" className="text-button" onClick={reset}>
+              {l("Изчисти", "Clear")}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="chat-log" ref={logRef} role="log" aria-live="polite">
@@ -244,16 +282,34 @@ export function ChatWindow({
         <input
           type="text"
           value={input}
-          placeholder={l("Напиши съобщение…", "Type a message…")}
+          placeholder={
+            voice.recording
+              ? l("Слушам…", "Listening…")
+              : voice.transcribing
+                ? l("Разпознавам…", "Transcribing…")
+                : l("Напиши съобщение…", "Type a message…")
+          }
           aria-label={l("Съобщение до Ало", "Message to Alo")}
           onChange={(e) => setInput(e.target.value)}
-          disabled={busy}
+          disabled={busy || voice.recording || voice.transcribing}
         />
+        {voice.supported && (
+          <button
+            type="button"
+            className={`chat-mic${voice.recording ? " recording" : ""}`}
+            aria-pressed={voice.recording}
+            aria-label={voice.recording ? l("Спри записа", "Stop recording") : l("Говори", "Speak")}
+            disabled={busy || voice.transcribing}
+            onClick={() => void onMic()}
+          >
+            <Icon name="mic" />
+          </button>
+        )}
         <button
           type="submit"
           className="primary chat-send"
           aria-label={l("Изпрати", "Send")}
-          disabled={busy || !input.trim()}
+          disabled={busy || voice.recording || voice.transcribing || !input.trim()}
         >
           <Icon name="arrow" />
         </button>

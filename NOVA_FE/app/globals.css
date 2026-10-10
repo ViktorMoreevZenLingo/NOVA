@@ -3248,3 +3248,67 @@ html:has(.history-index), body:has(.history-index) {
     display: none;
   }
 }
+
+/* Voice: mic (record) + TTS toggle in the chat. */
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chat-tts {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #8c8c91;
+}
+.chat-tts:hover {
+  background: #f1f1f3;
+  color: #44444a;
+}
+.chat-tts.on {
+  color: #007aff;
+}
+.chat-tts .icon {
+  width: 17px;
+  height: 17px;
+}
+.chat-mic {
+  flex-shrink: 0;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #dcdcd9;
+  border-radius: 10px;
+  background: #fff;
+  color: #44444a;
+}
+.chat-mic:hover {
+  background: #f4f4f2;
+  border-color: #aaa;
+}
+.chat-mic .icon {
+  width: 19px;
+  height: 19px;
+}
+.chat-mic:disabled {
+  opacity: 0.5;
+}
+.chat-mic.recording {
+  border-color: #df4141;
+  background: #fdecec;
+  color: #df4141;
+  animation: chat-mic-pulse 1.3s ease-in-out infinite;
+}
+@keyframes chat-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 #df414140; }
+  50% { box-shadow: 0 0 0 5px #df414100; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-mic.recording { animation: none; }
+}
