@@ -141,3 +141,12 @@ Deno.test("direct voice: 20 authenticated call scenarios, bounded reads, no task
     "Connect gmail",
   );
 });
+
+Deno.test("email date readback: Sofia midnight rollover is resolved by backend", () => {
+  const result = compactRead("get_email", {
+    headers: [{ name: "Date", value: "Fri, 9 Oct 2026 21:06:10 +0000 (GMT)" }],
+    body: "Test",
+  }).data as Record<string, unknown>;
+  assertEquals(result.date_local, "2026-10-10");
+  assertEquals(result.time_local, "00:06");
+});

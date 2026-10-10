@@ -79,3 +79,7 @@ python3 NOVA_VOICE/scripts/voice-regression.py items
 ```
 
 This creates four reusable scenarios and runs each five times. Tool responses are mocked; Vapi voice simulation usage is still billable. A Bulgarian-capable tester has a 90-second limit. Use `cancel` to stop a run. Private results are saved under `/tmp/alo-voice-regression`, or `ALO_TEST_OUTPUT_DIR`. Do not commit raw call artifacts: they can contain configuration and tool-server credentials. Independently inspect call messages; an automated evaluator's pass is not proof that the final spoken result was heard.
+
+### Prepared is not sent
+
+The reported call `01a125e5-f575-7000-8917-2ed00adba7ed` prepared an email but never called `decide_action`; its task remained `needs_input`, with zero execution steps and zero approval decisions. The speaker prematurely said “Готово”. Preparation now returns structured `awaiting_approval`, `executed: false` and `completed: false` with an explicit not-sent read-back instruction. Known sender addresses are reused without mandatory dictation. The existing pending email is preserved for the user to review and approve; this fix does not send it automatically. Email dates now include Sofia-local date and time to avoid midnight rollover errors.

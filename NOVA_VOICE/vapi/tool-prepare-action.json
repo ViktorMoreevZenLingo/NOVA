@@ -20,7 +20,7 @@
         },
         "to": {
           "type": "string",
-          "description": "send_email: one recipient email address (have the caller spell it)."
+          "description": "send_email: exact recipient email address, reused from the requested message or unambiguous contact when available. Only ask to spell it if unknown or unclear."
         },
         "subject": {
           "type": "string",

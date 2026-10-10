@@ -37,14 +37,32 @@ export function compactRead(name: string, value: any) {
   const mail = (m: any) => {
     const header = (name: string) =>
       text(m.headers?.find((h: any) => h.name?.toLowerCase() === name)?.value);
+    const dateMs = m.internalDate
+      ? Number(m.internalDate)
+      : Date.parse(header("date"));
+    const date = Number.isFinite(dateMs) ? new Date(dateMs) : null;
     return {
       id: text(m.id, 200),
       from: header("from"),
       to: header("to"),
       subject: header("subject"),
       date: header("date"),
-      received_at: m.internalDate
-        ? new Date(Number(m.internalDate)).toISOString()
+      received_at: date?.toISOString(),
+      date_local: date
+        ? new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Europe/Sofia",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(date)
+        : undefined,
+      time_local: date
+        ? new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Europe/Sofia",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(date)
         : undefined,
       snippet: text(m.snippet, 700),
       ...(m.body !== undefined

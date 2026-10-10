@@ -193,3 +193,95 @@ Deno.test("voice: phone mode needs no PIN/question; spoofed model numbers and br
     }, undefined)).ok,
   );
 });
+
+Deno.test("prepared reply: known sender needs no dictation; response explicitly says not executed and awaits approval", async () => {
+  const store = new FakeStore();
+  let submitted: any;
+  let review: any;
+  const db = {
+    from: (table: string) => {
+      const b = {
+        select: () => b,
+        eq: () => b,
+        update: (value: unknown) => {
+          review = value;
+          return b;
+        },
+        maybeSingle: async () => ({
+          error: null,
+          data: table === "call_sessions"
+            ? await store.getCallSession("reply-call")
+            : table === "connections"
+            ? { service: "gmail" }
+            : null,
+        }),
+        then: (resolve: (v: unknown) => void) =>
+          resolve({ error: null, data: [] }),
+      };
+      return b;
+    },
+    rpc: async (name: string, args: any) => {
+      assertEquals(name, "alo_task_submit");
+      submitted = args.p_data;
+      return {
+        error: null,
+        data: {
+          id: "reply-task",
+          revision: 0,
+          status: "needs_input",
+          pending: {
+            kind: "approval",
+            tool: submitted.prepared_action.tool,
+            args: submitted.prepared_action.args,
+          },
+        },
+      };
+    },
+  };
+  const handler = voiceDelegationHandler({
+    vapiSecret: VAPI_SECRET,
+    taskSecret: "test",
+    caller: { mode: "phone" },
+    store,
+    legacy: () => {
+      throw new Error("Must not use Manus");
+    },
+  }, db as never);
+  const response = await handler(
+    new Request("https://test/voice-tools", {
+      method: "POST",
+      headers: { "x-vapi-secret": VAPI_SECRET },
+      body: JSON.stringify({
+        message: {
+          type: "tool-calls",
+          call: {
+            id: "reply-call",
+            type: "inboundPhoneCall",
+            customer: { number: USER_PHONE },
+          },
+          toolCallList: [{
+            id: "prepare",
+            function: {
+              name: "prepare_action",
+              arguments: {
+                intent: "send_email",
+                instruction: "Reply to the message we just read",
+                to: "known.sender@example.test",
+                subject: "Re: Meeting",
+                body: "I look forward to it.",
+              },
+            },
+          }],
+        },
+      }),
+    }),
+  );
+  const proposal = JSON.parse((await response.json()).results[0].result);
+  assertEquals(proposal.status, "awaiting_approval");
+  assertEquals(proposal.executed, false);
+  assertEquals(proposal.completed, false);
+  assertEquals(proposal.details.to, "known.sender@example.test");
+  assert(proposal.instruction.includes("още не е изпратен"));
+  assertEquals(review.review_alo_task_id, "reply-task");
+  assertEquals(submitted.delegation, undefined);
+});
