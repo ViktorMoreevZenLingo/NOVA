@@ -2186,7 +2186,8 @@ dialog .full {
   font-weight: 550;
 }
 .app-topbar .language-switcher {
-  position: static;
+  position: relative;
+  inset: auto;
   flex-shrink: 0;
 }
 .history-shell .history-content {
@@ -2861,8 +2862,16 @@ html:has(.history-index), body:has(.history-index) {
 .language-trigger > .icon { width: 15px; height: 15px; }
 .language-trigger > span { flex: 1; font-size: 11px; }
 .language-switcher.is-open > .language-trigger > .icon { transform: none; }
-.language-menu[popover] { inset: auto; margin: 0; max-height: none; }
-.language-menu:not(:popover-open) { display: none; }
+.language-switcher .language-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  box-sizing: border-box;
+  z-index: 20;
+}
 .language-trigger:active { transform: none; }
 
 .transcript-panel {

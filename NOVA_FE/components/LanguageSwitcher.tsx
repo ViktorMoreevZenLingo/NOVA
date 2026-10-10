@@ -56,9 +56,8 @@ export function LanguageSwitcher() {
       </button>
       {open && (
         <div
-          className="crafted-menu"
+          className="crafted-menu language-menu"
           role="listbox"
-          style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 20, minWidth: 88 }}
         >
           {OPTIONS.map((o) => (
             <button
