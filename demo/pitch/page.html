@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #08080c; color: #f4f4f5;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  #bg { position: absolute; inset: 0; background:
+    radial-gradient(900px 600px at 78% 18%, #2a4dd955, transparent 70%),
+    radial-gradient(800px 700px at 10% 100%, #6d3bd933, transparent 70%), #08080c; }
+  .layer { position: absolute; inset: 0; opacity: 0; }
+  .chapter { position: absolute; top: 44px; left: 64px; display: flex; align-items: center; gap: 14px;
+    font-size: 22px; font-weight: 600; letter-spacing: .02em; color: #c9c9d3; }
+  .chapter b { color: #fff; }
+  .brand { position: absolute; top: 40px; right: 64px; font-size: 30px; font-weight: 700; letter-spacing: -1px; opacity: .9; }
+  .brand span { color: #8aa6ff; }
+
+  /* Hook */
+  #hook { display: grid; place-content: center; text-align: center; gap: 30px; }
+  #hook h1 { font-size: 86px; line-height: 1.05; letter-spacing: -3px; font-weight: 700; }
+  #hook h1 em { font-style: normal; background: linear-gradient(90deg, #8aa6ff, #c7a6ff); -webkit-background-clip: text; color: transparent; }
+  #hook p { font-size: 32px; color: #b9b9c4; }
+  .rise { opacity: 0; transform: translateY(24px); }
+
+  /* Call */
+  #phone-wrap { position: absolute; left: 230px; top: 110px; width: 400px; height: 866px; border-radius: 56px; overflow: hidden;
+    box-shadow: 0 0 0 10px #1c1c22, 0 40px 120px #000c, 0 0 90px #3d6bff44; background: #000; }
+  #phone { width: 100%; height: 100%; object-fit: cover; }
+  #call-panel { position: absolute; left: 760px; top: 150px; width: 1000px; display: grid; gap: 26px; }
+  .live { display: inline-flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 600; color: #ff8d8d; }
+  .live i { width: 14px; height: 14px; border-radius: 50%; background: #ff4d4d; box-shadow: 0 0 0 6px #ff4d4d33; }
+  .call-title { font-size: 54px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.1; }
+  .call-sub { font-size: 24px; color: #a9a9b6; }
+  .card { background: #ffffff0d; border: 1px solid #ffffff1f; border-radius: 22px; padding: 24px 28px; backdrop-filter: blur(8px); }
+  .card h3 { font-size: 16px; text-transform: uppercase; letter-spacing: .12em; color: #8aa6ff; margin-bottom: 14px; }
+  .mem { display: grid; gap: 10px; font-size: 24px; color: #e6e6ee; }
+  .mem span { color: #9b9ba8; font-size: 18px; display: inline-block; width: 150px; }
+  .chip { display: flex; gap: 16px; align-items: center; font-size: 25px; padding: 22px 26px; border-radius: 20px;
+    background: linear-gradient(90deg, #11331f, #0d2418); border: 1px solid #2c8a52; color: #c9f5d9; opacity: 0; transform: translateX(40px); }
+  .chip b { color: #fff; }
+  .tick { width: 40px; height: 40px; border-radius: 50%; background: #22c35e; color: #04120a; display: grid; place-items: center; font-weight: 900; font-size: 24px; flex-shrink: 0; }
+  .wave { display: flex; gap: 6px; align-items: center; height: 56px; }
+  .wave i { width: 7px; border-radius: 4px; background: #8aa6ff; height: 10px; }
+
+  /* Pulse */
+  #pulse-left { position: absolute; left: 140px; top: 170px; width: 820px; display: grid; gap: 24px; }
+  #pulse-right { position: absolute; left: 1020px; top: 170px; width: 760px; display: grid; gap: 24px; }
+  .q { display: flex; justify-content: space-between; align-items: center; gap: 20px; font-size: 26px; padding: 20px 0; border-top: 1px solid #ffffff1a; }
+  .q:first-of-type { border-top: 0; }
+  .score { min-width: 92px; text-align: center; font-weight: 700; font-size: 30px; padding: 8px 14px; border-radius: 14px; background: #ffffff10; color: #6b6b78; }
+  .score.on { background: #2a78d6; color: #fff; }
+  .store { opacity: 0; transform: translateY(30px); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .pill { font-size: 22px; padding: 10px 18px; border-radius: 999px; background: #ffffff12; border: 1px solid #ffffff22; }
+  .pill.blue { background: #2a78d633; border-color: #2a78d6; }
+  .pill.no { color: #ff9b9b; border-color: #ff6b6b66; background: #ff4d4d14; text-decoration: line-through; text-decoration-thickness: 2px; }
+
+  /* FE clips */
+  .fe-frame { position: absolute; left: 200px; top: 104px; width: 1520px; height: 855px; border-radius: 22px; overflow: hidden;
+    box-shadow: 0 30px 120px #000d, 0 0 0 1px #ffffff22; background: #fff; }
+  .fe-frame video { width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 40%; }
+
+  /* Bridge / outro */
+  #outro { display: grid; place-content: center; text-align: center; gap: 34px; }
+  #outro h1 { font-size: 92px; letter-spacing: -3px; font-weight: 750; }
+  #outro h1 span { color: #8aa6ff; }
+  #outro p { font-size: 34px; color: #c9c9d3; }
+  #outro .row { justify-content: center; }
+  #outro .pill { font-size: 26px; padding: 14px 24px; }
+
+  /* Subtitles */
+  #subs { position: absolute; left: 0; right: 0; bottom: 46px; display: flex; justify-content: center; pointer-events: none; }
+  #sub { max-width: 1500px; text-align: center; font-size: 38px; line-height: 1.3; font-weight: 600; padding: 14px 30px; border-radius: 16px;
+    background: #000000c4; box-shadow: 0 10px 40px #0008; opacity: 0; }
+  #sub b { color: #8aa6ff; margin-right: 10px; }
+  #sub b.oleg { color: #ffd27a; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+
+<section class="layer" id="hook">
+  <p class="rise" id="h0">Every company says “our people matter”.</p>
+  <h1 class="rise" id="h1">Your employees won't tell you what's wrong.<br><em>They'll tell NOVA.</em></h1>
+  <p class="rise" id="h2">A personal AI coach that calls every employee, and gives managers early, anonymous signals.</p>
+</section>
+
+<section class="layer" id="call">
+  <div class="chapter"><span>1 /</span> <b>Real phone call</b> · recorded 10 Oct</div>
+  <div class="brand">NOVA<span>.</span>Coach</div>
+  <div id="phone-wrap"><video id="phone" muted preload="auto"></video></div>
+  <div id="call-panel">
+    <div class="live"><i id="dot"></i> LIVE · NOVA calls Oleg, an employee in Sales</div>
+    <div class="call-title">The coach remembers, follows up<br>and helps him pick one next step.</div>
+    <div class="wave" id="wave"></div>
+    <div class="card">
+      <h3>What NOVA remembers (private to Oleg)</h3>
+      <div class="mem">
+        <div><span>Goal</span>Take on more responsibility</div>
+        <div><span>Step due</span>Prepare one proposal for the team meeting</div>
+        <div><span>Blocker</span>Nervous about proposing ideas in meetings</div>
+      </div>
+    </div>
+    <div class="chip" id="saved"><div class="tick">✓</div><div><b>New step saved:</b> “Email my manager the proposal by Wednesday” · NOVA calls back on 15 Oct</div></div>
+  </div>
+</section>
+
+<section class="layer" id="pulse">
+  <div class="chapter"><span>2 /</span> <b>Anonymous pulse check-in</b> · real call</div>
+  <div class="brand">NOVA<span>.</span>Coach</div>
+  <div id="pulse-left">
+    <div class="live" style="color:#9fb6ff"><i style="background:#5b84ff;box-shadow:0 0 0 6px #5b84ff33"></i> 2 minutes · by phone · anonymous to the company</div>
+    <div class="call-title">Honest feedback,<br>without fear.</div>
+    <div class="card">
+      <h3>This week's pulse</h3>
+      <div class="q">How was your work week? (1–5)<div class="score" id="s1">—</div></div>
+      <div class="q">How supported did you feel? (1–5)<div class="score" id="s2">—</div></div>
+      <div class="q">What got in your way, or helped?<div class="score" id="s3">—</div></div>
+    </div>
+  </div>
+  <div id="pulse-right">
+    <div class="card store" id="store1">
+      <h3>What the company gets</h3>
+      <div class="row"><span class="pill blue">work week 3 / 5</span><span class="pill blue">support 4 / 5</span><span class="pill blue">theme: growth</span><span class="pill blue">signal: no growth</span></div>
+    </div>
+    <div class="card store" id="store2">
+      <h3>What it never gets</h3>
+      <div class="row"><span class="pill no">his name</span><span class="pill no">his words</span><span class="pill no">his voice</span><span class="pill no">results for teams under 5</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="layer" id="fe">
+  <div class="chapter" id="fe-chapter"></div>
+  <div class="brand">NOVA<span>.</span>Coach</div>
+  <div class="fe-frame" id="fe-frame"></div>
+</section>
+
+<section class="layer" id="outro">
+  <h1>NOVA<span>.</span>Coach</h1>
+  <p>Growth for every employee. Early, honest signals for every manager.</p>
+  <div class="row"><span class="pill">Private by default</span><span class="pill">Anonymous by design (5+ people)</span><span class="pill">Voice-first</span><span class="pill">Closes the loop</span></div>
+</section>
+
+<div id="subs"><div id="sub"></div></div>
+
+<script>
+const TL = window.TL;
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ease = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const fade = (t, s, e, f = 0.35) => Math.min(ease((t - s) / f), ease((e - t) / f));
+
+// Waveform bars
+for (let i = 0; i < 44; i++) $("wave").appendChild(document.createElement("i"));
+
+// FE clip videos
+const feVideos = {};
+for (const s of TL.scenes.filter((s) => s.kind === "fe")) {
+  if (feVideos[s.clip]) continue;
+  const v = document.createElement("video");
+  v.muted = true; v.preload = "auto"; v.src = `media/${s.clip}.mp4`; v.style.display = "none";
+  $("fe-frame").appendChild(v); feVideos[s.clip] = v;
+}
+$("phone").src = "media/phone.mp4";
+
+function seek(video, time) {
+  time = Math.max(0, Math.min(time, (video.duration || 1e9) - 0.04));
+  if (Math.abs(video.currentTime - time) < 0.001 && video.readyState >= 2) return Promise.resolve();
+  return new Promise((res) => {
+    const done = () => { video.removeEventListener("seeked", done); res(); };
+    video.addEventListener("seeked", done);
+    video.currentTime = time;
+  });
+}
+
+window.ready = () => Promise.all([$("phone"), ...Object.values(feVideos)].map((v) =>
+  v.readyState >= 2 ? null : new Promise((r) => v.addEventListener("loadeddata", r, { once: true }))));
+
+window.render = async (t) => {
+  const waits = [];
+  for (const id of ["hook", "call", "pulse", "fe", "outro"]) $(id).style.opacity = 0;
+
+  for (const s of TL.scenes) {
+    if (t < s.start - 0.4 || t > s.end + 0.4) continue;
+    const o = fade(t, s.start, s.end);
+    const el = $(s.kind === "hook" ? "hook" : s.kind === "outro" ? "outro" : s.kind);
+    el.style.opacity = Math.max(Number(el.style.opacity), o);
+    const lt = t - s.start;
+
+    if (s.kind === "hook") {
+      ["h0", "h1", "h2"].forEach((id, i) => {
+        const k = ease((lt - 0.2 - i * 0.9) / 0.6);
+        $(id).style.opacity = k; $(id).style.transform = `translateY(${24 * (1 - k)}px)`;
+      });
+    }
+    if (s.kind === "call") {
+      // Phone video follows the call audio; between cuts it holds.
+      let src = s.segments[0].src_from;
+      for (const g of s.segments) if (t >= g.at) src = g.src_from + Math.min(t - g.at, g.dur);
+      waits.push(seek($("phone"), Math.max(2.5, src - s.phone_offset))); // recording starts on the home screen
+      const speaking = s.segments.find((g) => t >= g.at && t <= g.at + g.dur);
+      [...$("wave").children].forEach((b, i) => {
+        const amp = speaking ? (0.35 + 0.65 * Math.abs(Math.sin(t * 9 + i * 0.7) * Math.sin(t * 3.1 + i * 0.37))) : 0.08;
+        b.style.height = `${8 + 48 * amp}px`;
+        b.style.background = speaking?.speaker === "Oleg" ? "#ffd27a" : "#8aa6ff";
+      });
+      $("dot").style.opacity = 0.5 + 0.5 * Math.abs(Math.sin(t * 3));
+      const k = ease((t - s.commit_at) / 0.6);
+      $("saved").style.opacity = k; $("saved").style.transform = `translateX(${40 * (1 - k)}px)`;
+    }
+    if (s.kind === "pulse") {
+      const at = (src) => s.segments.find((g) => g.src_from === src)?.at ?? 1e9;
+      const set = (id, on, text) => { $(id).textContent = on ? text : "—"; $(id).classList.toggle("on", on); };
+      set("s1", t >= at(44.95) + 1.2, "3");
+      set("s2", t >= s.stored_at - 0.2, "4");
+      set("s3", t >= s.stored_at - 0.2, "said");
+      ["store1", "store2"].forEach((id, i) => {
+        const k = ease((t - s.stored_at - i * 0.7) / 0.6);
+        $(id).style.opacity = k; $(id).style.transform = `translateY(${30 * (1 - k)}px)`;
+      });
+    }
+    if (s.kind === "fe" && o > 0) {
+      for (const [clip, v] of Object.entries(feVideos)) v.style.display = clip === s.clip ? "block" : "none";
+      const v = feVideos[s.clip];
+      // Slow push-in onto the part of the screen that matters.
+      const [fx, fy, fs] = s.focus || [0.5, 0.4, 1.04];
+      v.style.transformOrigin = `${fx * 100}% ${fy * 100}%`;
+      v.style.transform = `scale(${1 + (fs - 1) * ease((lt - 0.5) / ((s.end - s.start) * 0.55))})`;
+      waits.push(seek(v, lt));
+      $("fe-chapter").innerHTML = `<b>${s.chapter}</b>`;
+      $("fe-frame").style.transform = `translateY(${18 * (1 - ease(lt / 0.5))}px)`;
+    }
+  }
+
+  const sub = TL.subs.find((c) => t >= c.start && t < c.end);
+  if (sub) {
+    const who = sub.speaker ? `<b class="${sub.speaker === "Oleg" ? "oleg" : ""}">${sub.speaker}:</b>` : "";
+    $("sub").innerHTML = who + sub.text;
+    $("sub").style.opacity = Math.min(1, (t - sub.start) / 0.12, (sub.end - t) / 0.08 + 0.4);
+  } else $("sub").style.opacity = 0;
+
+  await Promise.all(waits);
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+};
+</script>
+</body>
+</html>
