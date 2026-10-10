@@ -6,3 +6,7 @@ out/
 .env*
 !.env.example
 .playwright-cli/
+
+# Locally installed AI agent skills
+/.agents/skills/
+/skills-lock.json

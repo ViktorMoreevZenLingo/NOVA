@@ -16,6 +16,31 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
   const l = (bg: string, en: string) => (lang === "bg" ? bg : en);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const toolRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!popoverOpen) return;
+    const panel = popoverRef.current;
+    const trigger = toolRef.current;
+    if (!panel || !trigger) return;
+    const position = () => {
+      const rect = trigger.getBoundingClientRect();
+      const width = Math.min(300, window.innerWidth - 32);
+      panel.style.width = `${width}px`;
+      panel.style.left = `${Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16))}px`;
+      panel.style.top = `${rect.bottom + 8}px`;
+      panel.style.maxHeight = `${Math.max(0, window.innerHeight - rect.bottom - 24)}px`;
+    };
+    position();
+    panel.showPopover();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+      if (panel.matches(":popover-open")) panel.hidePopover();
+    };
+  }, [popoverOpen]);
 
   const typeTabs: [string, string][] = [
     ["all", l("Всички", "All")],
@@ -124,8 +149,9 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
 
         {popoverOpen && (
           <div
-            className="history-popover"
-            style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300, maxHeight: "70vh" }}
+            ref={popoverRef}
+            popover="manual"
+            className="history-popover history-sort-panel"
           >
             <div className="history-popover-title">{l("Подреждане и филтри", "Sort & Filter")}</div>
             <div className="history-refinements">
