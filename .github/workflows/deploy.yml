@@ -34,11 +34,31 @@ jobs:
       - name: Link project
         run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Show existing tables (read-only, for syncing with the Lovable portal)
-        run: supabase inspect db table-stats --linked --password "$SUPABASE_DB_PASSWORD" || true
+      - name: Database connection
+        run: |
+          host=$(grep -ohE '[a-z0-9.-]+\.pooler\.supabase\.com' supabase/.temp/pooler-url 2>/dev/null | head -1 || true)
+          if [ -z "$host" ]; then echo "::error::Could not find the pooler host after supabase link"; ls -la supabase/.temp || true; exit 1; fi
+          {
+            echo "PGHOST=$host"
+            echo "PGPORT=5432"
+            echo "PGUSER=postgres.$PROJECT_REF"
+            echo "PGDATABASE=postgres"
+            echo "PGSSLMODE=require"
+          } >> "$GITHUB_ENV"
 
+      - name: Show existing schema (read-only, for syncing with the Lovable portal)
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          psql -c '\dt public.*' || true
+          psql -c 'select version, name from supabase_migrations.schema_migrations order by version' || true
+
+      # Our own migration history (see scripts/apply-migrations.sh); Lovable keeps
+      # using supabase_migrations, so neither side blocks the other.
       - name: Apply migrations
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: scripts/apply-migrations.sh
 
       - name: Set function secrets and Vault config
         env:

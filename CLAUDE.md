@@ -6,6 +6,7 @@
   - Track B owns `supabase/functions/_shared/email/**` and `tests/email/**`. Don't edit those unless asked.
   - `_shared/contracts.ts` is the A↔B contract. Only change it if both tracks agree.
   - The DB schema is the contract with the Lovable portal (`docs/db-contract.md`). Change it only through new migrations, and update that doc.
+  - Lovable owns its own tables in the same project (e.g. `public.profiles`) and its own migration history. Our objects use non-colliding names (`assistant_profiles`, `nova_*` functions). Remote migrations go through `scripts/apply-migrations.sh` (tracked in `nova_schema_migrations`), never `supabase db push`.
 - Patterns:
   - Each function has `handler.ts` (pure, dependency-injected, tested) and `index.ts` (wires env + real clients).
   - DB status changes go through `store.transition(id, fromStatuses, patch)`. Never update a status unconditionally.

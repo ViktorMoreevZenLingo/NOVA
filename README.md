@@ -121,7 +121,7 @@ Prerequisites: [Supabase CLI](https://supabase.com/docs/guides/cli), [Deno 2](ht
 ### 2. Deploy (GitHub Actions)
 Deploys are done by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It runs on every push to `main` or `feat/vapi-manus` that touches `supabase/**`, and can also be started from the Actions tab. Each run:
 1. runs the unit tests
-2. applies the migrations (`supabase db push`)
+2. lists the existing tables (for syncing with Lovable), then applies our migrations with [`scripts/apply-migrations.sh`](scripts/apply-migrations.sh)
 3. sets the function secrets
 4. writes the cron job's Vault secrets (`project_url`, `cron_secret`)
 5. deploys all 4 functions
@@ -151,9 +151,11 @@ After the first deploy, register the demo user's phone in the Supabase SQL edito
 update public.assistant_profiles set phone_e164 = '+359...' where notify_email = 'demo@example.com';
 ```
 
+> **Why not `supabase db push`?** The Lovable portal writes its own migrations to the same Supabase project. The CLI refuses to push while the shared history has entries this repo doesn't know about. So our migrations are tracked separately in `public.nova_schema_migrations`, and Lovable keeps `supabase_migrations`. **Don't run `supabase db push` or `migration repair` against the shared project.**
+
 Deploying manually without GitHub works too:
 1. `supabase link`
-2. `supabase db push`
+2. `PGHOST=<pooler host> PGPORT=5432 PGUSER=postgres.<ref> PGPASSWORD=... PGDATABASE=postgres scripts/apply-migrations.sh`
 3. `supabase secrets set --env-file <file>` (see `.env.example`)
 4. `supabase functions deploy`
 5. set the Vault secrets with `select public.nova_set_vault_secret('project_url', ...)` and `select public.nova_set_vault_secret('cron_secret', ...)`
