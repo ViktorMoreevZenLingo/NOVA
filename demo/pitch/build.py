@@ -122,7 +122,8 @@ for i, a in enumerate(audio):
     idx = 0 if a["src"] == "coach" else 1
     d = a["to"] - a["from"]
     parts.append(
-        f"[{idx}:a]atrim={a['from']}:{a['to']},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo,"
+        # Vapi records the employee on the left and the assistant on the right: centre both.
+        f"[{idx}:a]atrim={a['from']}:{a['to']},asetpts=PTS-STARTPTS,pan=stereo|c0=c0+c1|c1=c0+c1,aformat=sample_rates=48000:channel_layouts=stereo,"
         f"afade=t=in:d=0.06,afade=t=out:st={d - 0.12:.3f}:d=0.12,volume=1.6,adelay={int(a['at'] * 1000)}|{int(a['at'] * 1000)}[s{i}]"
     )
     labels.append(f"[s{i}]")
@@ -134,10 +135,12 @@ duck = "+".join(f"between(t,{a - 0.4:.2f},{b + 0.2:.2f})" for a, b in speech_spa
 pad = (
     f"sine=f=220:d={total},volume=0.5[p1];sine=f=277.18:d={total},volume=0.35[p2];sine=f=329.63:d={total},volume=0.3[p3];"
     f"sine=f=110:d={total},volume=0.4[p4];[p1][p2][p3][p4]amix=inputs=4,lowpass=f=900,tremolo=f=0.15:d=0.5,"
-    f"aformat=sample_rates=48000:channel_layouts=stereo,volume='0.05*(1-0.85*min(1,{duck}))':eval=frame,"
+    f"aformat=sample_rates=48000:channel_layouts=stereo,volume='0.6*(1-0.9*min(1,{duck}))':eval=frame,"
     f"afade=t=in:d=2,afade=t=out:st={total - 2.5}:d=2.5[pad]"
 )
-graph = ";".join(parts + [pad, "".join(labels) + f"[pad]amix=inputs={len(labels) + 1}:normalize=0,alimiter=limit=0.95[out]"])
+graph = ";".join(parts + [pad,
+    "".join(labels) + f"amix=inputs={len(labels)}:normalize=0,dynaudnorm=f=300:g=11:m=6[speech]",
+    "[speech][pad]amix=inputs=2:normalize=0,alimiter=limit=0.95[out]"])
 subprocess.run([FFMPEG, "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-map", "[out]", "-t", str(total),
                 "-ar", "48000", str(work / "audio.wav")], check=True)
 print(f"timeline {total:.1f}s, {len(subs)} subtitles, {len(audio)} audio segments")
