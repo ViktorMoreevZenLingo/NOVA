@@ -3,7 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
-import { defaultFilters, type HistoryFilters } from "@/lib/history-data";
+import { type HistoryFilters } from "@/lib/history-data";
+
+import { HistoryFilterPanel } from "./HistoryFilterPanel";
 
 interface ToolbarProps {
   filters: HistoryFilters;
@@ -25,17 +27,22 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
     if (!panel || !trigger) return;
     const position = () => {
       const rect = trigger.getBoundingClientRect();
-      const width = Math.min(300, window.innerWidth - 32);
+      const contentWidth = trigger.closest(".history-toolbar")?.getBoundingClientRect().width ?? 300;
+      const width = Math.min(300, contentWidth, window.innerWidth - 32);
       panel.style.width = `${width}px`;
       panel.style.left = `${Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16))}px`;
-      panel.style.top = `${rect.bottom + 8}px`;
-      panel.style.maxHeight = `${Math.max(0, window.innerHeight - rect.bottom - 24)}px`;
+      panel.style.maxHeight = `${window.innerHeight - 32}px`;
+      panel.style.top = `${Math.max(16, Math.min(rect.bottom + 8, window.innerHeight - panel.getBoundingClientRect().height - 16))}px`;
     };
     position();
     panel.showPopover();
+    position();
+    const observer = new ResizeObserver(position);
+    observer.observe(panel);
     window.addEventListener("resize", position);
     window.addEventListener("scroll", position, true);
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", position);
       window.removeEventListener("scroll", position, true);
       if (panel.matches(":popover-open")) panel.hidePopover();
@@ -76,7 +83,9 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
     const onDown = (e: PointerEvent) => {
       if (!toolRef.current?.contains(e.target as Node)) setPopoverOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPopoverOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) setPopoverOpen(false);
+    };
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -93,27 +102,6 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
     filters.durationFilter !== "all",
     filters.sortOrder !== "newest",
   ].filter(Boolean).length;
-
-  const select = (
-    id: keyof HistoryFilters,
-    label: string,
-    choices: [string, string][],
-  ) => (
-    <label className="history-select">
-      <span>{label}</span>
-      <select
-        aria-label={label}
-        value={filters[id] as string}
-        onChange={(e) => set({ [id]: e.target.value } as Partial<HistoryFilters>)}
-      >
-        {choices.map(([k, title]) => (
-          <option key={k} value={k}>
-            {title}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 
   return (
     <div className="history-toolbar">
@@ -153,57 +141,7 @@ export function HistoryToolbar({ filters, setFilters, resultCount }: ToolbarProp
             popover="manual"
             className="history-popover history-sort-panel"
           >
-            <div className="history-popover-title">{l("Подреждане и филтри", "Sort & Filter")}</div>
-            <div className="history-refinements">
-              {select("sortOrder", l("Подреди", "Sort"), [
-                ["newest", l("Най-нови", "Newest first")],
-                ["oldest", l("Най-стари", "Oldest first")],
-                ["az", l("Заглавие: А–Я", "Title: A–Z")],
-                ["za", l("Заглавие: Я–А", "Title: Z–A")],
-                ["shortest", l("Най-кратки", "Shortest first")],
-                ["longest", l("Най-дълги", "Longest first")],
-                ["status", l("Първо в процес", "In Progress first")],
-              ])}
-              {select("statusFilter", l("Статус", "Status"), [
-                ["all", l("Всички", "All")],
-                ["complete", l("Завършено", "Complete")],
-                ["progress", l("В процес", "In Progress")],
-              ])}
-              {select("durationFilter", l("Продължителност", "Duration"), [
-                ["all", l("Всички", "Any duration")],
-                ["short", l("Под 1 мин", "Under 1 min")],
-                ["medium", l("1–5 мин", "1–5 min")],
-                ["long", l("5+ мин", "5+ min")],
-                ["none", l("Без продължителност", "No duration")],
-              ])}
-              {select("period", l("Период", "Date Range"), [
-                ["all", l("Всички дати", "All dates")],
-                ["today", l("Днес", "Today")],
-                ["week", l("Последните 7 дни", "Last 7 days")],
-                ["month", l("Последните 30 дни", "Last 30 days")],
-                ["custom", l("Избери дати", "Custom dates")],
-              ])}
-              <button type="button" className="primary full options-button" onClick={() => setFilters(defaultFilters())}>
-                {l("Изчисти", "Reset")}
-              </button>
-            </div>
-            {filters.period === "custom" && (
-              <div className="history-date-range" style={{ display: "grid", gap: 10, marginTop: 12 }}>
-                <label style={{ display: "grid", gap: 6 }}>
-                  {l("От", "From")}
-                  <input type="date" value={filters.fromDate} onChange={(e) => set({ fromDate: e.target.value })} />
-                </label>
-                <label style={{ display: "grid", gap: 6 }}>
-                  {l("До", "To")}
-                  <input type="date" value={filters.toDate} onChange={(e) => set({ toDate: e.target.value })} />
-                </label>
-              </div>
-            )}
-            <p className="history-filter-feedback" role="status">
-              {filters.period === "custom" && filters.fromDate && filters.toDate && filters.fromDate > filters.toDate
-                ? l("Началната дата трябва да е преди крайната.", "Start date must be before end date.")
-                : `${resultCount} ${l("записа", "results")}`}
-            </p>
+            <HistoryFilterPanel filters={filters} setFilters={setFilters} resultCount={resultCount} />
           </div>
         )}
       </div>
