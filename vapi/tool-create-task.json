@@ -1,0 +1,35 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "create_task",
+    "description": "Delegate a task to the cloud agent. The agent keeps working after the call ends and emails the result to the caller's registered address.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "string",
+          "enum": ["summarize_emails", "research"],
+          "description": "summarize_emails: anything about the caller's Gmail inbox. research: web research or any other general task."
+        },
+        "instruction": {
+          "type": "string",
+          "description": "The caller's request, restated clearly in one or two sentences."
+        },
+        "pin": {
+          "type": "string",
+          "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
+        }
+      },
+      "required": ["intent", "instruction"]
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/create-task",
+    "credentialId": "<vapi-bearer-credential-id>",
+    "timeoutSeconds": 30
+  },
+  "messages": [
+    { "type": "request-start", "content": "One moment while I hand that over to the agent." }
+  ]
+}

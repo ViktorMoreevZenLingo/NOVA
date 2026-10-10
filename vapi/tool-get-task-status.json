@@ -1,0 +1,22 @@
+{
+  "type": "function",
+  "async": false,
+  "function": {
+    "name": "get_task_status",
+    "description": "Get the status of the caller's most recent task.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "pin": {
+          "type": "string",
+          "description": "The caller's 6-digit PIN, digits only. Only include it if the caller has said it."
+        }
+      }
+    }
+  },
+  "server": {
+    "url": "https://<project-ref>.supabase.co/functions/v1/get-task-status",
+    "credentialId": "<vapi-bearer-credential-id>",
+    "timeoutSeconds": 15
+  }
+}
