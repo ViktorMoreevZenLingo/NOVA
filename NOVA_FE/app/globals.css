@@ -3085,12 +3085,6 @@ html:has(.history-index), body:has(.history-index) {
 
 /* Top-layer filter panel stays visible outside the list's clipped layout. */
 .history-sort-panel { box-sizing: border-box; }
-.history-sort-panel .history-refinements { gap: 12px; }
-.history-sort-panel .history-select select {
-  width: 100%; max-width: none; min-height: 36px;
-  padding: 0 10px; border: 1px solid #dedee3; border-radius: 7px;
-  background: #fafafb; color: #34343b; font: inherit; font-size: 12px;
-}
 
 .app-loading { position: fixed; inset: 0; display: grid; place-items: center; }
 .app-loading-spinner {
@@ -3101,4 +3095,35 @@ html:has(.history-index), body:has(.history-index) {
 @keyframes app-loading-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   .app-loading-spinner { animation-duration: 1800ms; }
+}
+
+/* Reference filter motion: fields collapse, the range shifts up, and the calendar unfolds. */
+.history-choice-menu { box-sizing: border-box; }
+.history-choice-menu:not(:popover-open) { display: none; }
+.history-filter-content .filter-upper-collapse,
+.history-filter-content .filter-calendar-collapse {
+  display: grid;
+  transition: grid-template-rows 360ms cubic-bezier(.22,.75,.2,1), opacity 200ms ease;
+}
+.filter-upper-collapse { grid-template-rows: 1fr; opacity: 1; }
+.range-focused .filter-upper-collapse { grid-template-rows: 0fr; opacity: 0; }
+.filter-upper-collapse > .range-upper-fields { min-height: 0; }
+.filter-calendar-collapse { grid-template-rows: 0fr; }
+.range-focused .filter-calendar-collapse { grid-template-rows: 1fr; }
+.filter-calendar-clip { overflow: hidden; min-height: 0; }
+.filter-range-calendar {
+  margin: 8px 0 0; padding: 14px 0 0; border: 0;
+  border-top: 1px solid #eeeef0; border-radius: 0; box-shadow: none;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 130ms ease, transform 200ms ease;
+}
+.range-focused .filter-range-calendar { opacity: 1; transform: translateY(0); transition-delay: 200ms; }
+.history-filter-content .calendar-days button { height: clamp(22px, calc((100dvh - 330px) / 6), 32px); }
+.history-filter-content .range-instruction { min-height: 30px; }
+.history-sort-panel { scrollbar-width: none; }
+.history-sort-panel::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .history-filter-content .filter-upper-collapse,
+  .history-filter-content .filter-calendar-collapse,
+  .filter-range-calendar { transition: none; }
 }
