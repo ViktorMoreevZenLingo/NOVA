@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "@/lib/i18n-context";
 import { Icon } from "@/components/ui/Icon";
 import { useVoiceChat } from "@/hooks/useVoiceChat";
+import { LiveTalk } from "./LiveTalk";
 import {
   confirmAction,
   loadChat,
@@ -57,6 +58,7 @@ export function ChatWindow({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
   useEffect(() => {
     let active = true;
     setBusy(true);
@@ -189,6 +191,15 @@ export function ChatWindow({
       <div className="chat-window-header">
         <h2>{l("Говори с Ало", "Talk to Alo")}</h2>
         <div className="chat-header-actions">
+          <button
+            type="button"
+            className="chat-live-enter"
+            title={l("Разговор на живо", "Live talk")}
+            onClick={() => setLive(true)}
+          >
+            <Icon name="audiolines" />
+            <span>{l("На живо", "Live")}</span>
+          </button>
           <button
             type="button"
             className={`chat-tts${voice.ttsEnabled ? " on" : ""}`}
@@ -333,6 +344,21 @@ export function ChatWindow({
           <Icon name="arrow" />
         </button>
       </form>
+
+      {live && (
+        <LiveTalk
+          onClose={() => {
+            setLive(false);
+            // Live mode added turns to the shared conversation — resync the chat.
+            loadChat()
+              .then((d) => {
+                setMessages(d.messages);
+                setPending(d.pending);
+              })
+              .catch(() => {});
+          }}
+        />
+      )}
     </section>
   );
 }

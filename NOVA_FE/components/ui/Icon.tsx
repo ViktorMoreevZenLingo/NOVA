@@ -34,6 +34,7 @@ const PATHS: Record<string, string> = {
   volume:
     '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M16 9a3 3 0 0 1 0 6m3-9a7 7 0 0 1 0 12"/>',
   volumeOff: '<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6m0-6 6 6"/>',
+  audiolines: '<path d="M3 10v4m4.5-8v12m4.5-15v18m4.5-12v6M21 9v6"/>',
 };
 
 export type IconName = keyof typeof PATHS;
