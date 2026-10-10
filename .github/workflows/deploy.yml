@@ -1,0 +1,87 @@
+name: Deploy Supabase
+
+on:
+  push:
+    branches: [main, feat/vapi-manus]
+    paths: ["supabase/**", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Unit tests
+        run: deno task test
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Set function secrets and Vault config
+        env:
+          MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
+          MANUS_GMAIL_CONNECTOR_ID: ${{ vars.MANUS_GMAIL_CONNECTOR_ID || '9444d960-ab7e-450f-9cb9-b9467fb0adda' }}
+          VAPI_TOOL_SECRET: ${{ secrets.VAPI_TOOL_SECRET }}
+          TEST_USER_PIN: ${{ secrets.TEST_USER_PIN }}
+          DEMO_WEBCALL_PHONE: ${{ vars.DEMO_WEBCALL_PHONE }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM: ${{ vars.RESEND_FROM }}
+        run: |
+          set -euo pipefail
+          project_url="https://${PROJECT_REF}.supabase.co"
+          # Rotated on every deploy; written to both the function env and Vault (used by pg_cron).
+          cron_secret="$(openssl rand -hex 32)"
+          echo "::add-mask::$cron_secret"
+
+          env_file="$(mktemp)"
+          trap 'rm -f "$env_file"' EXIT
+          {
+            echo "MANUS_WEBHOOK_URL=${project_url}/functions/v1/manus-webhook"
+            echo "CRON_SECRET=${cron_secret}"
+            for name in MANUS_API_KEY MANUS_GMAIL_CONNECTOR_ID VAPI_TOOL_SECRET TEST_USER_PIN DEMO_WEBCALL_PHONE RESEND_API_KEY RESEND_FROM; do
+              value="${!name:-}"
+              if [ -n "$value" ]; then echo "${name}=${value}"; else echo "::warning::${name} is not set" >&2; fi
+            done
+          } > "$env_file"
+          supabase secrets set --project-ref "$PROJECT_REF" --env-file "$env_file"
+
+          # Vault secrets for the reconcile cron job (Management API, parameterized query).
+          for pair in "project_url|${project_url}" "cron_secret|${cron_secret}"; do
+            jq -n --arg n "${pair%%|*}" --arg v "${pair#*|}" \
+              '{query: "select public.nova_set_vault_secret($1, $2)", parameters: [$n, $v]}' |
+              curl -sSf -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+                -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" -H "Content-Type: application/json" \
+                --data-binary @- > /dev/null
+          done
+
+      - name: Deploy functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF" --use-api
+
+      - name: Smoke check
+        run: |
+          # Unauthenticated calls must be rejected by our own auth (proves the functions boot).
+          base="https://${PROJECT_REF}.supabase.co/functions/v1"
+          for fn in create-task get-task-status reconcile; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/$fn")
+            echo "$fn -> $code"
+          done

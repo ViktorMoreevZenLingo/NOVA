@@ -1,12 +1,34 @@
 -- Every 5 minutes, call the `reconcile` Edge Function. It recovers missed webhooks,
 -- retries failed Manus submissions and retries failed notifications.
 --
--- Requires two Vault secrets (set once per project, never committed):
---   select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
---   select vault.create_secret('<CRON_SECRET>', 'cron_secret');
+-- Requires two Vault secrets, never committed. The deploy workflow sets them via
+-- public.nova_set_vault_secret(); by hand:
+--   select public.nova_set_vault_secret('project_url', 'https://<project-ref>.supabase.co');
+--   select public.nova_set_vault_secret('cron_secret', '<CRON_SECRET>');
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
+
+-- Create-or-update a Vault secret by name (idempotent, used by CI).
+create or replace function public.nova_set_vault_secret(p_name text, p_value text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  select id into v_id from vault.secrets where name = p_name;
+  if v_id is null then
+    perform vault.create_secret(p_value, p_name);
+  else
+    perform vault.update_secret(v_id, p_value);
+  end if;
+end;
+$$;
+
+revoke execute on function public.nova_set_vault_secret(text, text) from public, anon, authenticated;
 
 select cron.schedule(
   'nova-reconcile',
