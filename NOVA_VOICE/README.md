@@ -146,7 +146,7 @@ Without the Vapi values, call buttons answer "Phone calls are not configured yet
 
 ### Landing page
 
-Built with Lovable from [`demo/lovable/PROMPT.md`](../demo/lovable/PROMPT.md): https://pixel-perfect-match-5365.lovable.app. Code: [novateamcrossroads/pixel-perfect-match-5365](https://github.com/novateamcrossroads/pixel-perfect-match-5365) (public; Lovable syncs it both ways, so edit it in Lovable or in that repo, not here). It is static and has no Supabase connection. The video and images are not in the repo: Lovable keeps them in its own asset storage and the code references them by URL (`src/assets/*.asset.json`); the originals are in `demo/output/lovable-assets/` (regenerate from the demo recordings). Its "Open the app" button points at the Firebase hosting of `NOVA_FE`, which needs a redeploy to show the coach screens.
+Built with Lovable from [`demo/lovable/PROMPT.md`](../demo/lovable/PROMPT.md). Live: https://pixel-perfect-match-5365.lovable.app. Source: [`NOVA_LANDING/`](../NOVA_LANDING), a squashed `git subtree` of [novateamcrossroads/pixel-perfect-match-5365](https://github.com/novateamcrossroads/pixel-perfect-match-5365) (public; Lovable syncs that repo both ways, so edit in Lovable and pull the update here). It is static and has no Supabase connection. Its "Open the app" button points at the Firebase hosting of `NOVA_FE`, which needs a redeploy to show the coach screens.
 
 ### Demo videos
 
