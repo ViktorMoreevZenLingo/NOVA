@@ -4,6 +4,7 @@
 //
 //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 //   DEMO_EMPLOYEE_PHONE=+3598... DEMO_MANAGER_PHONE=+3598... DEMO_LEADER_PHONE=+3598... [DEMO_HR_PHONE=+3598...] \
+//   [DEMO_EXTRA_EMPLOYEE_PHONES=+3598...,+3598...] [DEMO_MANAGER_DISPLAY=...] [DEMO_LEADER_DISPLAY=...] [DEMO_HR_DISPLAY=...] \
 //   [DEMO_MANAGER_NAME=Alex] [DEMO_MANAGER_EMAIL=manager@example.com] [DEMO_COACH_HISTORY=1] \
 //   deno run --allow-env --allow-net scripts/seed-coach-demo.ts
 //
@@ -128,7 +129,13 @@ const employee = await userByPhone(env("DEMO_EMPLOYEE_PHONE"));
 const manager = await userByPhone(env("DEMO_MANAGER_PHONE"));
 const leader = await userByPhone(env("DEMO_LEADER_PHONE"));
 const hr = env("DEMO_HR_PHONE", false) ? await userByPhone(env("DEMO_HR_PHONE")) : null;
-if (new Set([employee, manager, leader, hr].filter(Boolean)).size !== [employee, manager, leader, hr].filter(Boolean).length) {
+// Other real people who join Sales as employees (they can answer the live pulse and use the coach).
+const extraEmployees = await Promise.all(
+  env("DEMO_EXTRA_EMPLOYEE_PHONES", false).split(",").map((p) => p.trim()).filter(Boolean).map(userByPhone),
+);
+const realEmployees = [employee, ...extraEmployees];
+const everyone = [...realEmployees, manager, leader, hr].filter(Boolean);
+if (new Set(everyone).size !== everyone.length) {
   throw new Error("Each demo role needs a different NOVA account.");
 }
 
@@ -137,7 +144,7 @@ check(await db.from("orgs").delete().eq("id", ORG), "delete org");
 check(await db.from("orgs").insert({ id: ORG, name: "Northwind (demo)" }), "org");
 check(await db.from("departments").insert(Object.values(DEPTS).map((d) => ({ id: d.id, org_id: ORG, name: d.name }))), "departments");
 
-const total = Object.values(DEPTS).reduce((s, d) => s + d.size, 0) - 1; // the real employee is one of Sales
+const total = Object.values(DEPTS).reduce((s, d) => s + d.size, 0) - realEmployees.length; // real employees are part of Sales
 const synthetic = await syntheticUsers(total);
 const members: {
   user_id: string;
@@ -146,12 +153,26 @@ const members: {
   role: string;
   display_name: string | null;
 }[] = [
-  { user_id: employee, department_id: DEPTS.sales.id, manager_user_id: manager, role: "employee", display_name: null },
-  { user_id: manager, department_id: DEPTS.sales.id, manager_user_id: null, role: "manager", display_name: null },
-  { user_id: leader, department_id: null, manager_user_id: null, role: "leader", display_name: null },
-  ...(hr ? [{ user_id: hr, department_id: null, manager_user_id: null, role: "hr", display_name: null }] : []),
+  ...realEmployees.map((id) => ({
+    user_id: id,
+    department_id: DEPTS.sales.id,
+    manager_user_id: manager,
+    role: "employee",
+    display_name: null,
+  })),
+  {
+    user_id: manager,
+    department_id: DEPTS.sales.id,
+    manager_user_id: null,
+    role: "manager",
+    display_name: env("DEMO_MANAGER_DISPLAY", false) || null,
+  },
+  { user_id: leader, department_id: null, manager_user_id: null, role: "leader", display_name: env("DEMO_LEADER_DISPLAY", false) || null },
+  ...(hr
+    ? [{ user_id: hr, department_id: null, manager_user_id: null, role: "hr", display_name: env("DEMO_HR_DISPLAY", false) || null }]
+    : []),
 ];
-const byDept: Record<Dept, string[]> = { sales: [employee], eng: [], cs: [], marketing: [] };
+const byDept: Record<Dept, string[]> = { sales: [...realEmployees], eng: [], cs: [], marketing: [] };
 let next = 0;
 for (const [key, d] of Object.entries(DEPTS) as [Dept, typeof DEPTS[Dept]][]) {
   while (byDept[key].length < d.size) {
@@ -239,16 +260,13 @@ const [live] = check(
   }).select("id"),
   "live campaign",
 ) as { id: string }[];
-// Invites only for the real employee (synthetic users have no phone), and next_attempt_at
+// Invites only for the real employees (synthetic users have no phone), and next_attempt_at
 // far ahead so the worker does not call before the demo; they answer via "Answer now".
 check(
-  await db.from("survey_invites").insert({
-    campaign_id: live.id,
-    user_id: employee,
-    status: "pending",
-    next_attempt_at: daysAgo(-30).toISOString(),
-  }),
-  "live invite",
+  await db.from("survey_invites").insert(
+    realEmployees.map((id) => ({ campaign_id: live.id, user_id: id, status: "pending", next_attempt_at: daysAgo(-30).toISOString() })),
+  ),
+  "live invites",
 );
 
 check(

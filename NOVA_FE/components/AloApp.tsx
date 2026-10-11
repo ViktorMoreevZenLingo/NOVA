@@ -75,13 +75,11 @@ export function AloApp() {
   }, []);
 
   // NOVA Coach org role (employee / manager / leader / hr); null when not in an org.
-  useEffect(() => {
-    if (!phone) {
-      setMembership(null);
-      return;
-    }
+  // Loaded only after the account (and its session) has loaded: `phone` also changes
+  // while the number is typed on the login screen, before there is any session.
+  const syncMembership = useCallback(() => {
     loadMembership().then(setMembership).catch(() => setMembership(null));
-  }, [phone]);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -105,6 +103,7 @@ export function AloApp() {
     setProfile(blankProfile());
     setConnected(new Set());
     setRecords([]);
+    setMembership(null);
     setSelected(null);
     setView("login");
   }, []);
@@ -121,12 +120,13 @@ export function AloApp() {
     setProfile(account.profile);
     setConnected(account.connected);
     setRecords(account.records);
+    syncMembership();
     setView((current) =>
       ["login", "otp"].includes(current)
         ? "dashboard"
         : current,
     );
-  }, [clearAccount]);
+  }, [clearAccount, syncMembership]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -146,6 +146,7 @@ export function AloApp() {
           setProfile(account.profile);
           setConnected(account.connected);
           setRecords(account.records);
+          syncMembership();
           const service = params.get("connected") as ServiceId | null;
           if (service && account.connected.has(service))
             setToast("Service connected.");
@@ -173,7 +174,7 @@ export function AloApp() {
       active = false;
       unsubscribe();
     };
-  }, [clearAccount]);
+  }, [clearAccount, syncMembership]);
 
   useEffect(() => {
     const refresh = () => {
