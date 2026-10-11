@@ -2,6 +2,8 @@
 
 NOVA AI is a personal AI assistant. You use it in the web app, or you call it on the phone and it keeps working after you hang up.
 
+**Live (11 Oct 2026):** app https://nova-ai-4bbdd.web.app · landing page https://pixel-perfect-match-5365.lovable.app · 2-minute pitch video [`demo/output/pitch-2026-10-10T23-19/nova-coach-pitch.mp4`](demo/output/pitch-2026-10-10T23-19/nova-coach-pitch.mp4)
+
 **NOVA Coach** builds on the same stack: a personal AI coach that calls employees, remembers their goals and follows up, plus anonymous voice pulse check-ins whose aggregates (≥5 people) help managers, leadership and HR act, and measure whether it worked. How it works, local setup, real calls, deploy and demo videos: [NOVA_VOICE/README.md → NOVA Coach](NOVA_VOICE/README.md#nova-coach--employee-voice). Plan and principles: [coach-mvp-plan.md](NOVA_VOICE/docs/coach-mvp-plan.md).
 
 ```
@@ -12,7 +14,7 @@ pg_cron ──────▶ coach-worker ┘   (Edge Functions)       └─ i
 
 | Folder | What | Docs |
 |---|---|---|
-| [`NOVA_FE/`](NOVA_FE) | NOVA AI web app (Next.js): phone sign-in, profile, integrations, chat, History | [NOVA_FE/README.md](NOVA_FE/README.md) |
+| [`NOVA_FE/`](NOVA_FE) | NOVA AI web app (Next.js, static export on Firebase Hosting): phone sign-in, profile, integrations, chat, History, and the NOVA Coach screens (My growth, My voice, My team, Insights; shown by role) | [NOVA_FE/README.md](NOVA_FE/README.md) |
 | [`NOVA_VOICE/`](NOVA_VOICE) | Phone assistant (Vapi → Manus) and NOVA Coach: tests, scripts (Vapi setup, demo seed), Vapi configs, docs | [NOVA_VOICE/README.md](NOVA_VOICE/README.md) |
 | [`supabase/`](supabase) | Shared backend: one Postgres schema + migration history, and all Edge Functions (NOVA AI's `integrations`/`agent`/`account-delete`, the phone assistant's `create-task`/`get-task-status`/`manus-webhook`/`reconcile`, and NOVA Coach's `coach`/`coach-tools`/`coach-worker`) | [supabase/README.md](supabase/README.md), [DB contract](NOVA_VOICE/docs/db-contract.md) |
 | [`NOVA_LANDING/`](NOVA_LANDING) | Public NOVA Coach landing page, built with Lovable (TanStack Start + Tailwind, static, no database access). Live: https://pixel-perfect-match-5365.lovable.app. Squashed subtree of [novateamcrossroads/pixel-perfect-match-5365](https://github.com/novateamcrossroads/pixel-perfect-match-5365): edit in Lovable, then refresh here (see [demo/lovable/README.md](demo/lovable/README.md#nova_landing-in-this-repo)) | [NOVA_LANDING/README.md](NOVA_LANDING/README.md) |
@@ -21,5 +23,6 @@ pg_cron ──────▶ coach-worker ┘   (Edge Functions)       └─ i
 | [`NOVA_BE/`](NOVA_BE) | Legacy Spring Boot backend (reference only) | [NOVA_BE/README.md](NOVA_BE/README.md) |
 
 **Deploy:** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) pushes the migrations, sets the secrets and deploys all Edge Functions to the shared Supabase project on every push to `main`. The secrets are listed in [NOVA_VOICE/README.md](NOVA_VOICE/README.md#2-deploy-github-actions).
+The web app is deployed separately, by hand, to Firebase Hosting (project `nova-ai-4bbdd`): `cd NOVA_FE && npm run build && npx firebase-tools deploy --only hosting --project nova-ai-4bbdd` (build with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` of the production project). The landing page is published from Lovable.
 
 Delegated and scheduled cloud work: [ManusIntegration contract and deployment](docs/ManusIntegration.md).

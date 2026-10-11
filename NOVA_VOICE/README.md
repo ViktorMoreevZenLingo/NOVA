@@ -35,6 +35,20 @@ Plan, principles and design decisions: [docs/coach-mvp-plan.md](docs/coach-mvp-p
 
 Roles come from `org_members.role` (`employee | manager | leader | hr`); the navigation shows only what the role may see.
 
+### Try it in production
+
+Open https://nova-ai-4bbdd.web.app and log in with a phone number (the app signs in by number). The production demo company "Northwind (demo)" has:
+
+| Role | Who | Screens |
+|---|---|---|
+| Employees (Sales) | Oleg, Nick and Viktor (their own NOVA accounts) | My growth, My voice; Oleg's account has a goal and an open step for the follow-up story |
+| Demo Manager (Sales) | the team's "Test Account" | My team |
+| Demo Leader, Demo HR | two team test accounts | Insights |
+
+About 30 synthetic employees with 8 weeks of anonymous pulse answers make the trends visible (Marketing has 4 people, so it is hidden on purpose); one action ("Project rotation and growth 1:1s in Sales") is published. **Call me now**, **Demo: a week passed** and **Call me** place real calls to the signed-in employee's number from the Vapi/Zadarma number. Automatic calls (cron) are off. Calling the NOVA number reaches the main NOVA AI assistant, not the coach.
+
+**Cost of a call** (measured in Vapi): about $0.07–0.08 per minute for the platform, speech-to-text, LLM and text-to-speech; e.g. $0.14 for a 96-second coach call, $0.16 for a 2-minute pulse. Telephony goes through our own Zadarma SIP trunk (Vapi charges $0 for transport) and is billed by Zadarma. The caller ID people see (it showed as a US number) is set by the Zadarma route: set +35924950859 as the outbound CallerID in Zadarma to show the Bulgarian number.
+
 ### Architecture
 
 ```
@@ -108,6 +122,8 @@ The seed creates "Northwind (demo)": Sales, Engineering, Customer Success and Ma
 
 ### Real phone calls from a local stack
 
+> **The NOVA Coach and NOVA Pulse assistants now point at production.** `setup-coach-vapi.ts` finds the assistants by name, so running it with a tunnel URL would repoint the production assistants to your laptop. For local calls, temporarily rename the assistants in `vapi/coach-assistant.json` / `vapi/pulse-assistant.json` (e.g. "NOVA Coach (local)") before running the script, and use those ids only in your local env. A local stack that still carries the production assistant ids would make calls whose tools read and write the **production** database.
+
 Vapi must reach `coach-tools` over the internet. Expose **only** that endpoint:
 
 ```bash
@@ -133,6 +149,9 @@ Suggested lines for a live demo: the coach opens with *"Last time you planned to
 2. Add the GitHub secret `VAPI_API_KEY`, run **Actions → Setup Vapi**, and store the printed ids as the variables `VAPI_COACH_ASSISTANT_ID` / `VAPI_PULSE_ASSISTANT_ID` (plus `VAPI_PHONE_NUMBER_ID`), then redeploy.
 3. Seed a demo org against the hosted project with the seed command above (hosted `SUPABASE_URL` and service key). More real employees: `DEMO_EXTRA_EMPLOYEE_PHONES=+3598...,+3598...`; names shown for the mock roles: `DEMO_MANAGER_DISPLAY` / `DEMO_LEADER_DISPLAY` / `DEMO_HR_DISPLAY`.
 4. Only when automatic calls are wanted, run `supabase/scripts/enable_coach_worker.sql` in the SQL editor (stop: `select cron.unschedule('nova-coach-worker')`).
+5. Deploy the web app to Firebase Hosting (not part of CI): `cd NOVA_FE && NEXT_PUBLIC_SUPABASE_URL=https://vlimtocbrxxnzobhkcoy.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key> npm run build && npx firebase-tools deploy --only hosting --project nova-ai-4bbdd`.
+
+Status of these steps in production: done on 11 Oct (secrets in Supabase and GitHub, assistants pointing at production `coach-tools`, demo org seeded, cron off). `coach-tools` accepts `VAPI_TOOL_SECRET` and also `VAPI_DELEGATION_SECRET`, the credential the existing production tools use.
 
 | Secret / variable | Kind | Used for |
 |---|---|---|
@@ -174,12 +193,15 @@ cd ../NOVA_FE && npm run typecheck && npm run build
 | `supabase migration up` complains about order | The local DB is behind; use `--include-all` (or `supabase db reset`, which wipes local data) |
 | Vapi tool calls fail after restarting the tunnel | The trycloudflare URL changed; re-run `setup-coach-vapi.ts` with the new `COACH_TOOLS_URL` |
 | Sentiment looks too harsh | No `OPENAI_API_KEY`: the keyword fallback is coarse on mixed answers |
+| A manager/leader/HR sees only employee screens until they reload | Fixed in `ecbd333` (the role loaded before the session on a typed login); needs the Firebase deploy to reach the hosted app |
+| Production "Call me" says "not configured" | One of `VAPI_API_KEY`, `VAPI_PHONE_NUMBER_ID`, `VAPI_COACH_ASSISTANT_ID`, `VAPI_PULSE_ASSISTANT_ID` is missing in the Supabase secrets |
+| The call shows a foreign caller ID | Zadarma route setting; set the outbound CallerID for the SIP login in Zadarma |
 
-### Verification status (10 October 2026)
+### Verification status (10–11 October 2026)
 
 | Check | Result |
 |---|---|
-| Unit tests | ✅ 75 passing (16 for the coach) |
+| Unit tests | ✅ 76 passing (17 for the coach) |
 | Postgres rules in PGlite | ✅ 8 passing (`deno task test:db`) |
 | Real Postgres via local Supabase (PostgREST, RLS, RPCs, store + tools) | ✅ `tests/integration/coach_flow.test.ts` |
 | Functions served locally, API over HTTP, seed | ✅ |
@@ -190,6 +212,8 @@ cd ../NOVA_FE && npm run typecheck && npm run build
 | Manager email from the employee's Gmail | ❌ mocks only; in-app delivery works |
 | Deployed to the shared project | ✅ merged to `main` (11 Oct): migration, `coach` / `coach-tools` / `coach-worker`, smoke check 401 |
 | Production configured (11 Oct) | ✅ Vapi key, phone number and the NOVA Coach / NOVA Pulse assistant ids set in Supabase and GitHub; both assistants' tools point at production `coach-tools` (which also accepts `VAPI_DELEGATION_SECRET`, like `voice-tools`). Demo org seeded: Oleg, Nick and Viktor as Sales employees; existing test accounts as Demo Manager / Demo Leader / Demo HR; ~30 synthetic employees with 8 weeks of anonymous answers. Cron worker **off** (calls only from the buttons). The hosted app (`nova-ai-4bbdd.web.app`) already serves the coach screens |
+| Production end to end (11 Oct) | ✅ `coach-tools` accepts the production credential and returns the seeded goal/step for Oleg's number; inbound call to the NOVA number recognised its caller and answered from his calendar |
+| Hosted app, typed login as Demo Manager | ❌ found: role loaded before the session (401), so only employee screens showed. Fixed in `ecbd333` and verified locally with a typed login; **Firebase deploy pending** (CLI login expired) |
 | `NOVA_VOICE/tests/sql/rls.sql` | ❌ pre-existing failure unrelated to the coach: it inserts two users with the same contact phone, which `20261010175000_unique_phone_accounts.sql` now forbids |
 
 ## Delegated runtime verification — 10 October 2026
