@@ -2,7 +2,7 @@
 
 NOVA AI is a personal AI assistant. You use it in the web app, or you call it on the phone and it keeps working after you hang up.
 
-**NOVA Coach** (branch `feat/coach-plan`) builds on the same stack: a personal AI coach that calls employees, remembers their goals and follows up, plus anonymous voice pulse check-ins whose aggregates (≥5 people) help managers, leadership and HR act, and measure whether it worked. How it works, local setup, real calls, deploy and demo videos: [NOVA_VOICE/README.md → NOVA Coach](NOVA_VOICE/README.md#nova-coach--employee-voice). Plan and principles: [coach-mvp-plan.md](NOVA_VOICE/docs/coach-mvp-plan.md).
+**NOVA Coach** builds on the same stack: a personal AI coach that calls employees, remembers their goals and follows up, plus anonymous voice pulse check-ins whose aggregates (≥5 people) help managers, leadership and HR act, and measure whether it worked. How it works, local setup, real calls, deploy and demo videos: [NOVA_VOICE/README.md → NOVA Coach](NOVA_VOICE/README.md#nova-coach--employee-voice). Plan and principles: [coach-mvp-plan.md](NOVA_VOICE/docs/coach-mvp-plan.md).
 
 ```
 phone (Vapi) ─▶ coach-tools ─┐                         ┌─ private coach memory (owner only)

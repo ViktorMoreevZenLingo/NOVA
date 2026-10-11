@@ -22,7 +22,7 @@ Full contract, permissions, recovery rules and deployment steps: [ManusIntegrati
 
 **What it is.** A personal AI coach that talks to employees by phone (or in the browser) about growth, difficulties and experiences at work, remembers their goals and steps, and calls back to ask how it went. On the same infrastructure, anonymous **pulse check-ins** collect honest feedback by voice, and **managers, leadership and HR** see aggregated, anonymous trends with suggested actions, whose effect is measured in the next check-ins ("You said, we did").
 
-Plan, principles and design decisions: [docs/coach-mvp-plan.md](docs/coach-mvp-plan.md). Schema contract: [docs/db-contract.md](docs/db-contract.md#nova-coach--employee-voice). Status: built on branch `feat/coach-plan`, verified locally and with real phone calls, **not yet deployed** to the shared project.
+Plan, principles and design decisions: [docs/coach-mvp-plan.md](docs/coach-mvp-plan.md). Schema contract: [docs/db-contract.md](docs/db-contract.md#nova-coach--employee-voice). Status: merged to `main` and deployed to the shared project (11 Oct); verified locally and with real phone calls. Production still needs the Vapi key/assistant ids, the demo seed and (optionally) the cron worker.
 
 ### Who uses it
 
@@ -184,7 +184,7 @@ cd ../NOVA_FE && npm run typecheck && npm run build
 | **Pulse check-in call** | ✅ live: questions + "why", `survey_submit`, anonymous row (scores + themes, no text/user), invite → answered |
 | Live OpenAI classification / suggestion wording, browser voice session | ⚠️ not run live (no `OPENAI_API_KEY` locally); keyword fallback (improved from the live call) and playbook verified |
 | Manager email from the employee's Gmail | ❌ mocks only; in-app delivery works |
-| Deployed to the shared project | ❌ not yet (branch `feat/coach-plan`) |
+| Deployed to the shared project | ✅ merged to `main` on 11 Oct (`5dd6cd0`): migration applied, `coach` / `coach-tools` / `coach-worker` deployed, smoke check 401 (auth works). Not yet configured there: Vapi key and assistant ids (calls answer "not configured"), the cron worker, demo seed |
 | `NOVA_VOICE/tests/sql/rls.sql` | ❌ pre-existing failure unrelated to the coach: it inserts two users with the same contact phone, which `20261010175000_unique_phone_accounts.sql` now forbids |
 
 ## Delegated runtime verification — 10 October 2026
