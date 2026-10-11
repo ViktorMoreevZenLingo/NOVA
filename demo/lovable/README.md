@@ -1,5 +1,7 @@
 # NOVA Coach landing page (built with Lovable)
 
+**Live:** https://pixel-perfect-match-5365.lovable.app · **Repo:** https://github.com/novateamcrossroads/pixel-perfect-match-5365 (public, synced by Lovable)
+
 A public one-page site for the jury and the demo: hook, the 2-minute video, how it works, roles, privacy, a real call excerpt, team. It is **static**: no Supabase connection, no auth, no data collection, so it can't touch the shared project (Lovable's earlier migrations collided with ours, see commits `9892185` and `c52fe01`).
 
 ## Steps (about 15 minutes)

@@ -144,6 +144,10 @@ Suggested lines for a live demo: the coach opens with *"Last time you planned to
 
 Without the Vapi values, call buttons answer "Phone calls are not configured yet" and everything else works; without OpenAI, a keyword classifier and a rules playbook are used.
 
+### Landing page
+
+Built with Lovable from [`demo/lovable/PROMPT.md`](../demo/lovable/PROMPT.md): https://pixel-perfect-match-5365.lovable.app. Code: [novateamcrossroads/pixel-perfect-match-5365](https://github.com/novateamcrossroads/pixel-perfect-match-5365) (public; Lovable syncs it both ways, so edit it in Lovable or in that repo, not here). It is static and has no Supabase connection. The video and images are not in the repo: Lovable keeps them in its own asset storage and the code references them by URL (`src/assets/*.asset.json`); the originals are in `demo/output/lovable-assets/` (regenerate from the demo recordings). Its "Open the app" button points at the Firebase hosting of `NOVA_FE`, which needs a redeploy to show the coach screens.
+
 ### Demo videos
 
 - **FE walkthrough** (2:15, against the local seeded stack, external requests blocked): `node demo/record-coach.mjs` with the env described in its header. Output in `demo/output/coach-*/`.
