@@ -2,13 +2,15 @@
 // authenticated caller number (inbound) or the number we dialled (outbound); arguments
 // never choose the account.
 import { AUTH_ERROR_MESSAGES, authenticateCaller } from "../_shared/caller.ts";
+import { hasVapiSecret } from "../_shared/crypto.ts";
 import type { TaskStore } from "../_shared/db.ts";
 import type { CoachTool } from "../_shared/coach/service.ts";
 import { type ToolHandler, vapiToolEndpoint } from "../_shared/vapi.ts";
 
 export type CoachToolsDeps = { taskStore: TaskStore; tools: Record<string, CoachTool> };
 
-export function coachToolsHandler(deps: CoachToolsDeps, config: { vapiSecret: string }) {
+/** additionalVapiSecret: also accept the delegation credential the existing Vapi tools use (same as voice-tools). */
+export function coachToolsHandler(deps: CoachToolsDeps, config: { vapiSecret: string; additionalVapiSecret?: string }) {
   const handlers: Record<string, ToolHandler> = {};
   for (const [name, tool] of Object.entries(deps.tools)) {
     handlers[name] = async (call, req) => {
@@ -18,5 +20,8 @@ export function coachToolsHandler(deps: CoachToolsDeps, config: { vapiSecret: st
       return { toolCallId: call.id, result };
     };
   }
-  return vapiToolEndpoint(config.vapiSecret, handlers);
+  const primary = vapiToolEndpoint(config.vapiSecret, handlers);
+  if (!config.additionalVapiSecret) return primary;
+  const additional = vapiToolEndpoint(config.additionalVapiSecret, handlers);
+  return async (req: Request) => (await hasVapiSecret(req, config.additionalVapiSecret!)) ? additional(req) : primary(req);
 }

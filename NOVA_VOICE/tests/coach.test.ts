@@ -51,6 +51,19 @@ Deno.test("coach-tools: rejects a wrong secret, unknown callers and browser call
   assertEquals(store.goals[0].user_id, USER_ID);
 });
 
+Deno.test("coach-tools: also accepts the delegation secret when configured, nothing else", async () => {
+  const store = new FakeCoachStore();
+  const tools = coachTools({ store, classify: neutral, deliverShare: () => Promise.resolve("in_app") });
+  const handler = coachToolsHandler({ taskStore: new FakeStore(), tools }, {
+    vapiSecret: VAPI_SECRET,
+    additionalVapiSecret: "delegation-secret",
+  });
+  const req = (secret: string) => vapiRequest([{ id: "x", name: "coach_recall", args: {} }], { secret });
+  assertEquals((await handler(req(VAPI_SECRET))).status, 200);
+  assertEquals((await handler(req("delegation-secret"))).status, 200);
+  assertEquals((await handler(req("wrong"))).status, 401);
+});
+
 Deno.test("coach-tools: first conversation → goal, note, one step with a follow-up", async () => {
   const { handler, store } = setup();
   assertMatch((await call(handler, "coach_recall")).result!, /first conversation/);
