@@ -15,6 +15,7 @@ supabase/functions/.env.local
 # Tooling
 .omc/
 .DS_Store
+demo/pitch/.vo-cache/
 
 # Locally installed AI agent skills
 /.agents/skills/

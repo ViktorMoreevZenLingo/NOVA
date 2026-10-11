@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="250" height="64" viewBox="0 0 250 64" fill="none">
+  <!-- NOVA.Coach wordmark + waveform mark. White ink (for dark backgrounds); accent dot #8aa6ff. -->
+  <g transform="translate(16,15)" fill="#ffffff">
+    <rect x="0"  y="11" width="4" height="12" rx="2"/>
+    <rect x="7"  y="5"  width="4" height="24" rx="2"/>
+    <rect x="14" y="0"  width="4" height="34" rx="2"/>
+    <rect x="21" y="7"  width="4" height="20" rx="2"/>
+    <rect x="28" y="12" width="4" height="10" rx="2"/>
+  </g>
+  <text x="58" y="44" font-family="'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        font-size="34" font-weight="650" letter-spacing="-2" fill="#ffffff">NOVA<tspan fill="#8aa6ff">.</tspan>Coach</text>
+</svg>

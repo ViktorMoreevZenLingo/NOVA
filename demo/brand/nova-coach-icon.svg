@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- NOVA.Coach app icon: the brand waveform on a rounded dark tile. -->
+  <rect width="64" height="64" rx="18" fill="#181818"/>
+  <g transform="translate(11,10) scale(1.3)" fill="#ffffff">
+    <rect x="0"  y="11" width="4" height="12" rx="2"/>
+    <rect x="7"  y="5"  width="4" height="24" rx="2"/>
+    <rect x="14" y="0"  width="4" height="34" rx="2"/>
+    <rect x="21" y="7"  width="4" height="20" rx="2"/>
+    <rect x="28" y="12" width="4" height="10" rx="2"/>
+  </g>
+</svg>

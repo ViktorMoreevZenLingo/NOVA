@@ -2,8 +2,13 @@
 # Builds the 2-minute NOVA Coach pitch video from the real recordings.
 #   COACH_WAV=... PULSE_WAV=... COACH_CALL_JSON=... PULSE_CALL_JSON=... PHONE_MP4=... FE_MP4=demo/output/coach-*/nova-coach-demo.mp4 \
 #   FFMPEG=ffmpeg PLAYWRIGHT_MODULE=... CHROME_CHANNEL=chrome demo/pitch/render.sh
+# ElevenLabs narrates the text-only parts (hook, description captions, outro); the call recordings are
+# never re-narrated. Set ELEVENLABS_API_KEY (and optionally ELEVENLABS_VOICE_ID / ELEVENLABS_MODEL).
+# Clips are cached in demo/pitch/.vo-cache so reruns don't re-hit the API.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
+# Load ElevenLabs (and any other) secrets from demo/pitch/.env if present. Already-set env wins.
+[ -f "$here/.env" ] && { set -a; . "$here/.env"; set +a; }
 out="$(cd "$here/.." && pwd)/output/pitch-$(date -u +%Y-%m-%dT%H-%M-%S)"
 work="$out/work"; mkdir -p "$work/media"
 FF="${FFMPEG:-ffmpeg}"
@@ -23,7 +28,7 @@ f6 112.8 117.9
 f7 125.8 131.9
 CLIPS
 cat > "$work/inputs.json" <<JSON
-{"ffmpeg": "$FF", "coach_wav": "$COACH_WAV", "pulse_wav": "$PULSE_WAV", "coach_json": "$COACH_CALL_JSON", "pulse_json": "$PULSE_CALL_JSON", "phone_offset": ${PHONE_OFFSET:-8}}
+{"ffmpeg": "$FF", "ffprobe": "${FFPROBE:-ffprobe}", "coach_wav": "$COACH_WAV", "pulse_wav": "$PULSE_WAV", "coach_json": "${COACH_CALL_JSON:-}", "pulse_json": "${PULSE_CALL_JSON:-}", "phone_offset": ${PHONE_OFFSET:-8}}
 JSON
 python3 "$here/build.py" "$work"
 node "$here/render.mjs" "$work"
