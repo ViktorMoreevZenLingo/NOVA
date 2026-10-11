@@ -1,0 +1,19 @@
+{
+  "simulated": false,
+  "backend": "local Supabase (seeded demo org), external requests blocked",
+  "phoneCall": "not recorded; its result (draft for the manager) created via the local coach-tools endpoint",
+  "audio": false,
+  "width": 1920,
+  "height": 1080,
+  "failures": [],
+  "screenshots": [
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/1-my-voice.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/2-draft-for-manager.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/3-team-trend.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/4-request-reply.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/5-manager-reply.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/6-heatmap.png",
+    "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/7-action-effect.png"
+  ],
+  "file": "/Users/olegzaim/Developer/NOVA/demo/output/coach-2026-10-10T19-20-30.166Z/nova-coach-demo.mp4"
+}

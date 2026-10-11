@@ -22,3 +22,7 @@ supabase/functions/.env.local
 
 # NOVA_LANDING is synced from Lovable (bun.lock); local npm installs must not add a second lockfile
 NOVA_LANDING/package-lock.json
+
+# Demo recordings: keep the final MP4s/PNGs, not Playwright raw captures or Finder files
+demo/output/**/*.webm
+.DS_Store
